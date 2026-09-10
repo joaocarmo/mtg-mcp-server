@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gzip
 import json
 import random
 import time
@@ -170,10 +171,12 @@ class ScryfallBulkClient:
             try:
                 # Step 1: Fetch metadata to get the current download URL
                 metadata = await self._fetch_metadata()
-                download_url = metadata.get("download_uri")
+                # Scryfall serves gzipped JSONL via 'jsonl_download_uri'; the
+                # legacy plain-JSON 'download_uri' is kept as a fallback.
+                download_url = metadata.get("jsonl_download_uri") or metadata.get("download_uri")
                 if not download_url or not isinstance(download_url, str):
                     raise ScryfallBulkError(
-                        f"Bulk metadata missing 'download_uri'. Keys: {list(metadata.keys())}"
+                        f"Bulk metadata missing a download URI. Keys: {list(metadata.keys())}"
                     )
 
                 # Step 2: Download the bulk data (with ETag if URL matches)
@@ -533,10 +536,11 @@ class ScryfallBulkClient:
             raise ScryfallBulkDownloadError(f"Network error downloading bulk data: {exc}") from exc
 
     def _parse(self, raw_bytes: bytes) -> None:
-        """Parse Oracle Cards JSON array into the in-memory card dicts.
+        """Parse the Oracle Cards bulk file into the in-memory card dicts.
 
-        The bulk data is a JSON array of Scryfall card objects. Each is
-        validated through ``Card.model_validate()``.
+        The bulk data is gzipped JSONL (one Scryfall card object per line);
+        a plain JSON array is still accepted. Each entry is validated
+        through ``Card.model_validate()``.
 
         For DFCs, ``card.name`` contains the full ``"Front // Back"`` name.
         We key lookups by both the full name and the front face name
@@ -545,13 +549,21 @@ class ScryfallBulkClient:
         Raises:
             ScryfallBulkError: If JSON is malformed.
         """
+        if raw_bytes[:2] == b"\x1f\x8b":
+            try:
+                raw_bytes = gzip.decompress(raw_bytes)
+            except (OSError, EOFError) as exc:
+                raise ScryfallBulkError(f"Failed to decompress bulk data: {exc}") from exc
+
         try:
-            raw = json.loads(raw_bytes)
+            if raw_bytes.lstrip()[:1] == b"[":
+                raw = json.loads(raw_bytes)
+                if not isinstance(raw, list):
+                    raise ScryfallBulkError("Bulk data is not a JSON array")
+            else:
+                raw = [json.loads(line) for line in raw_bytes.splitlines() if line.strip()]
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ScryfallBulkError(f"Failed to parse bulk data: {exc}") from exc
-
-        if not isinstance(raw, list):
-            raise ScryfallBulkError("Bulk data is not a JSON array")
 
         cards: dict[str, Card] = {}
         unique: list[Card] = []
