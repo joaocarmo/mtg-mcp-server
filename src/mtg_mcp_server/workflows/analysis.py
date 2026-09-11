@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 from mtg_mcp_server.services.base import ServiceError
+from mtg_mcp_server.utils.decklist import parse_decklist
 from mtg_mcp_server.utils.mana import count_pips
 from mtg_mcp_server.workflows import WorkflowResult
 from mtg_mcp_server.workflows.deck import build_synergy_lookup
@@ -150,31 +151,40 @@ async def deck_analysis(
     Returns:
         WorkflowResult with markdown and structured data.
     """
-    log.info("deck_analysis.start", commander=commander_name, deck_size=len(decklist))
-
     sources = _DataSources(
         edhrec_available=edhrec is not None,
         bulk_data_available=bulk is not None,
     )
 
-    if not decklist:
+    # Entries may carry quantities ("2 Forest", "4x Llanowar Elves"), so parse
+    # them rather than treating the whole entry as a card name.
+    parsed = parse_decklist(decklist)
+    if not parsed:
         return WorkflowResult(
             markdown=f"# Deck Analysis \u2014 {commander_name}\n\nNo cards in decklist to analyze.",
             data={"commander_name": commander_name, "deck_size": 0},
         )
 
+    # card_names counts copies (curve, pips, budget); unique_names is one entry
+    # per distinct card (synergy lookup).
+    card_names = [name for qty, name in parsed for _ in range(qty)]
+    unique_names = list(dict.fromkeys(name for _, name in parsed))
+    deck_size = len(card_names)
+
+    log.info("deck_analysis.start", commander=commander_name, deck_size=deck_size)
+
     # Step 1/3: Resolve cards
     if on_progress is not None:
         await on_progress(1, 3)
 
-    resolved_cards, failures = await _resolve_cards(decklist, bulk=bulk, scryfall=scryfall)
+    resolved_cards, failures = await _resolve_cards(parsed, bulk=bulk, scryfall=scryfall)
 
     # Step 2/3: Combo/bracket analysis
     if on_progress is not None:
         await on_progress(2, 3)
 
     bracket, deck_combos = await _fetch_spellbook_data(
-        commander_name, decklist, spellbook=spellbook, sources=sources
+        commander_name, card_names, spellbook=spellbook, sources=sources
     )
 
     # Step 3/3: Synergy analysis
@@ -189,7 +199,7 @@ async def deck_analysis(
     color_pips = _compute_color_pips(resolved_cards)
 
     # Find lowest-synergy cards
-    low_synergy = _find_low_synergy(decklist, synergy_lookup)
+    low_synergy = _find_low_synergy(unique_names, synergy_lookup)
 
     # Compute budget from resolved cards (prices already populated)
     total_price, avg_price, priced_count = _compute_budget(resolved_cards)
@@ -197,7 +207,7 @@ async def deck_analysis(
     # Format output
     markdown = _format_output(
         commander_name=commander_name,
-        deck_size=len(decklist),
+        deck_size=deck_size,
         mana_curve=mana_curve,
         color_pips=color_pips,
         bracket=bracket,
@@ -212,7 +222,7 @@ async def deck_analysis(
     )
     data: dict[str, object] = {
         "commander_name": commander_name,
-        "deck_size": len(decklist),
+        "deck_size": deck_size,
         "mana_curve": dict(mana_curve.buckets),
         "total_mana_value": mana_curve.total_mana_value,
         "color_pips": dict(color_pips.pips),
@@ -240,12 +250,16 @@ async def deck_analysis(
 
 
 async def _resolve_cards(
-    decklist: list[str],
+    parsed: list[tuple[int, str]],
     *,
     bulk: ScryfallBulkClient | None,
     scryfall: ScryfallClient,
 ) -> tuple[list[_ResolvedCard], list[str]]:
-    """Resolve all cards in the decklist using bulk-data-first fallback."""
+    """Resolve all cards in the decklist using bulk-data-first fallback.
+
+    Each distinct name is resolved once and then repeated to match its
+    quantity, so the curve, pips and budget count every copy.
+    """
     from mtg_mcp_server.workflows.card_resolver import resolve_card
 
     # Cap concurrent Scryfall lookups to avoid overwhelming the connection pool.
@@ -256,13 +270,14 @@ async def _resolve_cards(
         async with sem:
             return await resolve_card(name, bulk=bulk, scryfall=scryfall)
 
-    tasks = [_bounded_resolve(name) for name in decklist]
+    unique_names = list(dict.fromkeys(name for _, name in parsed))
+    tasks = [_bounded_resolve(name) for name in unique_names]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    resolved: list[_ResolvedCard] = []
+    by_name: dict[str, _ResolvedCard] = {}
     failures: list[str] = []
 
-    for name, result in zip(decklist, results, strict=True):
+    for name, result in zip(unique_names, results, strict=True):
         if isinstance(result, BaseException):
             log.warning(
                 "deck_analysis.resolve_failed",
@@ -272,17 +287,16 @@ async def _resolve_cards(
             )
             failures.append(name)
             # Add with defaults so curve still counts it
-            resolved.append(_ResolvedCard(name=name))
+            by_name[name] = _ResolvedCard(name=name)
         else:
-            resolved.append(
-                _ResolvedCard(
-                    name=result.name,
-                    mana_cost=_get_mana_cost(result),
-                    cmc=_get_cmc(result),
-                    price_usd=_get_price_usd(result),
-                )
+            by_name[name] = _ResolvedCard(
+                name=result.name,
+                mana_cost=_get_mana_cost(result),
+                cmc=_get_cmc(result),
+                price_usd=_get_price_usd(result),
             )
 
+    resolved = [by_name[name] for qty, name in parsed for _ in range(qty)]
     return resolved, failures
 
 

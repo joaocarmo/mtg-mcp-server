@@ -633,3 +633,116 @@ class TestDeckAnalysisResponseFormat:
         # Concise omits Budget and Data Sources
         assert "Budget" not in concise.markdown
         assert "**Data Sources:**" not in concise.markdown
+
+
+class TestDeckAnalysisQuantities:
+    """Decklist entries may carry quantities, as in every other deck workflow.
+
+    ``deck_analysis`` used to pass raw entries straight to card resolution, so
+    "1 Sol Ring" was looked up as a card name and failed, leaving a curve built
+    from zeroed defaults.
+    """
+
+    async def test_quantity_prefix_resolves(self) -> None:
+        """A quantity prefix resolves to the card name, not to an unknown card."""
+        result = await deck_analysis(
+            ["1 Sol Ring", "1 Spore Frog"],
+            COMMANDER,
+            bulk=_make_bulk(),
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["unresolved"] == []
+        assert result.data["total_mana_value"] == 2.0
+
+    async def test_x_suffix_quantity_supported(self) -> None:
+        """The "4x Name" spelling is parsed as a quantity."""
+        result = await deck_analysis(
+            ["2x Sol Ring"],
+            COMMANDER,
+            bulk=_make_bulk(),
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["unresolved"] == []
+        assert result.data["deck_size"] == 2
+
+    async def test_quantities_count_every_copy(self) -> None:
+        """Curve, deck size and budget count copies, not entries."""
+        result = await deck_analysis(
+            ["3 Sol Ring"],
+            COMMANDER,
+            bulk=_make_bulk(),
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["deck_size"] == 3
+        assert result.data["mana_curve"][1] == 3
+        assert result.data["total_mana_value"] == 3.0
+        assert result.data["total_price"] == 9.00
+
+    async def test_repeated_card_resolved_once(self) -> None:
+        """A card is looked up once however many copies the deck runs.
+
+        Covers both spellings of duplication: a quantity prefix and the same
+        bare name repeated, which is how exported decklists spell basics.
+        """
+        bulk = _make_bulk()
+        await deck_analysis(
+            ["2 Sol Ring", "Sol Ring", "Sol Ring"],
+            COMMANDER,
+            bulk=bulk,
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert bulk.get_card.await_count == 1
+
+    async def test_bare_names_still_supported(self) -> None:
+        """Lists without quantities behave exactly as before."""
+        result = await deck_analysis(
+            ["Sol Ring", "Sol Ring", "Spore Frog"],
+            COMMANDER,
+            bulk=_make_bulk(),
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["deck_size"] == 3
+        assert result.data["unresolved"] == []
+        assert result.data["total_mana_value"] == 3.0
+
+    async def test_unresolved_reported_once_per_name(self) -> None:
+        """An unknown card is reported once, not once per copy."""
+        result = await deck_analysis(
+            ["2 Unknown Card"],
+            COMMANDER,
+            bulk=_make_bulk(),
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["unresolved"] == ["Unknown Card"]
+        assert result.data["deck_size"] == 2
+
+    async def test_blank_entries_ignored(self) -> None:
+        """Whitespace-only entries are dropped rather than resolved."""
+        result = await deck_analysis(
+            ["", "   ", "1 Sol Ring"],
+            COMMANDER,
+            bulk=_make_bulk(),
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["deck_size"] == 1
+        assert result.data["unresolved"] == []
