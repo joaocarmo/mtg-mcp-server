@@ -1,1004 +1,213 @@
 # MTG MCP Server — Tool Catalog
 
-Every tool the server exposes, organized by source. Tools prefixed with a namespace come from mounted backend servers. Unprefixed tools are workflow tools on the orchestrator.
+Every tool, prompt and resource the server exposes. Namespaced tools come from mounted backends; unprefixed tools are workflow tools on the orchestrator.
+
+**Conventions (apply to every tool):**
+- Annotations: `readOnly=true, idempotent=true, openWorld=true`.
+- Every tool returns markdown (`content`) plus a structured `data` dict (`structured_content`).
+- `fmt` below means `response_format: "detailed" | "concise" = "detailed"`. All workflow tools accept it.
+- `limit: 0` means "all" where noted.
+- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 69 tools.
 
 ---
 
-## Scryfall Backend (namespace: `scryfall`)
+## Scryfall (`scryfall_`)
 
-### `scryfall_search_cards`
-Search for cards using Scryfall's full search syntax.
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `scryfall_search_cards` | `query` (Scryfall syntax, e.g. `f:commander id:sultai t:creature cmc<=3`), `page=1`, `limit=30` (0=all), `fmt` | Matching cards (name, type, mana, price) + pagination; slim card fields | `search_cards()` |
+| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colors, identity, legalities, prices, set, rarity, EDHREC rank | `get_card_by_name()` |
+| `scryfall_card_price` | `name` | USD, USD foil, EUR (updated daily) | `get_card_by_name()` |
+| `scryfall_card_rulings` | `name` | Rulings with dates and sources | `get_card_by_name()` → `get_rulings()` |
+| `scryfall_set_info` | `set_code` (e.g. "dom") | Name, code, release date, type, card count, icon URI | `get_set()` |
+| `scryfall_whats_new` | `days=30` | Recently released cards with set and rarity | `search_cards()` (date filter) |
 
-| Field | Detail |
-|-------|--------|
-| Input | `query: str` (Scryfall syntax, e.g. `"f:commander id:sultai t:creature cmc<=3"`), `page: int = 1`, `limit: int = 30` (0 for all), `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Formatted list of matching cards with name, type, mana cost, price. Pagination info. Structured content uses slim card fields. |
-| Backend | `ScryfallClient.search_cards()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+## Commander Spellbook (`spellbook_`)
 
-### `scryfall_card_details`
-Get full details for a card by exact or fuzzy name.
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `spellbook_find_combos` | `card_name`, `color_identity=None` ("sultai", "BUG", "wubrg"), `limit=10` | Combos: cards, prerequisites, steps, results | `find_combos()` |
+| `spellbook_combo_details` | `combo_id` (e.g. "2120-5329") | Cards, zone requirements, steps, results | `get_combo()` |
+| `spellbook_find_decklist_combos` | `commanders: list`, `decklist: list` | Included and almost-included combos | `find_decklist_combos()` |
+| `spellbook_estimate_bracket` | `commanders: list`, `decklist: list` | Bracket tag, banned cards, game changers, two-card combos, lock combos | `estimate_bracket()` |
 
-| Field | Detail |
-|-------|--------|
-| Input | `name: str`, `fuzzy: bool = false` |
-| Output | Full card data: name, mana cost, type, oracle text, colors, color identity, legalities, prices, set, rarity, EDHREC rank |
-| Backend | `ScryfallClient.get_card_by_name()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+## 17Lands (`draft_`)
 
-### `scryfall_card_price`
-Get current prices for a card.
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `draft_card_ratings` | `set_code` ("LCI"), `event_type="PremierDraft"`, `limit=50` (0=all), `sort_by="gih_wr"` (also `alsa`, `iwd`, `name`), `fmt` | Per card: color, rarity, GIH WR, ALSA, IWD, games; slim rating fields | `card_ratings()` |
+| `draft_archetype_stats` | `set_code`, `start_date`, `end_date` (YYYY-MM-DD, **required**), `event_type="PremierDraft"` | Win rate and games per color combination, incl. mono-colour and summary rows | `color_ratings()` |
 
-| Field | Detail |
-|-------|--------|
-| Input | `name: str` |
-| Output | USD, USD foil, EUR prices. Note: prices update once per day. |
-| Backend | `ScryfallClient.get_card_by_name()` (price subset) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+## EDHREC (`edhrec_`)
 
-### `scryfall_card_rulings`
-Get official rulings and clarifications for a card.
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `edhrec_commander_staples` | `commander_name`, `category=None` ("creatures", "lands", …), `limit=10` per category (0=all), `fmt` | Top cards with synergy, inclusion %, decks analyzed; slim EDHREC fields | `commander_top_cards()` |
+| `edhrec_card_synergy` | `card_name`, `commander_name` | Synergy, inclusion %, deck count, signature-card flag | `card_synergy()` |
 
-| Field | Detail |
-|-------|--------|
-| Input | `name: str` |
-| Output | List of rulings with dates and sources |
-| Backend | `ScryfallClient.get_card_by_name()` → `ScryfallClient.get_rulings()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+## Moxfield (`moxfield_`, tag: beta)
 
-### `scryfall_set_info`
-Get set metadata by set code.
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `moxfield_decklist` | `deck_id` (ID or full URL) | Decklist by board (commanders, main, side, companions); structured metadata + per-board lists | `get_deck()` |
+| `moxfield_deck_info` | `deck_id` | Name, format, author, description, dates, URL, per-board counts | `get_deck()` (metadata) |
+| `moxfield_search_decks` | `query=None`, `format=None`, `sort="Updated"` (also "Created", "Views"), `page=1`, `page_size=20` | Paginated summaries: name, format, author, colors, counts, URL | `search_decks()` |
+| `moxfield_user_decks` | `username`, `format=None` | User's public decks; verifies the user exists first | `search_users()` + `search_decks()` |
 
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str` (e.g. "dom", "mkm") |
-| Output | Set name, code, release date, set type, card count, icon URI |
-| Backend | `ScryfallClient.get_set()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+## Spicerack (`spicerack_`, tag: constructed)
 
-### `scryfall_whats_new`
-Get recently released or previewed cards.
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `spicerack_recent_tournaments` | `format` (title-case: "Modern", "Legacy", …), `num_days=14`, `limit=10`, `fmt` | Name, date, format, players, tournament ID | `get_tournaments()` |
+| `spicerack_tournament_results` | `tournament_id`, `top_n=8`, `fmt` | Metadata + standings: rank, player, Swiss W-L-D, bracket record, decklist URL | `get_tournaments()` filtered by ID |
+| `spicerack_format_decklists` | `format`, `num_days=14`, `limit=10`, `fmt` | Top finishes: player, tournament, standing, Moxfield URL | `get_tournaments()` |
 
-| Field | Detail |
-|-------|--------|
-| Input | `days: int = 30` |
-| Output | List of recently released cards with names, sets, rarities |
-| Backend | `ScryfallClient.search_cards()` (date filter) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+## MTGGoldfish (`goldfish_`, tag: beta)
 
----
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `goldfish_metagame` | `format`, `fmt` | Archetypes: rank, name, meta %, decks, paper price | `get_metagame()` |
+| `goldfish_archetype_list` | `format`, `archetype` ("Boros Energy"), `fmt` | Deck metadata (author, event, result, date) + main and sideboard | `get_archetype()` |
+| `goldfish_format_staples` | `format`, `limit=20`, `fmt` | Rank, name, % of decks, avg copies | `get_format_staples()` |
+| `goldfish_deck_price` | `format`, `archetype`, `fmt` | Estimated total price, card count | `get_deck_price()` |
 
-## Commander Spellbook Backend (namespace: `spellbook`)
+## Scryfall bulk data (`bulk_`)
 
-### `spellbook_find_combos`
-Search for known combos involving specific cards or within a color identity.
+Rate-limit-free; backed by `ScryfallBulkClient`.
 
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str`, `color_identity: str | None = None` (e.g. "sultai", "BUG", "wubrg"), `limit: int = 10` |
-| Output | List of combos with: cards involved, prerequisites, steps, results. Limited to `limit` combos. |
-| Backend | `SpellbookClient.find_combos()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `spellbook_combo_details`
-Get detailed steps for a specific combo by its Spellbook ID.
-
-| Field | Detail |
-|-------|--------|
-| Input | `combo_id: str` (e.g. "2120-5329") |
-| Output | Full combo: all cards, zone requirements, step-by-step instructions, results |
-| Backend | `SpellbookClient.get_combo()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `spellbook_find_decklist_combos`
-Find combos present in (or nearly present in) a Commander decklist.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commanders: list[str]`, `decklist: list[str]` (card names) |
-| Output | Included combos (fully present) and almost-included combos with card lists and results |
-| Backend | `SpellbookClient.find_decklist_combos()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `spellbook_estimate_bracket`
-Estimate the Commander bracket for a decklist based on its combo density.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commanders: list[str]`, `decklist: list[str]` (card names) |
-| Output | Bracket tag, banned cards, game-changer cards, two-card combos, lock combos |
-| Backend | `SpellbookClient.estimate_bracket()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `bulk_card_lookup` | `name` | Full card incl. P/T, keywords, prices, legalities, EDHREC rank, images | `get_card()` |
+| `bulk_card_search` | `query`, `search_field="name"` (or "type", "text"), `limit=20` | Name, mana, type line | `search_cards()` / `search_by_type()` / `search_by_text()` |
+| `bulk_format_legality` | `card_name`, `format` | legal / not_legal / banned / restricted | `get_card()` |
+| `bulk_format_search` | `format`, `query`, `limit=20` | Format-legal matches | `filter_cards()` |
+| `bulk_format_staples` | `format`, `color=None` (identity), `card_type=None`, `limit=20`, `ranking_mode="auto"` (or `edhrec`, `competitive`, `tournament`), `fmt` | Ranked staples. Auto mode: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; competitive formats use MTGGoldfish frequency (% Decks) when available, otherwise a mana-efficiency score | `filter_cards()`, optionally `MTGGoldfishClient.get_format_staples()` |
+| `bulk_ban_list` | `format` | Banned and restricted cards | `filter_cards()` |
+| `bulk_card_in_formats` | `card_name` | Legality per format | `get_card()` |
+| `bulk_random_card` | `format=None`, `card_type=None` | Random card, full details | `filter_cards()` |
+| `bulk_similar_cards` | `card_name`, `limit=10` | Similar by type, keywords or mana cost; shared attributes highlighted | `get_card()` + `filter_cards()` |
 
 ---
 
-## 17Lands Backend (namespace: `draft`)
+## Workflow tools (no namespace)
 
-### `draft_card_ratings`
-Get win rate and draft data for cards in a set.
+Implemented as pure async functions in `workflows/` and wrapped in `workflows/server.py`. They run backend calls concurrently with `asyncio.gather(return_exceptions=True)`. **Required** backends fail the call (as a `ToolError`, or an explanatory message where noted). **Optional** backends degrade: their data shows as missing/N/A and the gap is noted in the output. "Progress" means the tool reports `ctx.report_progress` steps.
 
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str` (e.g. "LCI", "MKM", "OTJ"), `event_type: str = "PremierDraft"`, `limit: int = 50` (0 for all), `sort_by: str = "gih_wr"` (also: "alsa", "iwd", "name"), `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Per-card: name, color, rarity, GIH WR, ALSA, IWD, games played. Structured content uses slim rating fields. |
-| Backend | `SeventeenLandsClient.card_ratings()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+### Commander
 
-### `draft_archetype_stats`
-Get win rates by color pair/archetype for a set.
+| Tool | Inputs | Output | Backends |
+|------|--------|--------|----------|
+| `commander_overview` | `commander_name` | Card header (mana, type, text, identity, P/T, rarity, EDHREC rank), top 5 combos, top 10 EDHREC staples by inclusion with synergy, Data Sources footer | Scryfall (req), Spellbook, EDHREC |
+| `evaluate_upgrade` | `card_name`, `commander_name` | Card details incl. price; synergy (score, inclusion, decks); top 5 combos enabled; Data Sources footer | Scryfall (req), Spellbook, EDHREC |
+| `suggest_cuts` | `decklist`, `commander_name`, `num_cuts=5` | Ranked cut candidates with reasoning, source status, failure notes. Score: low synergy + low inclusion = more cuttable; combo pieces protected (−2.0, "PROTECTED"); no data = +0.5 ("Low confidence") | Spellbook (req), EDHREC |
+| `card_comparison` | `cards` (2-5), `commander_name` | Table: mana, type, synergy, inclusion, combo count, price. A missing card fails the call; EDHREC/Spellbook failures show N/A. Progress ×3 | Scryfall + Spellbook (req), EDHREC |
+| `budget_upgrade` | `commander_name`, `budget` (max USD per card), `num_suggestions=10` | Ranked by synergy per dollar: synergy, inclusion, price, synergy/$. Returns a message if EDHREC is disabled or nothing fits. Progress ×2 | Scryfall + EDHREC (req) |
+| `deck_analysis` | `decklist`, `commander_name` | Mana curve, colour pips, combos and bracket, total/avg budget, 5 lowest-synergy cards, unresolved cards, footer. Bulk-first card resolution. Progress ×3 | Bulk/Scryfall (req), Spellbook, EDHREC |
+| `commander_comparison` | `commanders` (2-5) | Table: mana, type, identity, EDHREC rank, combo count, top staples, unique strengths. Progress ×3 | Bulk + Spellbook (req), EDHREC |
+| `tribal_staples` | `tribe` ("Elf"), `color_identity=None`, `format=None` | Lords, synergy pieces, members, support, each with oracle text and price | Bulk (req), EDHREC |
+| `precon_upgrade` | `decklist`, `commander`, `budget=50.0`, `num_upgrades=10` | Swap pairs (cut → add) with reasoning, ranked by synergy delta; source status | Bulk + Spellbook (req), EDHREC |
+| `color_identity_staples` | `color_identity` ("simic", "UG"), `category=None` | Staples by EDHREC rank with prices; falls back to the bulk-data EDHREC rank when EDHREC is off | Bulk (req), EDHREC |
 
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str`, `start_date: str` (YYYY-MM-DD, **required**), `end_date: str` (YYYY-MM-DD, **required**), `event_type: str = "PremierDraft"` |
-| Output | Per-color-pair: win rate, games played. Includes mono-color, two-color, and summary rows |
-| Backend | `SeventeenLandsClient.color_ratings()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+### Draft / Limited
 
----
+| Tool | Inputs | Output | Backends |
+|------|--------|--------|----------|
+| `draft_pack_pick` | `pack`, `set_code`, `current_picks=None` | Table ranked by GIH WR with color, rarity, ALSA, IWD, games; `[on-color]`/`[off-color]` when picks are given; "No data" section | 17Lands (req; it already has name, colour and rarity, so no Scryfall) |
+| `set_overview` | `set_code`, `event_type="PremierDraft"` | Median GIH WR, top 10 commons and uncommons, trap rares/mythics (below median). Progress ×2 | 17Lands (req) |
+| `sealed_pool_build` | `pool` (84-90 names), `set_code` | Top 1-3 two-colour 40-card builds: list by type, curve, removal/bomb counts. Scored by GIH WR, with a heuristic fallback (rarity, bomb/removal detection). Progress ×3 | Bulk (req), 17Lands |
+| `draft_signal_read` | `picks` (in order), `set_code`, `current_pack=None` | Colour commitment, ALSA openness per colour, recommended direction, optional pack ranking | Bulk + 17Lands (req) |
+| `draft_log_review` | `picks` (P1P1…P3P14), `set_code`, `final_deck=None` | Per pick: GIH WR and verdict; average; grade A (≥60%) … F (<50%); optional deck inclusion analysis | Bulk + 17Lands (req) |
 
-## EDHREC Backend (namespace: `edhrec`)
+### Deck building and cross-format
 
-### `edhrec_commander_staples`
-Get the most-played cards for a commander, with synergy scores and inclusion rates.
+| Tool | Inputs | Output | Backends |
+|------|--------|--------|----------|
+| `theme_search` | `theme` ("sacrifice", "tokens"), `color_identity=None`, `format=None`, `max_price=None`, `limit=20` | Cards matched by oracle-text patterns, sorted by match quality, with type, text excerpt, price | Bulk (req) |
+| `build_around` | `cards` (1-5), `format` (req), `budget=None`, `limit=20` | Resolved cards, detected mechanics, synergy candidates, combo potential | Bulk + Spellbook (req) |
+| `complete_deck` | `decklist`, `format`, `commander=None`, `budget=None` | Current composition, target size, category gaps (creatures, removal, draw, …) with suggestions | Bulk (req) |
+| `deck_validate` | `decklist`, `format`, `commander=None`, `sideboard=None` | VALID/INVALID plus legality, size, copy limits, colour identity (Commander), rarity (Pauper) | Bulk (req) |
+| `suggest_mana_base` | `decklist`, `format`, `total_lands=None` | Pip analysis, land count, basic split, format-legal duals | Bulk (req) |
+| `price_comparison` | `cards` | USD, USD foil, EUR per card + total | Bulk (req) |
+| `rotation_check` | `cards=None` | Standard-legal sets by release date, rotation timing, optional per-card status | Scryfall (sets) + Bulk |
 
-| Field | Detail |
-|-------|--------|
-| Input | `commander_name: str`, `category: str | None = None` (e.g. "creatures", "enchantments", "lands"), `limit: int = 10` per category (0 for all), `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Top cards with: name, synergy score, inclusion %, total decks analyzed. Structured content uses slim EDHREC card fields. |
-| Backend | `EDHRECClient.commander_top_cards()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+### Constructed: metagame and sideboard
 
-### `edhrec_card_synergy`
-Get synergy data for a specific card with a specific commander.
+Archetype and matchup names are fuzzy-matched.
 
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str`, `commander_name: str` |
-| Output | Synergy score, inclusion %, number of decks, whether it's a "signature card" |
-| Backend | `EDHRECClient.card_synergy()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
+| Tool | Inputs | Output | Backends |
+|------|--------|--------|----------|
+| `metagame_snapshot` | `format` | Archetypes tiered T1 >10%, T2 3-10%, T3 <3%, with share, decks, price. Falls back to Spicerack tournament frequency; returns an error message if neither source is available | MTGGoldfish → Spicerack |
+| `archetype_decklist` | `format`, `archetype` | Metadata, main and sideboard, card roles, optional pricing | MTGGoldfish (req), Bulk |
+| `archetype_comparison` | `format`, `archetypes` (2-4) | Share, decks, price, colours, main/side sizes; shared staples | MTGGoldfish (req), Bulk |
+| `format_entry_guide` | `format`, `budget=None` | Format rules, archetypes by budget, recommended first deck, cross-archetype staples; returns the rules even with no metagame data | MTGGoldfish, Spicerack, Bulk (all optional) |
+| `suggest_sideboard` | `decklist`, `format`, `meta_context=None` | 15 cards by category (graveyard hate, removal, counters, wipes, …), format staples marked | Bulk (req), MTGGoldfish |
+| `sideboard_guide` | `decklist`, `sideboard`, `format`, `matchup` | Matchup strategy, IN/OUT plan with per-card reasoning, balanced swaps | Bulk (req), MTGGoldfish |
+| `sideboard_matrix` | `decklist`, `sideboard`, `format`, `matchups=None` (auto from metagame) | Rows = sideboard cards, columns = matchups, cells IN/OUT/FLEX | Bulk (req), MTGGoldfish |
 
----
+### Rules engine
 
-## Moxfield Backend (namespace: `moxfield`)
+Backed by the local `RulesService`; bulk data, when enabled, supplies card examples and lookups.
 
-### `moxfield_decklist`
-Fetch a full decklist from Moxfield by deck ID or URL.
-
-| Field | Detail |
-|-------|--------|
-| Input | `deck_id: str` (Moxfield deck ID or full URL, e.g. `"abc123"` or `"https://www.moxfield.com/decks/abc123"`) |
-| Output | Markdown decklist organized by board (commanders, mainboard, sideboard, companions) with card names and quantities. Structured content includes deck metadata and per-board card lists. |
-| Backend | `MoxfieldClient.get_deck()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
-### `moxfield_deck_info`
-Get metadata for a Moxfield deck (name, format, author, dates).
-
-| Field | Detail |
-|-------|--------|
-| Input | `deck_id: str` (Moxfield deck ID or full URL) |
-| Output | Deck metadata: name, format, author, description, created/updated dates, public URL, card counts per board. |
-| Backend | `MoxfieldClient.get_deck()` (metadata subset) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
-### `moxfield_search_decks`
-Search public Moxfield decks by format, keyword, or sort order.
-
-| Field | Detail |
-|-------|--------|
-| Input | `query: str | None = None`, `format: str | None = None`, `sort: str = "Updated"` (also "Created", "Views"), `page: int = 1`, `page_size: int = 20` |
-| Output | Paginated deck summaries with name, format, author, colors, card counts, public URL |
-| Backend | `MoxfieldClient.search_decks()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
-### `moxfield_user_decks`
-List a user's public decks on Moxfield.
-
-| Field | Detail |
-|-------|--------|
-| Input | `username: str`, `format: str | None = None` |
-| Output | User's public decks with name, format, colors, card counts. Verifies user exists first. |
-| Backend | `MoxfieldClient.search_users()` + `MoxfieldClient.search_decks()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
+| Tool | Inputs | Output |
+|------|--------|--------|
+| `rules_lookup` | `query` (rule number like "704.5k", or keyword), `section=None` | Matching rules with parent/child rules and cross-references |
+| `keyword_explain` | `keyword` | Glossary definition, related rules, example cards |
+| `rules_interaction` | `mechanic_a`, `mechanic_b` | Rules for each, interaction analysis, citations |
+| `rules_scenario` | `scenario` (free text) | Extracted concepts with the relevant rules, as a framework for LLM reasoning |
+| `combat_calculator` | `attackers`, `blockers`, `keywords=None` | Step-by-step combat phases, card data, combat rules, keyword interactions |
 
 ---
 
-## Spicerack Backend (namespace: `spicerack`)
+## Prompts (19, workflow server)
 
-### `spicerack_recent_tournaments`
-List recent tournaments for a competitive format.
+Each prompt returns step-by-step instructions that chain the tools listed.
 
-| Field | Detail |
-|-------|--------|
-| Input | `format: str` (title-case: "Modern", "Legacy", "Pauper", "Pioneer", "Standard"), `num_days: int = 14`, `limit: int = 10`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Table of tournaments with: name, date, format, player count, tournament ID. Structured content uses slim tournament fields. |
-| Backend | `SpicerackClient.get_tournaments()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | constructed |
-
-### `spicerack_tournament_results`
-Get full standings for a specific tournament by ID.
-
-| Field | Detail |
-|-------|--------|
-| Input | `tournament_id: str`, `top_n: int = 8`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Tournament metadata + standings table with: rank, player name, Swiss record (W-L-D), bracket record, decklist URL. Structured content uses slim standing fields. |
-| Backend | `SpicerackClient.get_tournaments()` (filtered by ID) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | constructed |
-
-### `spicerack_format_decklists`
-Get top-finishing decklists across recent tournaments for a format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `num_days: int = 14`, `limit: int = 10`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Top-finishing decklists with: player name, tournament name, standing, Moxfield URL. Structured content uses slim standing + tournament fields. |
-| Backend | `SpicerackClient.get_tournaments()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | constructed |
+| Prompt | Inputs | Steps |
+|--------|--------|-------|
+| `evaluate_commander_swap` | `commander`, `adding`, `cutting` | card lookups → `card_comparison` → `spellbook_find_combos` → SWAP/KEEP/CONSIDER |
+| `deck_health_check` | `commander` | `deck_analysis` → `suggest_cuts` → prioritised recommendations |
+| `draft_strategy` | `set_code` | `set_overview` → top archetypes with key commons/uncommons → heuristics cheat sheet (GIH WR/IWD/ALSA thresholds) |
+| `find_upgrades` | `commander`, `budget` | `budget_upgrade` → `evaluate_upgrade` on top 5 → recommend 3-5 |
+| `build_deck` | `concept`, `format`, `budget=None` | format search → staples → curve/colours → `deck_validate` → `suggest_mana_base` |
+| `evaluate_collection` | `cards` (comma-separated) | prices → legality → Commander staple potential |
+| `format_intro` | `format` | staples → top archetypes → entry budget |
+| `card_alternatives` | `card_name`, `format`, `budget` | card analysis → similar cards → prices → ranked alternatives |
+| `rules_question` | `question` | rules lookup → keyword explanation → scenario resolution |
+| `build_around_deck` | `cards`, `format`, `budget=None` | theme search → `build_around` → `rotation_check` (Standard) → `complete_deck` → `deck_validate` → `suggest_mana_base` |
+| `build_tribal_deck` | `tribe`, `format`, `commander=None`, `budget=None` | `tribal_staples` → `build_around` → `suggest_mana_base` → `deck_validate` |
+| `build_theme_deck` | `theme`, `format`, `color_identity=None`, `budget=None` | `theme_search` → `build_around` → `complete_deck` → `deck_validate` → `suggest_mana_base` |
+| `upgrade_precon` | `commander`, `budget` | `commander_overview` → `deck_analysis` → `suggest_cuts` → `precon_upgrade` → `deck_validate` |
+| `sealed_session` | `set_code` | `sealed_pool_build` → 17Lands evaluation → sideboard planning |
+| `draft_review` | `set_code` | `draft_log_review` → `draft_signal_read` |
+| `compare_commanders` | `commanders` | `commander_comparison` → combos → staples |
+| `rotation_plan` | — | `rotation_check` → `bulk_similar_cards` → `price_comparison` |
+| `explore_format` | `format` | `metagame_snapshot` → `archetype_decklist` → `format_entry_guide` |
+| `build_constructed_deck` | `concept`, `format`, `budget=None` | `metagame_snapshot` → `archetype_decklist` (if matching) → `suggest_sideboard` → `deck_validate` |
 
 ---
 
-## MTGGoldfish Backend (namespace: `goldfish`)
-
-### `goldfish_metagame`
-Get the current metagame breakdown for a competitive format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str` (e.g. "Modern", "Legacy", "Pioneer", "Pauper"), `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Table of archetypes with: rank, name, meta share %, deck count, estimated paper price. Structured content uses slim archetype fields. |
-| Backend | `MTGGoldfishClient.get_metagame()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
-### `goldfish_archetype_list`
-Get a sample decklist for an archetype in a format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `archetype: str` (e.g. "Boros Energy", "Azorius Control"), `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Deck metadata (author, event, result, date) and full mainboard + sideboard card list. Structured content includes full archetype detail. |
-| Backend | `MTGGoldfishClient.get_archetype()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
-### `goldfish_format_staples`
-Get the most-played cards in a format with deck inclusion percentages.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `limit: int = 20`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Table of most-played cards with: rank, name, % of decks, average copies per deck. Structured content uses slim format staple fields. |
-| Backend | `MTGGoldfishClient.get_format_staples()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
-### `goldfish_deck_price`
-Get the estimated paper price for an archetype deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `archetype: str`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Archetype name, estimated total price, card count. |
-| Backend | `MTGGoldfishClient.get_deck_price()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-| Tags | beta |
-
----
-
-## Scryfall Bulk Data Backend (namespace: `bulk`)
-
-### `bulk_card_lookup`
-Look up a Magic card by exact name using Scryfall bulk data. Rate-limit-free.
-
-| Field | Detail |
-|-------|--------|
-| Input | `name: str` |
-| Output | Full card data: name, mana cost, type, oracle text, colors, color identity, P/T, keywords, prices, legalities, EDHREC rank, image URIs |
-| Backend | `ScryfallBulkClient.get_card()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_card_search`
-Search for Magic cards in Scryfall bulk data by name, type, or oracle text. Rate-limit-free.
-
-| Field | Detail |
-|-------|--------|
-| Input | `query: str`, `search_field: str = "name"` (one of "name", "type", "text"), `limit: int = 20` |
-| Output | Formatted list of matching cards with name, mana cost, type line |
-| Backend | `ScryfallBulkClient.search_cards()` / `search_by_type()` / `search_by_text()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_format_legality`
-Check if a card is legal in a format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str`, `format: str` |
-| Output | Legality status (legal, not_legal, banned, restricted) with details |
-| Backend | `ScryfallBulkClient.get_card()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_format_search`
-Search for cards legal in a specific format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `query: str`, `limit: int = 20` |
-| Output | Formatted list of format-legal matching cards |
-| Backend | `ScryfallBulkClient.filter_cards()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_format_staples`
-Find the most popular staple cards legal in a format. Ranking adapts to the format: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; competitive formats use MTGGoldfish tournament frequency when available, falling back to a mana-efficiency heuristic.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `color: str \| None = None` (color identity filter), `card_type: str \| None = None`, `limit: int = 20`, `ranking_mode: "auto" \| "edhrec" \| "competitive" \| "tournament" = "auto"`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Ranked list of staple cards. EDHREC mode shows Rank column; competitive shows Score; tournament shows % Decks. |
-| Backend | `ScryfallBulkClient.filter_cards()`, optionally `MTGGoldfishClient.get_format_staples()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_ban_list`
-Get banned/restricted cards for a format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str` |
-| Output | List of banned and restricted cards for the format |
-| Backend | `ScryfallBulkClient.filter_cards()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_card_in_formats`
-Check a card's legality across all formats.
-
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str` |
-| Output | Table of format legality (legal/not_legal/banned/restricted per format) |
-| Backend | `ScryfallBulkClient.get_card()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_random_card`
-Get a random card, optionally filtered by format or type.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str | None = None`, `card_type: str | None = None` |
-| Output | Random card with full details |
-| Backend | `ScryfallBulkClient.filter_cards()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `bulk_similar_cards`
-Find cards similar to a given card by type, keywords, or mana cost.
-
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str`, `limit: int = 10` |
-| Output | List of similar cards with shared attributes highlighted |
-| Backend | `ScryfallBulkClient.get_card()` + `filter_cards()` |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
----
-
-## Workflow Tools (orchestrator, no namespace)
-
-Workflow tools compose data from multiple backends. They are implemented as pure async functions
-in `workflows/` modules and wrapped as MCP tools in `workflows/server.py`. All use
-`asyncio.gather(return_exceptions=True)` for concurrent backend calls with graceful partial failure.
-
-All workflow tools return `ToolResult` with both markdown (`content`) and structured data
-(`structured_content`). All accept an optional `response_format: "detailed" | "concise"` parameter
-(default `"detailed"`) that controls output verbosity without requiring separate tool variants.
-
-### `commander_overview`
-Comprehensive data for a commander from all available sources.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commander_name: str` |
-| Output | Markdown with: card header (name, mana cost, type, text, color identity, P/T, rarity, EDHREC rank), top 5 combos (card lists + results), top 10 EDHREC staples (by inclusion, with synergy), Data Sources footer |
-| Backends | Scryfall (required) + Spellbook (optional) + EDHREC (optional) |
-| Partial failure | Scryfall failure propagates. Spellbook/EDHREC failures noted in output, available data still returned |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `evaluate_upgrade`
-Assess whether a card is worth adding to a specific commander deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str`, `commander_name: str` |
-| Output | Markdown with: card details (name, mana cost, type, text, price, EDHREC rank), synergy section (score, inclusion rate, deck count), top 5 combos enabled, Data Sources footer |
-| Backends | Scryfall (required) + Spellbook (optional) + EDHREC (optional) |
-| Partial failure | Scryfall failure propagates. Spellbook/EDHREC failures noted in output |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `draft_pack_pick`
-Rank cards in a draft pack using 17Lands data.
-
-| Field | Detail |
-|-------|--------|
-| Input | `pack: list[str]` (card names), `set_code: str`, `current_picks: list[str] | None = None` |
-| Output | Markdown table ranked by GIH WR descending, with: color, rarity, GIH WR (%), ALSA, IWD (+/-%), game count. Optional color fit analysis ([on-color]/[off-color]) when `current_picks` provided. "No data" section for unrecognized cards |
-| Backends | 17Lands only (already has name, color, rarity — no Scryfall needed) |
-| Error | Raises `ToolError` if 17Lands is disabled |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `suggest_cuts`
-Identify the weakest cards to cut from a commander decklist.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `commander_name: str`, `num_cuts: int = 5` |
-| Output | Markdown with: data source status, ranked cut candidates with reasoning (synergy/inclusion for EDHREC data, "PROTECTED — combo piece" for combo cards, "Low confidence — no data found" for unknown cards), failure notes |
-| Backends | Spellbook (required) + EDHREC (optional) |
-| Scoring | Low synergy + low inclusion = more cuttable. Combo pieces protected (-2.0). No data = slight penalty (+0.5) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `card_comparison`
-Compare 2-5 cards side-by-side for a specific commander deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `cards: list[str]` (2-5 card names), `commander_name: str` |
-| Output | Markdown comparison table with: name, mana cost, type, synergy, inclusion %, combo count, price for each card |
-| Backends | Scryfall (required) + Spellbook (required) + EDHREC (optional) |
-| Partial failure | Card not found propagates. EDHREC/Spellbook failures show "N/A" per card |
-| Progress | Reports progress (1/3 resolving, 2/3 fetching data, 3/3 formatting) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `budget_upgrade`
-Suggest budget-friendly upgrades for a commander deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commander_name: str`, `budget: float` (max price per card in USD), `num_suggestions: int = 10` |
-| Output | Markdown table ranked by synergy-per-dollar: name, synergy, inclusion %, price, synergy/$ |
-| Backends | Scryfall (required, for prices) + EDHREC (required, for staples) |
-| Error | Returns message if EDHREC disabled, no staples found, or no cards under budget |
-| Progress | Reports progress (1/2 fetching staples, 2/2 fetching prices) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `deck_analysis`
-Full decklist health check — mana curve, colors, combos, bracket, budget, synergy.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `commander_name: str` |
-| Output | Markdown with: mana curve distribution table, color pip requirements, combos & bracket estimate, total/average budget, 5 lowest-synergy cards, unresolved cards, Data Sources footer |
-| Backends | Scryfall bulk data/Scryfall API (card data) + Spellbook (combos/bracket) + EDHREC (synergy) |
-| Card resolution | Uses bulk-data-first strategy via `card_resolver` with Scryfall API fallback |
-| Partial failure | Degrades gracefully — all backends except Scryfall are optional |
-| Progress | Reports progress (1/3 resolving, 2/3 combos/bracket, 3/3 synergy) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `set_overview`
-Draft format overview — top commons/uncommons and trap rares.
-
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str`, `event_type: str = "PremierDraft"` |
-| Output | Markdown with: event type, median GIH WR, cards with data count, top 10 commons table (rank, name, color, GIH WR, ALSA, IWD, games), top 10 uncommons table, trap rares/mythics list (GIH WR below median) |
-| Backends | 17Lands only |
-| Error | Raises `ToolError` if 17Lands is disabled |
-| Progress | Reports progress (1/2 fetching, 2/2 analyzing) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `theme_search`
-Search for cards matching a mechanical, tribal, or abstract theme via oracle text patterns.
-
-| Field | Detail |
-|-------|--------|
-| Input | `theme: str` (e.g. "sacrifice", "lifegain", "tokens"), `color_identity: str | None = None`, `format: str | None = None`, `max_price: float | None = None`, `limit: int = 20` |
-| Output | Formatted list of matching cards with type, oracle text excerpt, price. Sorted by match quality. |
-| Backends | Bulk data (required) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `build_around`
-Detect synergies from 1-5 key cards and find cards that work with them.
-
-| Field | Detail |
-|-------|--------|
-| Input | `cards: list[str]` (1-5 card names), `format: str` (required), `budget: float | None = None`, `limit: int = 20` |
-| Output | Markdown with: resolved cards, detected keywords/mechanics, synergy candidates with type and oracle text, combo potential from Spellbook |
-| Backends | Bulk data (required) + Spellbook (required) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `complete_deck`
-Gap analysis and card suggestions to fill out a partial decklist.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `format: str`, `commander: str | None = None`, `budget: float | None = None` |
-| Output | Markdown with: current deck composition, format-specific target size, category gaps (creatures, removal, card draw, etc.), suggested cards per gap |
-| Backends | Bulk data (required) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `commander_comparison`
-Compare 2-5 commanders head-to-head across card data, combos, and EDHREC popularity.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commanders: list[str]` (2-5 names) |
-| Output | Markdown comparison table with: mana cost, type, color identity, EDHREC rank, combo count, top staples, unique strengths |
-| Backends | Bulk data (required) + Spellbook (required) + EDHREC (optional) |
-| Partial failure | EDHREC failure degrades to N/A for staple data |
-| Progress | Reports progress (1/3 resolving, 2/3 fetching data, 3/3 formatting) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `tribal_staples`
-Best cards for a creature type within a color identity.
-
-| Field | Detail |
-|-------|--------|
-| Input | `tribe: str` (e.g. "Elf", "Zombie"), `color_identity: str | None = None` (e.g. "golgari"), `format: str | None = None` |
-| Output | Markdown with: lords, synergy pieces, tribe members, support cards — each with oracle text and price |
-| Backends | Bulk data (required) + EDHREC (optional) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `precon_upgrade`
-Analyze a precon decklist and suggest swaps — pair weakest cards with upgrade candidates.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `commander: str`, `budget: float = 50.0`, `num_upgrades: int = 10` |
-| Output | Markdown with: data source status, ranked swap pairs (cut → add with reasoning), upgrade priority based on synergy delta |
-| Backends | Bulk data (required) + Spellbook (required) + EDHREC (optional) |
-| Scoring | Cuts scored by low synergy + low inclusion. Upgrades ranked by synergy improvement |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `color_identity_staples`
-Top-played cards across all commanders in a color identity.
-
-| Field | Detail |
-|-------|--------|
-| Input | `color_identity: str` (e.g. "simic", "UG"), `category: str | None = None` (e.g. "creatures") |
-| Output | Markdown with: staple cards ranked by EDHREC rank (popularity), with prices |
-| Backends | Bulk data (required) + EDHREC (optional, for enrichment) |
-| Partial failure | Degrades gracefully when EDHREC is disabled — falls back to EDHREC rank from bulk data |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `sealed_pool_build`
-Suggest the best 40-card sealed deck builds from a card pool.
-
-| Field | Detail |
-|-------|--------|
-| Input | `pool: list[str]` (card names, typically 84-90), `set_code: str` |
-| Output | Markdown with: top 1-3 two-color builds ranked by total score, per-build card list grouped by type, mana curve, removal/bomb counts |
-| Backends | Bulk data (required) + 17Lands (optional, for GIH WR scoring) |
-| Scoring | GIH WR when available, heuristic fallback (rarity + bomb/removal detection) |
-| Progress | Reports progress (1/3 resolving, 2/3 evaluating pairs, 3/3 formatting) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `draft_signal_read`
-Analyze draft picks to detect open color signals and recommend direction.
-
-| Field | Detail |
-|-------|--------|
-| Input | `picks: list[str]` (in draft order), `set_code: str`, `current_pack: list[str] | None = None` |
-| Output | Markdown with: color commitment analysis, ALSA-based openness signals per color, recommended direction, optional current pack ranking |
-| Backends | Bulk data (required) + 17Lands (required) |
-| Error | Raises `ToolError` if 17Lands disabled |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `draft_log_review`
-Review a completed draft — pick-by-pick GIH WR analysis with overall grade.
-
-| Field | Detail |
-|-------|--------|
-| Input | `picks: list[str]` (P1P1 through P3P14), `set_code: str`, `final_deck: list[str] | None = None` |
-| Output | Markdown with: pick-by-pick table (pick#, name, GIH WR, verdict), average GIH WR, letter grade, optional deck inclusion analysis |
-| Backends | Bulk data (required) + 17Lands (required) |
-| Grading | A (≥60% avg GIH WR) through F (<50%) |
-| Error | Raises `ToolError` if 17Lands disabled |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `rotation_check`
-Check Standard rotation status and which cards are in rotating sets.
-
-| Field | Detail |
-|-------|--------|
-| Input | `cards: list[str] | None = None` |
-| Output | Markdown with: Standard-legal sets sorted by release date, rotation timing, optional per-card rotation status |
-| Backends | Scryfall API (sets) + Bulk data (card legality) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `metagame_snapshot`
-Get the current metagame breakdown for a competitive format with tier assignment.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown with: tiered archetype list (T1 >10%, T2 3-10%, T3 <3%), meta shares, deck counts, prices |
-| Backends | MTGGoldfish (primary) + Spicerack (fallback) |
-| Partial failure | MTGGoldfish unavailable → falls back to Spicerack tournament frequency. Neither → error message |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `archetype_decklist`
-Get the stock decklist for a competitive archetype.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `archetype: str`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown with: deck metadata, full mainboard + sideboard card list, card roles, optional pricing |
-| Backends | MTGGoldfish (required) + Bulk data (optional, pricing) |
-| Error | Raises `ToolError` if MTGGoldfish disabled. Fuzzy-matches archetype name. |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `archetype_comparison`
-Compare 2-4 competitive archetypes side-by-side.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `archetypes: list[str]` (2-4 names), `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown comparison table: meta share, deck count, price, colors, mainboard/sideboard sizes. Shared staples analysis. |
-| Backends | MTGGoldfish (required) + Bulk data (optional) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `format_entry_guide`
-Beginner-oriented guide for entering a competitive format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str`, `budget: float | None = None`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown with: format rules, budget-sorted archetypes, recommended first deck, cross-archetype staples |
-| Backends | MTGGoldfish (optional) + Spicerack (optional) + Bulk data (optional) |
-| Partial failure | Degrades gracefully — returns format rules even without metagame data |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `suggest_sideboard`
-Suggest a 15-card sideboard for a competitive deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `format: str`, `meta_context: str | None = None`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown with: categorized sideboard suggestions (graveyard hate, removal, counterspells, board wipes, etc.), format staple markers |
-| Backends | Bulk data (required) + MTGGoldfish (optional, format staples) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `sideboard_guide`
-Get a specific sideboard in/out plan for a named matchup.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `sideboard: list[str]`, `format: str`, `matchup: str`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown with: matchup strategy classification, IN/OUT plan with reasoning per card, balanced swaps |
-| Backends | Bulk data (required) + MTGGoldfish (optional, archetype data) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `sideboard_matrix`
-Generate a sideboard matrix for a deck across common matchups.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `sideboard: list[str]`, `format: str`, `matchups: list[str] | None = None`, `response_format: "detailed" \| "concise" = "detailed"` |
-| Output | Markdown matrix: rows = sideboard cards, columns = matchups, cells = IN/OUT/FLEX |
-| Backends | Bulk data (required) + MTGGoldfish (optional, metagame for auto matchups) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `deck_validate`
-Validate a decklist against format construction rules.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `format: str`, `commander: str | None = None`, `sideboard: list[str] | None = None` |
-| Output | Markdown with: VALID/INVALID status, per-card legality issues, deck size check, copy limit violations, color identity violations (Commander), rarity check (Pauper) |
-| Backends | Bulk data (required) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `suggest_mana_base`
-Suggest a mana base based on color pip distribution.
-
-| Field | Detail |
-|-------|--------|
-| Input | `decklist: list[str]`, `format: str`, `total_lands: int | None = None` |
-| Output | Markdown with: color pip analysis, recommended land count, basic land distribution, format-legal dual land suggestions |
-| Backends | Bulk data (required) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `price_comparison`
-Compare prices across multiple cards using bulk data.
-
-| Field | Detail |
-|-------|--------|
-| Input | `cards: list[str]` |
-| Output | Markdown price table with: USD, USD foil, EUR per card, total cost |
-| Backends | Bulk data (required) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
----
-
-## Rules Engine Tools (orchestrator, no namespace)
-
-Rules tools provide access to the Magic: The Gathering Comprehensive Rules. Backed by a local rules parser service.
-
-### `rules_lookup`
-Look up rules by number or keyword search.
-
-| Field | Detail |
-|-------|--------|
-| Input | `query: str` (rule number like "704.5k" or keyword like "deathtouch"), `section: str | None = None` |
-| Output | Markdown with: matching rules with full text, parent/child rules, cross-references |
-| Backends | RulesService (local) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `keyword_explain`
-Explain a Magic keyword with glossary definition, rules, and example cards.
-
-| Field | Detail |
-|-------|--------|
-| Input | `keyword: str` (e.g. "deathtouch", "trample") |
-| Output | Markdown with: glossary definition, related rules, example cards (if bulk data available) |
-| Backends | RulesService (local) + Bulk data (optional, for card examples) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `rules_interaction`
-Explain how two mechanics interact with relevant rule citations.
-
-| Field | Detail |
-|-------|--------|
-| Input | `mechanic_a: str`, `mechanic_b: str` |
-| Output | Markdown with: rules for each mechanic, interaction analysis, relevant rule citations |
-| Backends | RulesService (local) + Bulk data (optional, for card lookups) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `rules_scenario`
-Provide rules framework for a game scenario.
-
-| Field | Detail |
-|-------|--------|
-| Input | `scenario: str` (game situation description) |
-| Output | Markdown with: extracted keywords/concepts, relevant rules per concept, organized framework for LLM reasoning |
-| Backends | RulesService (local) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
-### `combat_calculator`
-Provide combat phase rules framework with card data.
-
-| Field | Detail |
-|-------|--------|
-| Input | `attackers: list[str]`, `blockers: list[str]`, `keywords: list[str] | None = None` |
-| Output | Markdown with: step-by-step combat phases, attacker/blocker card data, relevant combat rules, keyword interactions |
-| Backends | RulesService (local) + Bulk data (optional, for card lookups) |
-| Annotations | readOnly=true, idempotent=true, openWorld=true |
-
----
-
-## Prompts (workflow server)
-
-Prompts are user-invocable templates registered on the workflow server. They guide multi-step analysis workflows by generating structured instructions for the AI assistant. 19 prompts total.
-
-### `evaluate_commander_swap`
-Evaluate swapping a card in a Commander deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commander: str`, `adding: str`, `cutting: str` |
-| Output | Multi-step prompt: look up both cards, compare synergy via `card_comparison`, check combo implications via `spellbook_find_combos`, recommend SWAP/KEEP/CONSIDER |
-
-### `deck_health_check`
-Guide a comprehensive deck health assessment.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commander: str` |
-| Output | Multi-step prompt: run `deck_analysis` with full decklist, run `suggest_cuts`, analyze mana curve/colors/bracket, provide prioritized recommendations |
-
-### `draft_strategy`
-Guide a draft format preparation session.
-
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str` |
-| Output | Multi-step prompt: use `set_overview` for card ratings, analyze top archetypes with key commons/uncommons, provide draft heuristics cheat sheet with GIH WR/IWD/ALSA thresholds |
-
-### `find_upgrades`
-Guide a budget upgrade session for a Commander deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commander: str`, `budget: float` |
-| Output | Multi-step prompt: use `budget_upgrade` for ranked suggestions, use `evaluate_upgrade` on top 5, evaluate by synergy/$, combo potential, inclusion rate, recommend top 3-5 |
-
-### `build_deck`
-Guide building a deck from scratch for any format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `concept: str`, `format: str`, `budget: float | None = None` |
-| Output | Multi-step prompt: format search for key cards, format staples, mana curve/color assembly, deck_validate, suggest_mana_base |
-
-### `evaluate_collection`
-Evaluate a card collection for trade and deck-building value.
-
-| Field | Detail |
-|-------|--------|
-| Input | `cards: str` (comma-separated list of card names) |
-| Output | Multi-step prompt: price lookup, format legality, Commander staple potential |
-
-### `format_intro`
-Introduction to a Magic format with key cards and strategies.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str` |
-| Output | Multi-step prompt: format staples, top archetypes, entry budget |
-
-### `card_alternatives`
-Find alternatives to a card for budget or format reasons.
-
-| Field | Detail |
-|-------|--------|
-| Input | `card_name: str`, `format: str`, `budget: float` |
-| Output | Multi-step prompt: card analysis, similar card search, price comparison, ranked alternatives |
-
-### `rules_question`
-Ask a rules question with full Comprehensive Rules citations.
-
-| Field | Detail |
-|-------|--------|
-| Input | `question: str` |
-| Output | Multi-step prompt: rules lookup, keyword explanation, scenario resolution |
-
-### `build_around_deck`
-Build a deck around specific cards or a win condition in any format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `cards: str`, `format: str`, `budget: float | None = None` |
-| Output | Multi-step prompt: theme/synergy search → build_around → rotation_check (if Standard) → complete_deck → deck_validate → suggest_mana_base |
-
-### `build_tribal_deck`
-Build a tribal deck for any format.
-
-| Field | Detail |
-|-------|--------|
-| Input | `tribe: str`, `format: str`, `commander: str | None = None`, `budget: float | None = None` |
-| Output | Multi-step prompt: tribal_staples → build_around → suggest_mana_base → deck_validate |
-
-### `build_theme_deck`
-Build a themed deck around a strategy or archetype.
-
-| Field | Detail |
-|-------|--------|
-| Input | `theme: str`, `format: str`, `color_identity: str | None = None`, `budget: float | None = None` |
-| Output | Multi-step prompt: theme_search → build_around → complete_deck → deck_validate → suggest_mana_base |
-
-### `upgrade_precon`
-Upgrade a precon Commander deck with a budget.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commander: str`, `budget: float` |
-| Output | Multi-step prompt: commander_overview → deck_analysis → suggest_cuts → precon_upgrade → deck_validate |
-
-### `sealed_session`
-Guide a sealed deck building session.
-
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str` |
-| Output | Multi-step prompt: sealed_pool_build → build evaluation with 17Lands data → sideboard planning |
-
-### `draft_review`
-Review a completed draft with analysis and grade.
-
-| Field | Detail |
-|-------|--------|
-| Input | `set_code: str` |
-| Output | Multi-step prompt: draft_log_review → draft_signal_read analysis |
-
-### `compare_commanders`
-Compare commanders to choose between them.
-
-| Field | Detail |
-|-------|--------|
-| Input | `commanders: str` |
-| Output | Multi-step prompt: commander_comparison → combo analysis → staples comparison |
-
-### `rotation_plan`
-Plan for Standard rotation — identify rotating cards and replacements.
-
-| Field | Detail |
-|-------|--------|
-| Input | *(no parameters)* |
-| Output | Multi-step prompt: rotation_check → bulk_similar_cards for replacements → price_comparison |
-
-### `explore_format`
-Explore a competitive format's metagame and find your deck.
-
-| Field | Detail |
-|-------|--------|
-| Input | `format: str` |
-| Output | Multi-step prompt: metagame_snapshot → archetype_decklist for top decks → format_entry_guide for budget options |
-
-### `build_constructed_deck`
-Build a competitive constructed deck with metagame awareness.
-
-| Field | Detail |
-|-------|--------|
-| Input | `concept: str`, `format: str`, `budget: float | None = None` |
-| Output | Multi-step prompt: metagame_snapshot → archetype_decklist (if matching archetype) → suggest_sideboard → deck_validate |
-
----
-
-## Resources (mtg:// URIs)
-
-Resources provide cached data access via URI templates. Each returns JSON for programmatic consumption.
-
-### Scryfall Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://card/{name}` | Card data as JSON by exact name |
-| `mtg://card/{name}/rulings` | Card rulings as JSON by card name |
-| `mtg://set/{code}` | Set metadata as JSON by set code |
-
-### Spellbook Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://combo/{combo_id}` | Combo details as JSON by Spellbook ID |
-
-### 17Lands Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://draft/{set_code}/ratings` | Card ratings for a set as JSON |
-
-### EDHREC Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://commander/{name}/staples` | Commander staples data as JSON |
-
-### Moxfield Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://moxfield/{deck_id}` | Moxfield deck data as JSON by deck ID |
-
-### Spicerack Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://tournament/{event_format}/recent` | Recent tournaments for a format as JSON |
-
-### MTGGoldfish Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://metagame/{format}` | Metagame breakdown for a format as JSON |
-
-### Scryfall Bulk Data Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://card-data/{name}` | Card data from Scryfall bulk data as JSON |
-| `mtg://format/{format}/legal-cards` | Legal cards in a format |
-| `mtg://format/{format}/banned` | Banned cards in a format |
-| `mtg://card/{name}/formats` | Format legality for a card |
-| `mtg://card/{name}/similar` | Similar cards by type, keywords, or mana cost |
-
-### Rules Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://rules/{number}` | Rule text by number (e.g. "702.2") |
-| `mtg://rules/glossary/{term}` | Glossary definition for a term |
-| `mtg://rules/keywords` | List of all keywords with rule references |
-| `mtg://rules/sections` | List of all rule sections |
-
-### Format Workflow Resources
-
-| URI | Description |
-|-----|-------------|
-| `mtg://theme/{theme}` | Cards matching a theme (oracle text patterns) |
-| `mtg://tribe/{tribe}/staples` | Staple cards for a creature type |
-| `mtg://draft/{set_code}/signals` | Draft color openness signals for a set |
+## Resources (21 `mtg://` templates, JSON)
+
+| URI | Source | Returns |
+|-----|--------|---------|
+| `mtg://card/{name}` | Scryfall | Card by exact name |
+| `mtg://card/{name}/rulings` | Scryfall | Rulings |
+| `mtg://set/{code}` | Scryfall | Set metadata |
+| `mtg://combo/{combo_id}` | Spellbook | Combo details |
+| `mtg://draft/{set_code}/ratings` | 17Lands | Card ratings |
+| `mtg://commander/{name}/staples` | EDHREC | Commander staples |
+| `mtg://moxfield/{deck_id}` | Moxfield | Deck data |
+| `mtg://tournament/{event_format}/recent` | Spicerack | Recent tournaments |
+| `mtg://metagame/{format}` | MTGGoldfish | Metagame breakdown |
+| `mtg://card-data/{name}` | Bulk | Card data |
+| `mtg://format/{format}/legal-cards` | Bulk | Legal cards |
+| `mtg://format/{format}/banned` | Bulk | Banned cards |
+| `mtg://card/{name}/formats` | Bulk | Legality per format |
+| `mtg://card/{name}/similar` | Bulk | Similar cards |
+| `mtg://rules/{number}` | Rules | Rule text (e.g. "702.2") |
+| `mtg://rules/glossary/{term}` | Rules | Glossary definition |
+| `mtg://rules/keywords` | Rules | All keywords with rule refs |
+| `mtg://rules/sections` | Rules | Section index |
+| `mtg://theme/{theme}` | Workflow | Cards matching a theme |
+| `mtg://tribe/{tribe}/staples` | Workflow | Tribe staples |
+| `mtg://draft/{set_code}/signals` | Workflow | Colour openness signals |

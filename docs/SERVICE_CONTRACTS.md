@@ -1,735 +1,134 @@
 # MTG MCP Server — Service Contracts
 
-API details, authentication, rate limits, and response shapes for each backend service.
+Endpoints, auth, rate limits and response quirks for each backend. Full response shapes are in the captured fixtures under `tests/fixtures/<service>/`. Cache TTLs: [CACHING_DESIGN.md](CACHING_DESIGN.md).
+
+## Summary
+
+| Service | Base URL | Auth / headers | Rate limit | Flag (`MTG_MCP_…`) | Stability |
+|---------|----------|----------------|------------|--------------------|-----------|
+| Scryfall | `api.scryfall.com` | `User-Agent: mtg-mcp-server/<version>` + `Accept: application/json` required | 10 req/s (100ms delay) | always on | Official, solid |
+| Scryfall bulk | via `/bulk-data` | none | n/a (file) | `ENABLE_BULK_DATA` | Official, solid |
+| Spellbook | `backend.commanderspellbook.com` | none | undocumented; ~3 req/s, back off on 429 | always on | Official, open source (MIT) |
+| 17Lands | `www.17lands.com` | none | 1 req/s max, aggressive limiting | `ENABLE_17LANDS` | Unofficial, stable for years |
+| EDHREC | `json.edhrec.com` | none | self-imposed 0.5 req/s | `ENABLE_EDHREC` | Reverse-engineered, fragile |
+| Moxfield | `api2.moxfield.com` | Moxfield/browser-style UA (bot UAs blocked) | self-imposed 1 req/s | `ENABLE_MOXFIELD` | Reverse-engineered, fragile |
+| Spicerack | `api.spicerack.gg` | optional `X-API-Key` for higher limits | undocumented; 1 req/s | `ENABLE_SPICERACK` | Documented public API |
+| MTGGoldfish | `www.mtggoldfish.com` | browser-like UA (403 otherwise) | self-imposed 0.5 req/s | `ENABLE_MTGGOLDFISH` | HTML scraping, fragile |
+| Comp. Rules | `media.wizards.com/…/MagicCompRules%2020250404.txt` | none | n/a (file) | `ENABLE_RULES` | Official |
+
+Every base URL can be overridden with `MTG_MCP_<SERVICE>_BASE_URL`. When a flag is off, that provider isn't mounted and workflows treat the backend as unavailable. Fragile sources follow one pattern: feature flag, beta tag, aggressive caching, defensive parsing (`isinstance`/`.get()` chains plus structlog warnings), and `ToolError` on failure, so they never crash the orchestrator.
 
 ---
 
 ## Scryfall
 
-**Status:** Official public REST API. Well-documented, stable, generous rate limits.
+Docs: https://scryfall.com/docs/api · syntax: https://scryfall.com/docs/syntax
 
-### Connection Details
+| Endpoint | Notes |
+|----------|-------|
+| `GET /cards/named?exact=` / `?fuzzy=` | Single card; 404 if not found |
+| `GET /cards/search?q=&page=` | `{total_cards, has_more, data: [card]}` |
+| `GET /cards/{id}` | By UUID |
+| `GET /cards/{id}/rulings` | `{data: [{source, published_at, comment}]}` |
+| `GET /sets`, `GET /sets/{code}` | Set metadata |
 
-| Field | Value |
-|-------|-------|
-| Base URL | `https://api.scryfall.com` |
-| Auth | None (public API) |
-| Rate limit | 10 req/sec (50-100ms delay between requests) |
-| Required headers | `User-Agent: mtg-mcp-server/<version>` and `Accept: application/json` |
-| Documentation | https://scryfall.com/docs/api |
+Useful syntax: `f:commander`, `id:sultai` / `id<=sultai`, `t:creature`, `o:"whenever"`, `usd<5`. Card fields used: name, mana_cost, cmc, type_line, oracle_text, colors, color_identity, keywords, power/toughness, set, rarity, prices (usd/usd_foil/eur, strings), legalities, image_uris, edhrec_rank (fixture: `card_muldrotha.json`).
 
-### Key Endpoints
+**Terms:** do not paywall Scryfall data; do not simply republish it, add value instead; do not crop or distort images, and keep the artist/copyright visible.
 
-**GET `/cards/named`** — Exact or fuzzy card lookup
-```
-?exact=Muldrotha, the Gravetide
-?fuzzy=muldrotha
-```
-Returns: Single card object. 404 if not found.
+## Scryfall bulk data
 
-**GET `/cards/search`** — Full Scryfall search syntax
-```
-?q=commander:sultai+type:creature&page=1
-```
-Returns: `{ object: "list", total_cards: N, has_more: bool, data: [card, ...] }`
+Docs: https://scryfall.com/docs/api/bulk-data. `/bulk-data` lists the files; the `oracle_cards` entry is one object per unique card, **same shape as the API**, so the same `Card` model parses both. It updates daily.
 
-Scryfall search syntax reference: https://scryfall.com/docs/syntax
-Key syntax for our use cases:
-- `f:commander` — Commander-legal cards
-- `id:sultai` or `id<=sultai` — Color identity filtering
-- `t:creature` — Type filtering
-- `o:"whenever"` — Oracle text search
-- `usd<5` — Price filtering
+`ScryfallBulkClient` (file-based):
+- Downloads lazily on first access, not at startup.
+- Parses into a `dict[str, Card]` keyed by lowercase name.
+- Filters out non-playable layouts (art_series, token, double_faced_token, emblem, vanguard, planar, scheme, augment, host) so they can't overwrite real cards.
+- Refreshes in the background every `BULK_DATA_REFRESH_HOURS` (12h); if a refresh fails, it keeps serving the stale data.
 
-**GET `/cards/{id}`** — Lookup by Scryfall ID (UUID)
-
-**GET `/cards/{id}/rulings`** — Official rulings for a card
-Returns: `{ object: "list", data: [{ source, published_at, comment }] }`
-
-**GET `/sets`** — List all sets
-**GET `/sets/{code}`** — Set details by code
-
-### Response Shape (Card Object)
-
-Key fields we care about (subset of full response):
-```json
-{
-  "id": "uuid",
-  "name": "Muldrotha, the Gravetide",
-  "mana_cost": "{3}{B}{G}{U}",
-  "cmc": 6.0,
-  "type_line": "Legendary Creature — Elemental Avatar",
-  "oracle_text": "During each of your turns, you may play...",
-  "colors": ["B", "G", "U"],
-  "color_identity": ["B", "G", "U"],
-  "keywords": [],
-  "power": "6",
-  "toughness": "6",
-  "set": "dom",
-  "collector_number": "199",
-  "rarity": "mythic",
-  "prices": {
-    "usd": "5.50",
-    "usd_foil": "12.00",
-    "eur": "4.80"
-  },
-  "legalities": {
-    "commander": "legal",
-    "standard": "not_legal",
-    "modern": "legal"
-  },
-  "image_uris": {
-    "normal": "https://...",
-    "art_crop": "https://..."
-  },
-  "scryfall_uri": "https://scryfall.com/card/dom/199",
-  "edhrec_rank": 245,
-  "related_uris": {
-    "edhrec": "https://edhrec.com/route/..."
-  }
-}
-```
-
-### Usage Terms
-- Do not paywall access to Scryfall data
-- Do not simply repackage/republish — must create additional value
-- Image usage: do not crop/distort, keep copyright/artist visible
-- Bulk data available for offline use (updates daily)
-
----
+Methods: `get_card`, `get_cards`, `search_cards` (name substring), `search_by_type`, `search_by_text`, `filter_cards(**criteria)`.
 
 ## Commander Spellbook
 
-**Status:** Official public REST API. Open source (MIT license), Django backend.
+Docs: `/schema/swagger/` · syntax: https://commanderspellbook.com/syntax-guide/ · source: https://github.com/SpaceCowMedia/commander-spellbook-backend
 
-### Connection Details
+| Endpoint | Notes |
+|----------|-------|
+| `GET /variants/?q=card:"Muldrotha" coloridentity:sultai` | Aliases: `card:`/`cards:`, `coloridentity:`/`color`/`ci`/`id`; also `commander:`, `bracket:`, `popularity:`, `legal:`. Paginates with `limit`/`offset`, not `page` |
+| `GET /variants/{id}/` | Single combo |
+| `POST /estimate-bracket` | Body `{"commanders": [{"card", "quantity"}], "main": [...]}` (plain text with `// Commander` headers also accepted). Returns `bracketTag`, `bannedCards`, `gameChangerCards`, mass-land-denial / extra-turn / lock / control / skip-turn combos, `twoCardCombos` |
+| `POST /find-my-combos` | Same body; returns `included`, `almostIncluded`, `almostIncludedByAddingColors` |
 
-| Field | Value |
-|-------|-------|
-| Base URL | `https://backend.commanderspellbook.com` |
-| Auth | None (public API) |
-| Rate limit | No documented limit. Community practice: ~2-5 req/sec is safe. Backoff on 429. |
-| Documentation | https://backend.commanderspellbook.com/schema/swagger/ (Swagger), `/schema/` (raw OpenAPI), `/schema/redoc/` (ReDoc) |
-| Source | https://github.com/SpaceCowMedia/commander-spellbook-backend |
-
-### Key Endpoints
-
-**GET `/variants/`** — Search combos
-```
-?q=card:"Muldrotha" coloridentity:sultai
-```
-Search syntax: https://commanderspellbook.com/syntax-guide/
-The `q` parameter supports aliases for common filters: `card:` or `cards:`, `coloridentity:` or `color`, `ci`, `id`, etc.
-Pagination uses `limit` and `offset` (not `page`). Also supports `ordering` and `groupByCombo`.
-Additional useful query params: `commander:`, `bracket:`, `popularity:`, `legal:`.
-Returns: Paginated list of combo variants.
-
-**GET `/variants/{id}/`** — Combo detail by ID
-Returns: Single combo variant object.
-
-**POST `/estimate-bracket`** — Bracket estimation
-```json
-{
-  "commanders": [{"card": "Muldrotha, the Gravetide", "quantity": 1}],
-  "main": [{"card": "Sol Ring", "quantity": 1}, {"card": "Spore Frog", "quantity": 1}]
-}
-```
-Also accepts plain-text decklist format with `// Commander` section headers.
-Returns: Bracket-relevant combo information with fields: `bracketTag`, `bannedCards`, `gameChangerCards`, `massLandDenialCards`, `massLandDenialTemplates`, `massLandDenialCombos`, `extraTurnCards`, `extraTurnTemplates`, `extraTurnsCombos`, `lockCombos`, `controlAllOpponentsCombos`, `controlSomeOpponentsCombos`, `skipTurnsCombos`, `twoCardCombos`.
-
-**POST `/find-my-combos`** — Find combos in a decklist
-Same request body format as `/estimate-bracket`. Returns combos categorized as `included`, `almostIncluded`, `almostIncludedByAddingColors`. Very useful for workflow tools like `suggest_cuts` and `evaluate_upgrade`.
-
-### Response Shape (Combo Variant)
-
-```json
-{
-  "id": "1414-2730-5131-5256",
-  "status": "OK",
-  "uses": [{
-    "card": {
-      "id": 5131,
-      "name": "Muldrotha, the Gravetide",
-      "oracleId": "uuid",
-      "typeLine": "Legendary Creature — Elemental Avatar",
-      "spoiler": false
-    },
-    "quantity": 1,
-    "zoneLocations": ["C"],
-    "battlefieldCardState": "",
-    "exileCardState": "",
-    "libraryCardState": "",
-    "graveyardCardState": "",
-    "mustBeCommander": true
-  }],
-  "requires": [{
-    "template": {
-      "id": 123,
-      "name": "A permanent card in your graveyard",
-      "scryfallQuery": "...",
-      "scryfallApi": "..."
-    },
-    "quantity": 1,
-    "zoneLocations": ["G"]
-  }],
-  "produces": [{
-    "feature": {
-      "id": 7,
-      "name": "Infinite death triggers",
-      "uncountable": true
-    },
-    "quantity": 1
-  }],
-  "of": [{"id": 1167}],
-  "identity": "BGU",
-  "manaNeeded": "",
-  "manaValueNeeded": 0,
-  "easyPrerequisites": "All permanents on the battlefield.",
-  "notablePrerequisites": "",
-  "description": "Step-by-step combo description...",
-  "notes": "",
-  "popularity": 3382,
-  "bracketTag": "E",
-  "legalities": {"commander": true},
-  "prices": {
-    "tcgplayer": "63.22",
-    "cardmarket": "31.17",
-    "cardkingdom": "63.26"
-  },
-  "variantCount": 1
-}
-```
-
-Notes:
-- `zoneLocations` uses single-letter codes: B=Battlefield, H=Hand, G=Graveyard, E=Exile, L=Library, C=Command Zone
-- `bracketTag` is a single letter (e.g., "E"), not human-readable labels
-- `of` contains only combo IDs — prerequisites, steps, and results are flattened into `easyPrerequisites`, `notablePrerequisites`, and `description`
-- `produces` wraps each result in a `{"feature": {...}, "quantity": N}` object
-
-### Bracket Mapping
-
-Bracket tags in the API use single-letter codes (e.g., "E") rather than human-readable labels. The old documentation referenced labels like "Ruthless", "Spicy", "Powerful", etc., but these are not what the API actually returns. The mapping from single-letter codes to bracket numbers (1-4) will need to be reverse-engineered when we implement Phase 2.
-
----
+Combo variant quirks (fixture: `combo_detail.json`):
+- `zoneLocations` codes: B=Battlefield, H=Hand, G=Graveyard, E=Exile, L=Library, C=Command zone.
+- `produces` items are `{"feature": {...}, "quantity": N}`.
+- `of` holds only combo IDs. Prerequisites and steps are flattened into `easyPrerequisites`, `notablePrerequisites` and `description`.
+- `bracketTag` is a single letter (e.g. `"E"`), shown raw. No mapping to brackets 1-4 is implemented.
 
 ## 17Lands
 
-**Status:** Semi-public API. No official documentation. Used by community tools. Rate limits enforced.
+Public datasets: https://www.17lands.com/public_datasets · usage guidelines: https://www.17lands.com/usage_guidelines
 
-### Connection Details
+| Endpoint | Notes |
+|----------|-------|
+| `GET /card_ratings/data?expansion=&event_type=&start_date=&end_date=` | `event_type` is canonical (legacy alias `format` works here only). Dates are optional, but without them `avg_pick` (and sometimes `play_rate`) is null |
+| `GET /color_ratings/data?expansion=&event_type=&start_date=&end_date=` | Dates **required** (HTTP 400 without them). Rows: `{is_summary, color_name, short_name, wins, games}`; win rate = `wins / games`. Includes mono through five-colour, splash and summary rows |
 
-| Field | Value |
-|-------|-------|
-| Base URL | `https://www.17lands.com` |
-| Auth | None |
-| Rate limit | Aggressive — rate-limited after multiple set downloads |
-| Public datasets | https://www.17lands.com/public_datasets |
-| Usage guidelines | https://www.17lands.com/usage_guidelines |
+Metric mapping: **GIH WR** = `ever_drawn_win_rate` (best single quality metric), **ALSA** = `avg_seen` (lateness, a signal of openness), **OH WR** = `opening_hand_win_rate`, **IWD** = `drawn_improvement_win_rate`.
 
-### Key Endpoints
-
-**GET `/card_ratings/data`** — Card performance data
-```
-?expansion=LRW&event_type=PremierDraft&start_date=2026-01-20&end_date=2026-03-20
-```
-The canonical parameter name is `event_type`. The legacy alias `format` also works for this endpoint.
-`start_date` and `end_date` are optional but affect which fields are populated (e.g., `avg_pick` may be null without an explicit date range).
-Returns: Array of card rating objects.
-
-**GET `/color_ratings/data`** — Archetype win rates
-```
-?expansion=MKM&event_type=PremierDraft&start_date=2024-02-06&end_date=2024-04-06
-```
-**Important:** This endpoint REQUIRES `start_date` and `end_date` parameters (returns HTTP 400 without them). This endpoint uses `event_type` NOT `format` as the parameter name.
-Returns: Array of color pair performance data.
-
-### Response Shape (Card Rating)
-
-```json
-{
-  "name": "Nameless Inversion",
-  "color": "B",
-  "rarity": "common",
-  "mtga_id": 12345,
-  "url": "https://cards.scryfall.io/normal/front/...",
-  "url_back": "",
-  "types": ["Tribal", "Instant"],
-  "layout": "standard",
-  "seen_count": 12500,
-  "avg_seen": 4.2,
-  "pick_count": 8300,
-  "avg_pick": 2.1,
-  "game_count": 15000,
-  "pool_count": 5000,
-  "play_rate": 0.85,
-  "win_rate": 0.572,
-  "opening_hand_game_count": 3200,
-  "opening_hand_win_rate": 0.591,
-  "drawn_game_count": 5100,
-  "drawn_win_rate": 0.583,
-  "ever_drawn_game_count": 8300,
-  "ever_drawn_win_rate": 0.587,
-  "never_drawn_game_count": 6700,
-  "never_drawn_win_rate": 0.554,
-  "drawn_improvement_win_rate": 0.033
-}
-```
-
-Note: `avg_pick` may be null when `start_date`/`end_date` are not provided. `play_rate` may also be null.
-
-Key metrics:
-- **GIH WR** (Games in Hand Win Rate / `ever_drawn_win_rate`): Best single metric for card quality
-- **ALSA** (Average Last Seen At / `avg_seen`): How late a card wheels — signal for openness
-- **OH WR** (`opening_hand_win_rate`): How good is this card early?
-- **IWD** (`drawn_improvement_win_rate`): Win rate boost when drawn vs not drawn
-
-### Response Shape (Color Rating)
-
-```json
-{
-  "is_summary": false,
-  "color_name": "Azorius (WU)",
-  "short_name": "WU",
-  "wins": 38191,
-  "games": 68100
-}
-```
-
-Note: Win rate must be derived as `wins / games`. The array includes mono-color, two-color, three-color, four-color, five-color, and splash variants, plus summary rows (where `is_summary=true`).
-
-### Caveats
-- Cards with <500 samples won't have win rate data
-- 17Lands users skew slightly above average skill (56% baseline, not 50%)
-- Not an official API — may change or rate-limit without notice
-
----
+Caveats: cards with fewer than 500 games have no win-rate data. 17Lands users skew above average, so the baseline is ~56%, not 50%. 17Lands uses Arena card names.
 
 ## EDHREC
 
-**Status:** No official public API. Internal JSON endpoints used by community wrappers.
+Undocumented internal JSON (community reference: `pyedhrec`).
 
-### Connection Details
+| Endpoint | Notes |
+|----------|-------|
+| `GET /pages/commanders/{slug}.json` | Slug: lowercase, hyphens, no commas or apostrophes (`muldrotha-the-gravetide`) |
+| `GET /pages/cards/{slug}.json` | Card page |
 
-| Field | Value |
-|-------|-------|
-| Base URL | `https://json.edhrec.com` (for JSON data) |
-| Alt URL | `https://edhrec.com` (for scraping) |
-| Auth | None |
-| Rate limit | Self-imposed: 2 req/sec max, respect robots.txt |
-| Community wrapper | https://pypi.org/project/pyedhrec/ |
-
-### Key Endpoints (Reverse-Engineered)
-
-**GET `/pages/commanders/{slug}.json`** — Commander page data
-```
-/pages/commanders/muldrotha-the-gravetide.json
-```
-Slug format: lowercase, hyphens, no commas/apostrophes.
-
-Returns: Full commander page including top cards by category (creatures, instants, sorceries, etc.), with synergy scores and inclusion percentages.
-
-**GET `/pages/cards/{slug}.json`** — Card page data
-```
-/pages/cards/spore-frog.json
-```
-
-### Response Shape (Commander Page)
-
-The response is large and nested. Key fields:
-```json
-{
-  "header": "Muldrotha, the Gravetide",
-  "description": "...",
-  "container": {
-    "json_dict": {
-      "cardlists": [
-        {
-          "header": "Creatures",
-          "cardviews": [
-            {
-              "name": "Spore Frog",
-              "sanitized": "spore-frog",
-              "synergy": 0.61,
-              "inclusion": 61,
-              "num_decks": 12050,
-              "label": "61% of 19,741 decks"
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
-
-Key data points:
-- **`synergy`**: Score from -1.0 to 1.0. High synergy = card is specifically good with this commander (not just generically popular)
-- **`inclusion`**: Percentage of decks running this card
-- **`num_decks`**: Total decks analyzed
-
-### Fragility Warning
-
-These are undocumented internal endpoints. They WILL break eventually. Design the EDHREC service to:
-1. Cache aggressively (24hr TTL)
-2. Fail gracefully — EDHREC being down should never crash the orchestrator
-3. Have fixture-based tests that don't hit the real endpoints
-4. Log warnings when response shapes don't match expected models
-
----
-
-## Scryfall Bulk Data
-
-**Status:** Official Scryfall bulk data download. Same data as the API but available as a file. Replaced MTGJSON in Phase 4.
-
-### Connection Details
-
-| Field | Value |
-|-------|-------|
-| Discovery URL | `https://api.scryfall.com/bulk-data` |
-| Auth | None (public download) |
-| Rate limit | N/A (file download) |
-| Update frequency | Daily |
-| Documentation | https://scryfall.com/docs/api/bulk-data |
-
-### Data File
-
-The Oracle Cards bulk data is discovered via the `/bulk-data` endpoint, which returns a JSON list of available bulk data types. The `oracle_cards` type contains one JSON object per unique card name.
-
-Card objects in the bulk data use the **same shape** as Scryfall API responses — no field mapping needed. The `Card` Pydantic model parses both API and bulk data responses identically.
-
-### Service Architecture
-
-`ScryfallBulkClient` is **not** a `BaseClient` subclass. It's a file-based service that:
-1. Discovers the download URL via Scryfall's `/bulk-data` endpoint
-2. Downloads the Oracle Cards JSON file lazily on first access (not at startup)
-3. Parses into `dict[str, Card]` keyed by lowercase name for O(1) lookups
-4. Filters out non-playable layouts (art_series, token, double_faced_token, emblem, vanguard, planar, scheme, augment, host) to prevent overwriting real cards
-5. Runs background refresh via `start_background_refresh()` every `MTG_MCP_BULK_DATA_REFRESH_HOURS` (default 12h)
-6. On refresh failure with existing data, serves stale data rather than failing
-
-### Key Methods
-
-- `get_card(name)` — O(1) exact-name lookup
-- `get_cards(names)` — Batch exact-name lookup
-- `search_cards(query, limit)` — Name substring search
-- `search_by_type(type_query, limit)` — Type line search
-- `search_by_text(text_query, limit)` — Oracle text search
-- `filter_cards(**criteria)` — Multi-criteria filtering (format, type, color identity, etc.)
-
-### Feature Flag
-
-Behind `MTG_MCP_ENABLE_BULK_DATA` (default `true`). When disabled:
-- The bulk data provider is not mounted on the orchestrator
-- Workflow tools skip bulk data lookups and go directly to Scryfall API
-
----
-
-## Comprehensive Rules
-
-**Status:** Official Wizards of the Coast text file. Updated ~4 times per year with new set releases.
-
-### Connection Details
-
-| Field | Value |
-|-------|-------|
-| URL | `https://media.wizards.com/2025/downloads/MagicCompRules%2020250404.txt` |
-| Auth | None (public download) |
-| Rate limit | N/A (file download) |
-| Update frequency | ~4 times per year (with each standard set release) |
-
-### Data File
-
-Plain-text file containing the full Comprehensive Rules of Magic: The Gathering. Parsed into three indexes:
-
-1. **Rules index** — `dict[str, Rule]` keyed by rule number (e.g. "704.5k"). Each `Rule` contains: `number`, `text`, `parent_number`, `subrules` list.
-2. **Glossary index** — `dict[str, GlossaryEntry]` keyed by lowercase term. Each entry contains: `term`, `definition`.
-3. **Sections index** — `dict[str, str]` mapping section numbers to names (e.g. "7" -> "Additional Rules").
-
-### Service Architecture
-
-`RulesService` is **not** a `BaseClient` subclass. It's a file-based service that:
-1. Downloads the Comprehensive Rules text file lazily on first access
-2. Parses rules, glossary, and section headers into in-memory indexes
-3. Tracks keyword rule numbers (702.x rules) for keyword-specific lookups
-4. Refreshes when `MTG_MCP_RULES_REFRESH_HOURS` has elapsed (default 168h / weekly)
-5. On refresh failure with existing data, serves stale data rather than failing
-
-### Key Methods
-
-- `lookup_by_number(number)` — Exact rule number lookup
-- `search_rules(query, section)` — Keyword search across rule text, optionally scoped to a section
-- `glossary_lookup(term)` — Glossary term lookup
-- `list_keywords()` — All keywords with brief definitions (702.x rules)
-- `list_sections()` — Section index for the Comprehensive Rules
-
-### Feature Flag
-
-Behind `MTG_MCP_ENABLE_RULES` (default `true`). When disabled:
-- Rules tools return a ToolError indicating the feature is disabled
-- No downloads are attempted
-
----
+Cards live at `container.json_dict.cardlists[].cardviews[]` with `name`, `sanitized`, `synergy` (-1.0 to 1.0: specific to this commander, not just popular), `inclusion` (% of decks), `num_decks`, `label`. Each list has a category `header` (Creatures, Lands, …).
 
 ## Moxfield
 
-**Status:** No official public API. Reverse-engineered REST endpoints at `api2.moxfield.com`.
+Reverse-engineered; no stability guarantees.
 
-### Connection Details
+| Endpoint | Notes |
+|----------|-------|
+| `GET /v3/decks/all/{deck_id}` | Metadata plus per-board card maps (`commanders`, `mainboard`, `sideboard`, `companions`). The client accepts a full URL or a bare ID |
+| `GET /v2/decks/search` | `pageNumber` (1-indexed), `pageSize` (20), `sortType` Updated/Created/Views, `sortDirection`, `q`, `fmt` (lowercase format). Returns `{pageNumber, pageSize, totalResults, totalPages, data: [deck summary]}` |
+| `GET /v2/users/search-sfw?filter=` | `{data: [{userName, displayName, badges}]}` |
 
-| Field | Value |
-|-------|-------|
-| Base URL | `https://api2.moxfield.com` |
-| Auth | None. Requires Moxfield-style `User-Agent` header (blocks bot UAs). |
-| Rate limit | Self-imposed: 1 req/sec. No documented limits. |
-| Documentation | None. Reverse-engineered via network inspection. |
-
-### Key Endpoints
-
-**GET `/v3/decks/all/{deck_id}`** — Full deck data by public ID
-Returns: JSON with deck metadata, per-board card maps (`commanders`, `mainboard`, `sideboard`, `companions`).
-
-**GET `/v2/decks/search`** — Search public decks
-```
-?pageNumber=1&pageSize=20&sortType=Updated&sortDirection=Descending&q=keyword&fmt=modern
-```
-Parameters:
-- `pageNumber` (int): 1-indexed page
-- `pageSize` (int): Results per page (default 20)
-- `sortType` (str): "Updated", "Created", or "Views"
-- `sortDirection` (str): "Ascending" or "Descending"
-- `q` (str, optional): Search text
-- `fmt` (str, optional): Format filter (e.g. "modern", "commander", "pauper")
-
-Returns: Paginated JSON with `data` array of deck summaries.
-
-**GET `/v2/users/search-sfw`** — Search users by name
-```
-?filter=username
-```
-Parameters:
-- `filter` (str): Username or display name to search
-
-Returns: JSON with `data` array of user objects.
-
-### Response Shape (Deck Search)
-
-```json
-{
-  "pageNumber": 1,
-  "pageSize": 20,
-  "totalResults": 150,
-  "totalPages": 8,
-  "data": [
-    {
-      "publicId": "abc123",
-      "name": "Mono-Blue Terror",
-      "format": "pauper",
-      "publicUrl": "https://www.moxfield.com/decks/abc123",
-      "createdByUser": {
-        "userName": "player1",
-        "displayName": "Player One",
-        "badges": ["creator"]
-      },
-      "mainboardCount": 60,
-      "sideboardCount": 15,
-      "colors": ["U"],
-      "createdAtUtc": "2026-01-15T10:00:00Z",
-      "lastUpdatedAtUtc": "2026-03-20T14:30:00Z"
-    }
-  ]
-}
-```
-
-### Response Shape (User Search)
-
-```json
-{
-  "data": [
-    {
-      "userName": "player1",
-      "displayName": "Player One",
-      "badges": ["creator"]
-    }
-  ]
-}
-```
-
-### Service Architecture
-
-`MoxfieldClient` extends `BaseClient` with:
-- `rate_limit_rps=1.0`
-- Custom `User-Agent` header (browser-like, blocks bot UAs)
-- Error hierarchy: `MoxfieldError(ServiceError)`
-- 3 class-level TTLCaches: `_deck_cache` (4h/100), `_search_cache` (1h/50), `_user_search_cache` (4h/100)
-- `_moxfield_deck_key`: custom cache key normalizing URLs to deck IDs
-- Defensive parsing: `isinstance()` checks, `.get()` chains for all response fields
-- `_parse_search_result` raises `MoxfieldError` on non-dict responses (consistent with `_parse_deck`)
-
-### Feature Flag
-
-Behind `MTG_MCP_ENABLE_MOXFIELD` (default `true`). High fragility — reverse-engineered API with no stability guarantees.
-
----
+Errors: `MoxfieldError(ServiceError)`, which is also raised on non-dict responses.
 
 ## Spicerack
 
-**Status:** Documented public REST API. Returns tournament results, standings, and Moxfield decklist URLs for competitive paper events.
+Docs: https://docs.spicerack.gg/api-reference/public-decklist-database
 
-### Connection Details
-
-| Field | Value |
-|-------|-------|
-| Base URL | `https://api.spicerack.gg` |
-| Auth | None required. Optional `X-API-Key` header for higher rate limits. |
-| Rate limit | Undocumented. 1 req/sec recommended. |
-| Documentation | https://docs.spicerack.gg/api-reference/public-decklist-database |
-
-### Key Endpoints
-
-**GET `/api/export-decklists/`** — Tournament results with standings and decklists
-```
-?num_days=14&event_format=Legacy&decklist_as_text=true
-```
-Parameters:
-- `num_days` (int): Number of days to look back (default 14)
-- `event_format` (str, optional): Filter by format (title-case: "Modern", "Legacy", "Pauper", "Pioneer", "Standard")
-- `organization_id` (str, optional): Filter by organizing store
-- `decklist_as_text` (bool): Include card lists as text in standings
-
-Returns: JSON array of tournament objects with embedded standings.
-
-### Response Shape (Tournament)
-
-```json
-[
-  {
-    "TID": "3135276",
-    "tournamentName": "ETB x LOTN 3k-5k Legacy Monthly (February)",
-    "format": "Legacy",
-    "startDate": 1774710000,
-    "players": 79,
-    "swissRounds": 5,
-    "topCut": 8,
-    "bracketUrl": "https://www.spicerack.gg/events/3135276/tournament",
-    "standings": [
-      {
-        "name": "Chris Switalski",
-        "winsSwiss": 5,
-        "lossesSwiss": 0,
-        "draws": 0,
-        "winsBracket": 3,
-        "lossesBracket": 0,
-        "decklist": "https://www.moxfield.com/decks/..."
-      }
-    ]
-  }
-]
-```
-
-Key fields:
-- **`TID`**: Tournament ID (string). Used for `tournament_results` lookups.
-- **`format`**: Title-case format name (e.g. "Legacy", "Modern").
-- **`startDate`**: Unix timestamp (integer), not an ISO date string.
-- **`players`**: Player count (integer).
-- **`topCut`**: Number of players in the top cut bracket.
-- **`bracketUrl`**: Link to bracket on spicerack.gg.
-- **Standings rank**: Derived from array position (no explicit rank field in the API response).
-- **`decklist`**: Moxfield URL. May be empty if player didn't submit a list.
-
-### Service Architecture
-
-`SpicerackClient` extends `BaseClient` with:
-- `rate_limit_rps=1.0` (conservative — undocumented limits)
-- Optional `X-API-Key` header when `api_key` is non-empty
-- Single method: `get_tournaments(num_days, event_format)` returning `list[SpicerackTournament]`
-- Defensive parsing: `isinstance()` checks, `.get()` chains for missing fields
-- TTLCache: maxsize=50, ttl=14400 (4h)
-
-### Feature Flag
-
-Behind `MTG_MCP_ENABLE_SPICERACK` (default `true`). Documented public API — low risk of breakage.
-
----
+`GET /api/export-decklists/?num_days=14&event_format=Legacy&decklist_as_text=true` (optional `organization_id`) returns an array of tournaments with embedded standings (fixture: `tournaments_legacy.json`).
+- `event_format` and `format` are **title-case** ("Modern", "Legacy", "Pauper", …).
+- `TID` is a string, used for `tournament_results`. `startDate` is a **unix timestamp int**.
+- Other fields: `players`, `swissRounds`, `topCut`, `bracketUrl`.
+- Standings have **no rank field**; rank comes from array position. `decklist` is a Moxfield URL and may be empty.
 
 ## MTGGoldfish
 
-**Status:** No official API. All data scraped from HTML pages. Blocks non-browser User-Agents.
+No API (JSON requests return 406). Parsed with selectolax.
 
-### Connection Details
+| Endpoint | Parsed from |
+|----------|-------------|
+| `GET /metagame/{format}/full` (lowercase slug) | `.archetype-tile`: name `.archetype-tile-title a`, slug from its href, meta % and deck count from the 1st/2nd `.archetype-tile-statistic-value`, price `.price-tag-paper-price`, colours from `.mana-icon` classes `ms-w/u/b/r/g` |
+| `GET /archetype/{format}-{slug}` | Metadata from `.deck-container-information`; deck ID by regex from the `initializeDeckComponents('guid', '{deck_id}', …)` JS call |
+| `GET /deck/download/{deck_id}` | **Plain text** `4 Card Name` lines; a blank line separates main from sideboard |
+| `GET /format-staples/{format}` | Table rows: rank, card name (`td a`), % of decks, avg copies |
 
-| Field | Value |
-|-------|-------|
-| Base URL | `https://www.mtggoldfish.com` |
-| Auth | None. Requires browser-like `User-Agent` header (blocks bot UAs with 403). |
-| Rate limit | Self-imposed: 0.5 req/sec. No documented limits. |
-| Documentation | None. Reverse-engineered from HTML structure. |
+Errors: `MTGGoldfishError` → `FormatNotFoundError`, `ArchetypeNotFoundError`.
 
-### Key Endpoints
+## Comprehensive Rules
 
-**GET `/metagame/{format}/full`** — Full metagame breakdown
-```
-/metagame/modern/full
-```
-Format slugs: lowercase (`modern`, `pioneer`, `standard`, `legacy`, `vintage`, `pauper`).
-Returns: HTML with `.archetype-tile` divs containing archetype name, slug, meta share %, deck count, estimated paper price, colors (mana symbol CSS classes), and key cards.
+Plain-text file, updated ~4×/year. `RulesService` (file-based) downloads it lazily and parses it into:
+- a rules index (`"704.5k"` → `Rule{number, text, parent_number, subrules}`)
+- a glossary (lowercase term → definition)
+- a sections index (`"7"` → "Additional Rules")
 
-**GET `/archetype/{format}-{slug}`** — Archetype detail page
-```
-/archetype/modern-boros-energy
-```
-Returns: HTML with deck metadata (author, event, result, date) and JavaScript containing `initializeDeckComponents('guid', '{deck_id}', ...)` for the deck download ID.
-
-**GET `/deck/download/{deck_id}`** — Plaintext decklist download
-```
-/deck/download/6789012
-```
-Returns: **Plain text** (not HTML) in `4 Card Name\n` format. Mainboard and sideboard separated by a blank line. This is the cleanest endpoint — no HTML parsing needed.
-
-**GET `/format-staples/{format}`** — Most-played cards in a format
-```
-/format-staples/modern
-```
-Returns: HTML with `table` rows containing rank, card name, % of decks, and average copies per deck.
-
-### Response Shapes
-
-All endpoints return HTML (except `/deck/download/` which returns plaintext). Parsed with `selectolax` CSS selectors.
-
-**Metagame page** — `.archetype-tile` divs:
-- Archetype name from `.archetype-tile-title a` text
-- Slug from the `<a>` href (`/archetype/{format}-{slug}`)
-- Meta share from `.archetype-tile-statistic-value` text (e.g., "20.3%")
-- Deck count from second `.archetype-tile-statistic-value`
-- Price from `.price-tag-paper-price` text (e.g., "$348")
-- Colors from `.mana-icon` CSS classes (`ms-w`, `ms-u`, `ms-b`, `ms-r`, `ms-g`)
-
-**Archetype detail page:**
-- Deck metadata from `.deck-container-information` elements
-- Deck download ID extracted via regex from `initializeDeckComponents` JS call
-
-**Format staples page:**
-- Table rows with: rank (first `td`), card name (`td a` text), % of decks, avg copies
-
-### Fragility Warning
-
-These are HTML scraping targets with no API stability guarantees. MTGGoldfish can change their HTML structure at any time. Design mirrors the EDHREC fragile-source pattern:
-1. Cache aggressively (6-24h TTL depending on data type)
-2. Fail gracefully — MTGGoldfish being down should never crash the orchestrator
-3. Fixture-based tests with captured HTML pages
-4. Defensive parsing with `contextlib.suppress` and structlog warnings
-5. Behind `MTG_MCP_ENABLE_MTGGOLDFISH` feature flag
-
-### Service Architecture
-
-`MTGGoldfishClient` extends `BaseClient` with:
-- `rate_limit_rps=0.5` (conservative — matches EDHREC pattern)
-- Browser-like User-Agent: `"Mozilla/5.0 ... Chrome/131.0.0.0"`
-- Error hierarchy: `MTGGoldfishError` → `FormatNotFoundError`, `ArchetypeNotFoundError`
-- 4 class-level TTLCaches: `_metagame_cache` (6h/50), `_archetype_cache` (12h/100), `_staples_cache` (12h/50), `_price_cache` (24h/100)
-- 4 methods: `get_metagame(format)`, `get_archetype(format, archetype)`, `get_format_staples(format, limit)`, `get_deck_price(format, archetype)`
-- Pre-compiled regexes for slug generation, deck ID extraction, meta% parsing, price parsing
-- Mana color map: `ms-w`→W, `ms-u`→U, `ms-b`→B, `ms-r`→R, `ms-g`→G
-
-### Feature Flag
-
-Behind `MTG_MCP_ENABLE_MTGGOLDFISH` (default `true`). High fragility — HTML scraping with no API guarantees.
+It tracks the 702.x keyword rules. It refreshes after `RULES_REFRESH_HOURS` (168h); if a refresh fails, it keeps serving the stale data. Methods: `lookup_by_number`, `search_rules(query, section)`, `glossary_lookup`, `list_keywords`, `list_sections`. When disabled, rules tools raise `ToolError` and nothing is downloaded.

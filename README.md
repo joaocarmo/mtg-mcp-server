@@ -16,19 +16,6 @@
 
 > Built on data from [Scryfall](https://scryfall.com), [Commander Spellbook](https://commanderspellbook.com), [17Lands](https://www.17lands.com), [EDHREC](https://edhrec.com), [Moxfield](https://www.moxfield.com), [Spicerack](https://spicerack.gg), and [MTGGoldfish](https://www.mtggoldfish.com). See [Data Sources & Attribution](#data-sources--attribution) for details and usage terms.
 
-## Table of Contents
-
-- [What You Can Do](#what-you-can-do) — example prompts and real tool output
-- [Install](#install) — hosted, Claude Code, Claude Desktop, PyPI, development
-- [Configuration](#configuration) — environment variables and feature flags
-- [Tools](#tools) — all 69 tools across 13 domains
-- [Architecture](#architecture) — FastMCP 3.x mount system
-- [Stack](#stack) — Python 3.12+, FastMCP, httpx, Pydantic
-- [Development](#development) — mise commands for testing, linting, typechecking
-- [Documentation](#documentation) — cookbook, architecture, tool reference, and more
-- [Status](#status) — current tool/test counts
-- [Data Sources & Attribution](#data-sources--attribution) — Scryfall, Spellbook, 17Lands, EDHREC, Moxfield, Spicerack, MTGGoldfish
-
 ## What You Can Do
 
 Ask your AI assistant questions like these and it will use the MTG tools automatically:
@@ -183,239 +170,47 @@ Claude Code config for local development:
 
 ## Configuration
 
-All settings use `MTG_MCP_` environment variables. Everything works out of the box with sensible defaults.
+All settings are `MTG_MCP_` environment variables with working defaults (full list: `src/mtg_mcp_server/config.py`). Each optional backend can be turned off with `MTG_MCP_ENABLE_<NAME>=false`, where `<NAME>` is `17LANDS`, `EDHREC`, `MOXFIELD`, `SPICERACK`, `MTGGOLDFISH`, `BULK_DATA` (skips a ~30MB download) or `RULES`.
 
 ```bash
-# Feature flags for optional backends
-MTG_MCP_ENABLE_EDHREC=false       # EDHREC (scrapes undocumented endpoints)
-MTG_MCP_ENABLE_17LANDS=false      # 17Lands (rate-limits aggressively)
-MTG_MCP_ENABLE_BULK_DATA=false    # Scryfall bulk data (~30MB download on first use)
-MTG_MCP_ENABLE_RULES=false        # Comprehensive Rules engine
-
-# Pass env vars through uvx
 uvx --env MTG_MCP_ENABLE_EDHREC=false mtg-mcp-server
 ```
 
-See `.env.example` for all available options including base URLs, rate limits, and cache settings.
-
 ## Tools
 
-69 tools across 13 domains. See [docs/TOOL_DESIGN.md](docs/TOOL_DESIGN.md) for full input/output details.
+Full inputs/outputs: [docs/TOOL_DESIGN.md](docs/TOOL_DESIGN.md).
 
-### Card Data (`scryfall_*`)
-
-| Tool | Description |
-|------|-------------|
-| `search_cards` | Search using full Scryfall syntax (`f:commander id:sultai t:creature`) |
-| `card_details` | Full card data by exact or fuzzy name |
-| `card_price` | Current USD, EUR, and foil prices |
-| `card_rulings` | Official rulings and clarifications |
-| `set_info` | Set metadata by code |
-| `whats_new` | Recently released or previewed cards |
-
-### Bulk Data (`bulk_*`)
-
-| Tool | Description |
-|------|-------------|
-| `card_lookup` | Rate-limit-free card lookup by exact name |
-| `card_search` | Search by name, type, or oracle text |
-| `format_legality` | Check if a card is legal in a format |
-| `format_search` | Search for cards legal in a specific format |
-| `format_staples` | Top-played cards in a format by EDHREC rank |
-| `ban_list` | Banned and restricted cards for a format |
-| `card_in_formats` | Card legality across all formats |
-| `random_card` | Random card, optionally filtered by format or type |
-| `similar_cards` | Find cards similar by type, keywords, or mana cost |
-
-### Combos (`spellbook_*`)
-
-| Tool | Description |
-|------|-------------|
-| `find_combos` | Search for combos by card name and color identity |
-| `combo_details` | Step-by-step combo instructions by ID |
-| `find_decklist_combos` | Find combos present in a decklist |
-| `estimate_bracket` | Estimate Commander bracket for a decklist |
-
-### Draft Analytics (`draft_*`)
-
-| Tool | Description |
-|------|-------------|
-| `card_ratings` | Win rates and draft data for cards in a set (17Lands) |
-| `archetype_stats` | Win rates by color pair for a set |
-
-### Commander Metagame (`edhrec_*`)
-
-| Tool | Description |
-|------|-------------|
-| `commander_staples` | Most-played cards for a commander with synergy scores |
-| `card_synergy` | Synergy data for a card with a specific commander |
-
-### Decklists (`moxfield_*`)
-
-| Tool | Description |
-|------|-------------|
-| `decklist` | Fetch a full decklist by deck ID or URL |
-| `deck_info` | Deck metadata (name, format, author, dates) |
-| `search_decks` | Search public decks by format, keyword, or sort order |
-| `user_decks` | List a user's public decks |
-
-### Tournament Data (`spicerack_*`)
-
-| Tool | Description |
-|------|-------------|
-| `recent_tournaments` | Recent tournaments for a competitive format |
-| `tournament_results` | Full standings for a specific tournament |
-| `format_decklists` | Top-finishing decklists across recent tournaments |
-
-### Metagame (`goldfish_*`)
-
-| Tool | Description |
-|------|-------------|
-| `metagame` | Current metagame breakdown for a competitive format |
-| `archetype_list` | Sample decklist for an archetype |
-| `format_staples` | Most-played cards in a format with deck inclusion % |
-| `deck_price` | Estimated paper price for an archetype deck |
-
-### Commander Workflows
-
-| Tool | Description |
-|------|-------------|
-| `commander_overview` | Full commander profile from all sources |
-| `evaluate_upgrade` | Assess whether a card is worth adding to a deck |
-| `card_comparison` | Compare 2-5 cards side-by-side for a commander |
-| `budget_upgrade` | Budget-constrained upgrade suggestions ranked by synergy/$ |
-| `commander_comparison` | Compare 2-5 commanders head-to-head |
-| `color_identity_staples` | Top-played cards across all commanders in a color identity |
-
-### Deck Building
-
-| Tool | Description |
-|------|-------------|
-| `theme_search` | Find cards matching a mechanical or tribal theme |
-| `build_around` | Detect synergies from key cards and find complements |
-| `complete_deck` | Gap analysis and suggestions for a partial decklist |
-| `tribal_staples` | Best cards for a creature type in a color identity |
-| `precon_upgrade` | Analyze a precon and suggest swap pairs |
-| `suggest_cuts` | Identify the weakest cards to cut from a decklist |
-| `deck_analysis` | Full decklist health check (curve, colors, combos, budget) |
-| `deck_validate` | Validate a decklist against format construction rules |
-| `suggest_mana_base` | Suggest lands based on color pip distribution |
-| `price_comparison` | Compare prices across multiple cards |
-
-### Draft Workflows
-
-| Tool | Description |
-|------|-------------|
-| `draft_pack_pick` | Rank cards in a draft pack using 17Lands data |
-| `set_overview` | Top commons/uncommons and trap rares for a format |
-| `sealed_pool_build` | Suggest the best 40-card builds from a sealed pool |
-| `draft_signal_read` | Detect open colors from draft picks |
-| `draft_log_review` | Pick-by-pick review of a completed draft with grade |
-
-### Constructed Workflows
-
-| Tool | Description |
-|------|-------------|
-| `rotation_check` | Standard rotation status and rotating cards |
-| `metagame_snapshot` | Tiered metagame breakdown with prices |
-| `archetype_decklist` | Stock decklist for a competitive archetype |
-| `archetype_comparison` | Compare 2-4 archetypes side-by-side |
-| `format_entry_guide` | Beginner guide for entering a competitive format |
-| `suggest_sideboard` | 15-card sideboard suggestions for a deck |
-| `sideboard_guide` | In/out plan for a specific matchup |
-| `sideboard_matrix` | Sideboard matrix across common matchups |
-
-### Rules Engine
-
-| Tool | Description |
-|------|-------------|
-| `rules_lookup` | Look up rules by number or keyword |
-| `keyword_explain` | Explain a keyword with rules and example cards |
-| `rules_interaction` | How two mechanics interact with rule citations |
-| `rules_scenario` | Rules framework for a game scenario |
-| `combat_calculator` | Step-by-step combat phases with keyword interactions |
+| Domain | Tools |
+|--------|-------|
+| Card data (`scryfall_`) | `search_cards`, `card_details`, `card_price`, `card_rulings`, `set_info`, `whats_new` |
+| Bulk data (`bulk_`, rate-limit-free) | `card_lookup`, `card_search`, `format_legality`, `format_search`, `format_staples`, `ban_list`, `card_in_formats`, `random_card`, `similar_cards` |
+| Combos (`spellbook_`) | `find_combos`, `combo_details`, `find_decklist_combos`, `estimate_bracket` |
+| Draft analytics (`draft_`) | `card_ratings`, `archetype_stats` |
+| Commander metagame (`edhrec_`) | `commander_staples`, `card_synergy` |
+| Decklists (`moxfield_`) | `decklist`, `deck_info`, `search_decks`, `user_decks` |
+| Tournaments (`spicerack_`) | `recent_tournaments`, `tournament_results`, `format_decklists` |
+| Metagame (`goldfish_`) | `metagame`, `archetype_list`, `format_staples`, `deck_price` |
+| Commander workflows | `commander_overview`, `evaluate_upgrade`, `card_comparison`, `budget_upgrade`, `commander_comparison`, `color_identity_staples`, `tribal_staples`, `precon_upgrade`, `suggest_cuts`, `deck_analysis` |
+| Deck building | `theme_search`, `build_around`, `complete_deck`, `deck_validate`, `suggest_mana_base`, `price_comparison` |
+| Draft workflows | `draft_pack_pick`, `set_overview`, `sealed_pool_build`, `draft_signal_read`, `draft_log_review` |
+| Constructed | `rotation_check`, `metagame_snapshot`, `archetype_decklist`, `archetype_comparison`, `format_entry_guide`, `suggest_sideboard`, `sideboard_guide`, `sideboard_matrix` |
+| Rules engine | `rules_lookup`, `keyword_explain`, `rules_interaction`, `rules_scenario`, `combat_calculator` |
 
 ## Architecture
 
-Built on **FastMCP 3.x**. Each data source is an independent sub-server mounted into a single orchestrator:
-
-```
-MTG (orchestrator)
-├── scryfall (namespace: scryfall_)     -> Scryfall REST API
-├── spellbook (namespace: spellbook_)   -> Commander Spellbook API
-├── draft (namespace: draft_)           -> 17Lands data
-├── edhrec (namespace: edhrec_)         -> EDHREC (scraped, feature-flagged)
-├── bulk (namespace: bulk_)             -> Scryfall Oracle Cards bulk data
-├── moxfield (namespace: moxfield_)     -> Moxfield (reverse-engineered, feature-flagged)
-├── spicerack (namespace: spicerack_)   -> Spicerack tournament API
-├── goldfish (namespace: goldfish_)     -> MTGGoldfish (scraped, feature-flagged)
-└── workflows (no namespace)            -> 36 tools (31 composed + 5 rules)
-```
-
-Services are pure async API clients. Providers register MCP tools. Workflows compose across services with partial failure tolerance. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full picture.
-
-## Stack
-
-| | |
-|---|---|
-| Runtime | Python 3.12+, uv |
-| MCP | FastMCP 3.2.x |
-| HTTP | httpx (async) |
-| Validation | Pydantic v2 |
-| Logging | structlog |
-| Tooling | mise, ruff, ty (Astral) |
-| Testing | pytest, respx, pytest-asyncio |
-| HTML parsing | selectolax |
-
-## Development
-
-```bash
-git clone https://github.com/j4th/mtg-mcp-server.git
-cd mtg-mcp-server
-mise install          # Installs Python, uv, ruff, ty
-mise run setup        # Creates venv, installs dependencies
-
-mise run check        # Full quality gate: lint + typecheck + tests
-mise run check:quick  # Fast gate: lint + typecheck + affected tests only
-mise run test         # All tests with coverage
-mise run test:quick   # Only tests affected by recent changes
-mise run lint         # ruff check + format check
-mise run typecheck    # ty check
-mise run dev          # MCP Inspector for interactive testing
-mise run fix          # Auto-fix lint and format issues
-```
+Built on FastMCP 3.x: each data source is an independent sub-server mounted under its namespace on one orchestrator; workflow tools compose across sources and tolerate partial failure. Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Development commands and workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
 | Doc | What it covers |
 |-----|----------------|
-| [COOKBOOK.md](docs/COOKBOOK.md) | Usage recipes -- Commander, draft, deck building, rules workflows |
-| [TOOL_DESIGN.md](docs/TOOL_DESIGN.md) | Full reference for all 69 tools, 19 prompts, 21 resources |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture, FastMCP patterns, design decisions |
-| [SERVICE_CONTRACTS.md](docs/SERVICE_CONTRACTS.md) | API endpoints, rate limits, response shapes per backend |
-| [DATA_SOURCES.md](docs/DATA_SOURCES.md) | All data sources with auth, stability, and access patterns |
-| [CACHING_DESIGN.md](docs/CACHING_DESIGN.md) | TTL cache strategy and Scryfall bulk data design |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, TDD workflow, code style, PR process |
-| [CHANGELOG.md](CHANGELOG.md) | Version history in Keep a Changelog format |
-
-## Status
-
-69 tools, 19 prompts, 21 resource templates. 1340 tests at 88% coverage.
-
-| Phase | What | Status |
-|-------|------|--------|
-| 0 | Project scaffold | Done |
-| 1 | Scryfall backend (4 tools) | Done |
-| 2 | Spellbook + 17Lands + EDHREC backends (9 tools) | Done |
-| 3 | Workflow tools -- commander, draft, deck (4 tools) | Done |
-| 4 | TTL caching + Scryfall bulk data provider (2 tools) | Done |
-| 5 | Analysis & comparison workflows, prompts, resources (4 tools) | Done |
-| Branch A | Structured output, rules engine, validation tools (17 tools) | Done |
-| Branch B | Format workflows -- deck building, commander depth, limited, constructed (11 tools) | Done |
-| Moxfield | Moxfield decklist provider (4 tools) | Done |
-| Spicerack | Tournament results provider (3 tools) | Done |
-| MTGGoldfish | Metagame data provider (4 tools) | Done |
-| v2.3.0 | Metagame workflows, sideboard tools, Moxfield search (9 tools) | Done |
+| [COOKBOOK.md](docs/COOKBOOK.md) | Usage recipes with real output |
+| [TOOL_DESIGN.md](docs/TOOL_DESIGN.md) | All tools, prompts, and resources with inputs/outputs |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture, FastMCP patterns, design decisions |
+| [SERVICE_CONTRACTS.md](docs/SERVICE_CONTRACTS.md) | Per-backend endpoints, auth, rate limits, quirks, feature flags |
+| [DATA_SOURCES.md](docs/DATA_SOURCES.md) | Data sources evaluated, stability, status |
+| [CACHING_DESIGN.md](docs/CACHING_DESIGN.md) | TTL cache strategy and bulk data layer |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ## Data Sources & Attribution
 

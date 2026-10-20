@@ -1,8 +1,6 @@
 # MTG MCP Cookbook
 
-Practical workflows for getting the most out of the MTG MCP server. Each recipe shows the prompts you would type, the real tool output you will see, and how the server's tools chain together behind the scenes. For installation, see the [README](../README.md).
-
-All examples use natural language. The server's tools are invoked automatically by your AI assistant based on your request -- you never need to call tool names directly. The example outputs below are real responses from the server.
+Recipes showing the prompts to type, the tools your assistant chains behind the scenes, and real server output. You never call tools by name; plain language is enough. Installation: [README](../README.md).
 
 ---
 
@@ -306,9 +304,7 @@ Rank  Card             Color  Rarity    GIH WR   ALSA   IWD      Games
 No 17Lands data: Pacifism, Air Elemental, Mind Rot, Cancel, Elite Vanguard
 ```
 
-**What you get:** A table ranking each card by GIH Win Rate with color, rarity, ALSA, and IWD. When you provide your current picks, cards are tagged as on-color or off-color based on your draft direction.
-
-**Tips:** Include your current picks for color-fit analysis. Cards with fewer than 500 games in the 17Lands dataset will show "no data." Use the full card name as printed -- 17Lands uses Arena card names which may differ from some reprints.
+**Tips:** Include your current picks for on/off-color tagging. Cards with fewer than 500 games in the 17Lands dataset will show "no data." Use the full card name as printed -- 17Lands uses Arena card names which may differ from some reprints.
 
 ---
 
@@ -627,6 +623,4 @@ You want to find decklists for inspiration.
 
 ---
 
-## What's Next
-
-This cookbook covers the most common workflows. For the full list of all 69 tools, 19 prompts, and 21 resource templates, see [TOOL_DESIGN.md](TOOL_DESIGN.md).
+Full catalog of tools, prompts, and resources: [TOOL_DESIGN.md](TOOL_DESIGN.md).
