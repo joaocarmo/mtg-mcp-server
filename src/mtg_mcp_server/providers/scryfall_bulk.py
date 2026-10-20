@@ -383,8 +383,6 @@ async def format_search(
         # CMC checks from parsed query
         if parsed.cmc_eq is not None and card.cmc != parsed.cmc_eq:
             continue
-        if parsed.cmc_lte is not None and card.cmc > parsed.cmc_lte:
-            continue
         # Type check from parsed query
         if type_lower_terms is not None:
             type_lower = card.type_line.lower()

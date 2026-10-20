@@ -456,7 +456,7 @@ class TestStaleData:
                 await svc.ensure_loaded()
 
     async def test_network_error_raises_download_error(self) -> None:
-        """Network-level failure (connection refused, DNS timeout) raises RulesDownloadError."""
+        """Network-level failure (connection refused, DNS timeout) raises RulesError."""
         with respx.mock:
             respx.get(_RULES_URL).mock(side_effect=httpx.ConnectError("connection refused"))
             svc = RulesService(rules_url=_RULES_URL, refresh_hours=168)

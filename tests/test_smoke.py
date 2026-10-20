@@ -109,10 +109,8 @@ class TestConfig:
     def test_config_reads_env_vars(self, monkeypatch: pytest.MonkeyPatch):
         """MTG_MCP_ env vars override defaults."""
         monkeypatch.setenv("MTG_MCP_LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("MTG_MCP_SCRYFALL_RATE_LIMIT_MS", "250")
         settings = Settings()
         assert settings.log_level == "DEBUG"
-        assert settings.scryfall_rate_limit_ms == 250
 
 
 class TestLogging:

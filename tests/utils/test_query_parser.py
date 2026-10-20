@@ -14,7 +14,6 @@ class TestQueryFiltersDefaults:
         assert f.text_contains == ()
         assert f.text_any == ()
         assert f.cmc_eq is None
-        assert f.cmc_lte is None
         assert f.description == ""
 
     def test_frozen(self) -> None:

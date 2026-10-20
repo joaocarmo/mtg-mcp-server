@@ -18,7 +18,7 @@ import structlog
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, ServiceError
 from mtg_mcp_server.types import GlossaryEntry, Rule
 
-__all__ = ["RULES_PAGE_URL", "RulesDownloadError", "RulesError", "RulesService"]
+__all__ = ["RULES_PAGE_URL", "RulesError", "RulesService"]
 
 log = structlog.get_logger(service="rules")
 
@@ -44,10 +44,6 @@ class RulesError(ServiceError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message, status_code=None)
-
-
-class RulesDownloadError(RulesError):
-    """Error downloading the Comprehensive Rules file."""
 
 
 class RulesService:
@@ -251,20 +247,20 @@ class RulesService:
                             "Set MTG_MCP_RULES_URL to the current URL from "
                             "https://magic.wizards.com/en/rules"
                         )
-                    raise RulesDownloadError(
+                    raise RulesError(
                         f"HTTP {response.status_code} downloading rules from {url}{hint}"
                     )
                 # Decode as UTF-8 and strip BOM if present
                 try:
                     text = response.content.decode("utf-8-sig")
                 except UnicodeDecodeError as exc:
-                    raise RulesDownloadError(
+                    raise RulesError(
                         f"Rules file is not valid UTF-8 "
                         f"(got {len(response.content)} bytes from {url})"
                     ) from exc
                 return text
         except httpx.RequestError as exc:
-            raise RulesDownloadError(f"Network error downloading rules: {exc}") from exc
+            raise RulesError(f"Network error downloading rules: {exc}") from exc
 
     async def _discover_url(self, http: httpx.AsyncClient) -> str:
         """Find the current rules TXT URL on the rules page, else the configured URL."""

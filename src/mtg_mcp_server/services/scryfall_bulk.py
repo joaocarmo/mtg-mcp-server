@@ -34,7 +34,7 @@ from pydantic import ValidationError
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, ServiceError
 from mtg_mcp_server.types import Card
 
-__all__ = ["ScryfallBulkClient", "ScryfallBulkDownloadError", "ScryfallBulkError"]
+__all__ = ["ScryfallBulkClient", "ScryfallBulkError"]
 
 log = structlog.get_logger(service="ScryfallBulkClient")
 
@@ -62,10 +62,6 @@ class ScryfallBulkError(ServiceError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message, status_code=None)
-
-
-class ScryfallBulkDownloadError(ScryfallBulkError):
-    """Error downloading Scryfall bulk data (network or HTTP failure)."""
 
 
 class ScryfallBulkClient:
@@ -153,8 +149,7 @@ class ScryfallBulkClient:
         Uses ``asyncio.Lock`` to prevent duplicate concurrent downloads.
 
         Raises:
-            ScryfallBulkDownloadError: On first-load network/HTTP failure.
-            ScryfallBulkError: On first-load parse failure.
+            ScryfallBulkError: On first-load network/HTTP or parse failure.
         """
         if not self._is_stale():
             return
@@ -468,7 +463,7 @@ class ScryfallBulkClient:
         """Fetch the bulk-data metadata to get the current download URI.
 
         Raises:
-            ScryfallBulkDownloadError: On HTTP errors or network failures.
+            ScryfallBulkError: On HTTP errors or network failures.
         """
         url = f"{self._base_url}/bulk-data/oracle_cards"
         try:
@@ -481,17 +476,17 @@ class ScryfallBulkClient:
             ) as http:
                 response = await http.get(url)
                 if response.status_code != 200:
-                    raise ScryfallBulkDownloadError(
+                    raise ScryfallBulkError(
                         f"HTTP {response.status_code} fetching bulk metadata from {url}"
                     )
                 try:
                     return response.json()
                 except (json.JSONDecodeError, ValueError) as exc:
-                    raise ScryfallBulkDownloadError(
+                    raise ScryfallBulkError(
                         f"Metadata response is not valid JSON from {url}: {exc}"
                     ) from exc
         except httpx.RequestError as exc:
-            raise ScryfallBulkDownloadError(f"Network error fetching bulk metadata: {exc}") from exc
+            raise ScryfallBulkError(f"Network error fetching bulk metadata: {exc}") from exc
 
     async def _download(self, url: str) -> bytes | None:
         """Download the Oracle Cards bulk data file.
@@ -501,7 +496,7 @@ class ScryfallBulkClient:
         304 (data unchanged).
 
         Raises:
-            ScryfallBulkDownloadError: On HTTP errors or network failures.
+            ScryfallBulkError: On HTTP errors or network failures.
         """
         headers: dict[str, str] = {
             "User-Agent": DEFAULT_USER_AGENT,
@@ -521,7 +516,7 @@ class ScryfallBulkClient:
                     return None
 
                 if response.status_code != 200:
-                    raise ScryfallBulkDownloadError(
+                    raise ScryfallBulkError(
                         f"HTTP {response.status_code} downloading bulk data from {url}"
                     )
 
@@ -533,7 +528,7 @@ class ScryfallBulkClient:
 
                 return response.content
         except httpx.RequestError as exc:
-            raise ScryfallBulkDownloadError(f"Network error downloading bulk data: {exc}") from exc
+            raise ScryfallBulkError(f"Network error downloading bulk data: {exc}") from exc
 
     def _parse(self, raw_bytes: bytes) -> None:
         """Parse the Oracle Cards bulk file into the in-memory card dicts.
