@@ -506,3 +506,38 @@ class TestStaleData:
             await svc.ensure_loaded()
             rule = await svc.lookup_by_number("100.1")
             assert rule is not None
+
+
+# ---------------------------------------------------------------------------
+# URL discovery
+# ---------------------------------------------------------------------------
+
+_RULES_PAGE_URL = "https://magic.wizards.com/en/rules"
+_DISCOVERED_URL = "https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt"
+_RULES_PAGE_HTML = (
+    '<a href="https://media.wizards.com/2026/downloads/MagicCompRules 20260925.pdf">PDF</a>'
+    '<a href="https://media.wizards.com/2026/downloads/MagicCompRules 20260925.txt">TXT</a>'
+)
+
+
+class TestUrlDiscovery:
+    """The latest rules URL is discovered from the rules page."""
+
+    async def test_downloads_discovered_url(self) -> None:
+        """The TXT link on the rules page is used instead of the configured URL."""
+        with respx.mock:
+            respx.get(_RULES_PAGE_URL).mock(return_value=httpx.Response(200, text=_RULES_PAGE_HTML))
+            route = _mock_rules_download(respx, url=_DISCOVERED_URL)
+            svc = RulesService(rules_url=_RULES_URL, rules_page_url=_RULES_PAGE_URL)
+            await svc.ensure_loaded()
+            assert route.called
+            assert await svc.lookup_by_number("100.1") is not None
+
+    async def test_falls_back_to_configured_url(self) -> None:
+        """A failed discovery falls back to the configured rules URL."""
+        with respx.mock:
+            respx.get(_RULES_PAGE_URL).mock(return_value=httpx.Response(500))
+            route = _mock_rules_download(respx)
+            svc = RulesService(rules_url=_RULES_URL, rules_page_url=_RULES_PAGE_URL)
+            await svc.ensure_loaded()
+            assert route.called

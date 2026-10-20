@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     bulk_data_refresh_hours: int = 12
 
     # --- Comprehensive Rules ---
-    rules_url: str = "https://media.wizards.com/2025/downloads/MagicCompRules%2020250404.txt"
+    rules_url: str = "https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt"
     rules_refresh_hours: int = 168  # Weekly check (rules update ~4x/year)
     enable_rules: bool = True
 

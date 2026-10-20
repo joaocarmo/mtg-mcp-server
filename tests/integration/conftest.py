@@ -15,6 +15,7 @@ import httpx
 import pytest
 import respx
 
+from mtg_mcp_server.services.rules import RULES_PAGE_URL
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
@@ -36,7 +37,7 @@ EDHREC_BASE = "https://json.edhrec.com"
 MOXFIELD_BASE = "https://api2.moxfield.com"
 SPICERACK_BASE = "https://api.spicerack.gg"
 MTGGOLDFISH_BASE = "https://www.mtggoldfish.com"
-RULES_URL = "https://media.wizards.com/2025/downloads/MagicCompRules%2020250404.txt"
+RULES_URL = "https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt"
 
 
 def _load_json(path: Path) -> dict | list:
@@ -211,6 +212,11 @@ async def mcp_client():
         )
 
         # --- Rules routes ---
+        respx.get(RULES_PAGE_URL).mock(
+            return_value=httpx.Response(
+                200, text=f'<a href="{RULES_URL.replace("%20", " ")}">TXT</a>'
+            )
+        )
         respx.get(RULES_URL).mock(
             return_value=httpx.Response(
                 200, content=(RULES_FIXTURES / "comprehensive_rules.txt").read_bytes()

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Server crashed on import with selectolax 1.0+ (which `uvx` installs); MTGGoldfish parsing now uses the lexbor backend
+- Comprehensive Rules were served from the April 2025 file; the current URL is now discovered from the official rules page on each load, falling back to `MTG_MCP_RULES_URL` (default bumped to 2026-09-25)
+
 ## [3.0.0] - 2026-04-03
 
 v3.0.0 marks the constructed metagame milestone. The server now covers all major

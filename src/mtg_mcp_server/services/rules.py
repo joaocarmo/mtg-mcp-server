@@ -18,7 +18,7 @@ import structlog
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, ServiceError
 from mtg_mcp_server.types import GlossaryEntry, Rule
 
-__all__ = ["RulesDownloadError", "RulesError", "RulesService"]
+__all__ = ["RULES_PAGE_URL", "RulesDownloadError", "RulesError", "RulesService"]
 
 log = structlog.get_logger(service="rules")
 
@@ -28,6 +28,12 @@ _RULE_NUMBER_RE = re.compile(r"^(\d{3}\.\d+[a-z]?)\.?\s")
 
 # Section headers in the table of contents: "1. Game Concepts"
 _SECTION_HEADER_RE = re.compile(r"^(\d+)\.\s+(.+)$")
+
+# Official rules page, which links the current Comprehensive Rules TXT file
+RULES_PAGE_URL = "https://magic.wizards.com/en/rules"
+_RULES_TXT_LINK_RE = re.compile(
+    r"https://media\.wizards\.com/\d{4}/downloads/MagicCompRules \d{8}\.txt"
+)
 
 # Delay before retrying a failed refresh (seconds)
 _REFRESH_RETRY_SECONDS = 300
@@ -51,12 +57,18 @@ class RulesService:
     into in-memory dicts, and serves lookups.  Lazy-loads on first access.
 
     Args:
-        rules_url: URL of the Comprehensive Rules text file.
+        rules_url: URL of the Comprehensive Rules text file. Used as-is, or as
+            the fallback when discovery via ``rules_page_url`` fails.
         refresh_hours: Hours between refresh checks.
+        rules_page_url: Page to discover the current rules URL from. ``None``
+            disables discovery.
     """
 
-    def __init__(self, rules_url: str, refresh_hours: int = 168) -> None:
+    def __init__(
+        self, rules_url: str, refresh_hours: int = 168, rules_page_url: str | None = None
+    ) -> None:
         self._rules_url = rules_url
+        self._rules_page_url = rules_page_url
         self._refresh_seconds = refresh_hours * 3600
 
         self._rules: dict[str, Rule] = {}
@@ -82,7 +94,7 @@ class RulesService:
                 return
 
             is_refresh = self._loaded
-            log.info("rules.loading", url=self._rules_url, is_refresh=is_refresh)
+            log.info("rules.loading", is_refresh=is_refresh)
 
             try:
                 raw_text = await self._download()
@@ -239,7 +251,9 @@ class RulesService:
                 timeout=60.0,
                 headers={"User-Agent": DEFAULT_USER_AGENT},
             ) as http:
-                response = await http.get(self._rules_url)
+                url = await self._discover_url(http)
+                log.info("rules.downloading", url=url)
+                response = await http.get(url)
                 if response.status_code != 200:
                     hint = ""
                     if response.status_code == 404:
@@ -249,8 +263,7 @@ class RulesService:
                             "https://magic.wizards.com/en/rules"
                         )
                     raise RulesDownloadError(
-                        f"HTTP {response.status_code} downloading rules "
-                        f"from {self._rules_url}{hint}"
+                        f"HTTP {response.status_code} downloading rules from {url}{hint}"
                     )
                 # Decode as UTF-8 and strip BOM if present
                 try:
@@ -258,11 +271,27 @@ class RulesService:
                 except UnicodeDecodeError as exc:
                     raise RulesDownloadError(
                         f"Rules file is not valid UTF-8 "
-                        f"(got {len(response.content)} bytes from {self._rules_url})"
+                        f"(got {len(response.content)} bytes from {url})"
                     ) from exc
                 return text
         except httpx.RequestError as exc:
             raise RulesDownloadError(f"Network error downloading rules: {exc}") from exc
+
+    async def _discover_url(self, http: httpx.AsyncClient) -> str:
+        """Find the current rules TXT URL on the rules page, else the configured URL."""
+        if self._rules_page_url is None:
+            return self._rules_url
+        try:
+            response = await http.get(self._rules_page_url, follow_redirects=True)
+            response.raise_for_status()
+        except httpx.HTTPError:
+            log.warning("rules.discovery_failed", page=self._rules_page_url, exc_info=True)
+            return self._rules_url
+        match = _RULES_TXT_LINK_RE.search(response.text)
+        if match is None:
+            log.warning("rules.discovery_no_link", page=self._rules_page_url)
+            return self._rules_url
+        return match.group().replace(" ", "%20")
 
     def _parse(self, text: str) -> None:
         """Parse the Comprehensive Rules text into indexed data structures.

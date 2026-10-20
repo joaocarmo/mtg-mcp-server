@@ -7,7 +7,11 @@ explicitly via ``mise run test:live`` or ``pytest -m live``.
 
 from __future__ import annotations
 
+import httpx
 import pytest
+
+from mtg_mcp_server.services.base import DEFAULT_USER_AGENT
+from mtg_mcp_server.services.rules import RULES_PAGE_URL, RulesService
 
 pytestmark = pytest.mark.live
 
@@ -328,3 +332,14 @@ class TestCrossFormatLive:
         text = result.content[0].text
         assert "Lightning Bolt" in text
         assert "modern" in text.lower()
+
+
+class TestRulesDiscoveryLive:
+    """Hit the real rules page; guards against WotC changing its markup."""
+
+    async def test_discovers_current_rules_url(self):
+        svc = RulesService(rules_url="fallback", rules_page_url=RULES_PAGE_URL)
+        async with httpx.AsyncClient(headers={"User-Agent": DEFAULT_USER_AGENT}) as http:
+            url = await svc._discover_url(http)
+        assert url.startswith("https://media.wizards.com/"), url
+        assert url.endswith(".txt"), url
