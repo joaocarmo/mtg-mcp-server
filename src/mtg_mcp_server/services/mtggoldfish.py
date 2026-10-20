@@ -13,7 +13,7 @@ from typing import Self
 
 import structlog
 from cachetools import TTLCache
-from selectolax.parser import HTMLParser, Node
+from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
 from mtg_mcp_server.services.cache import _method_key, async_cached
@@ -315,7 +315,7 @@ class MTGGoldfishClient(BaseClient):
         - Colors from ``span.manacost i`` class names
         - Key cards from ``ul li``
         """
-        tree = HTMLParser(html)
+        tree = LexborHTMLParser(html)
         tiles = tree.css("div.archetype-tile")
         archetypes: list[GoldfishArchetype] = []
 
@@ -332,7 +332,7 @@ class MTGGoldfishClient(BaseClient):
 
         return archetypes
 
-    def _parse_single_tile(self, tile: Node) -> GoldfishArchetype:
+    def _parse_single_tile(self, tile: LexborNode) -> GoldfishArchetype:
         """Parse a single archetype tile element.
 
         Raises ValueError if the tile has no name (nameless archetypes are
@@ -438,7 +438,7 @@ class MTGGoldfishClient(BaseClient):
         - Deck ID from ``initializeDeckComponents`` JS call
         - Date from "Deck Date:" line
         """
-        tree = HTMLParser(html)
+        tree = LexborHTMLParser(html)
 
         # Name from h1.title
         name = archetype
@@ -533,7 +533,7 @@ class MTGGoldfishClient(BaseClient):
         Each row has: rank (td[0]), name (td[1] a text), pct_of_decks (td[3]),
         copies_played (td[4]).
         """
-        tree = HTMLParser(html)
+        tree = LexborHTMLParser(html)
         table = tree.css_first("table.table-staples")
         if table is None:
             log.error("parse_staples.no_table")

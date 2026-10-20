@@ -14,7 +14,7 @@ Endpoints, auth, rate limits and response quirks for each backend. Full response
 | Moxfield | `api2.moxfield.com` | Moxfield/browser-style UA (bot UAs blocked) | self-imposed 1 req/s | `ENABLE_MOXFIELD` | Reverse-engineered, fragile |
 | Spicerack | `api.spicerack.gg` | optional `X-API-Key` for higher limits | undocumented; 1 req/s | `ENABLE_SPICERACK` | Documented public API |
 | MTGGoldfish | `www.mtggoldfish.com` | browser-like UA (403 otherwise) | self-imposed 0.5 req/s | `ENABLE_MTGGOLDFISH` | HTML scraping, fragile |
-| Comp. Rules | `media.wizards.com/…/MagicCompRules%2020250404.txt` | none | n/a (file) | `ENABLE_RULES` | Official |
+| Comp. Rules | `media.wizards.com/…/MagicCompRules%20<date>.txt`, discovered from `magic.wizards.com/en/rules` (fallback `RULES_URL`) | none | n/a (file) | `ENABLE_RULES` | Official |
 
 Every base URL can be overridden with `MTG_MCP_<SERVICE>_BASE_URL`. When a flag is off, that provider isn't mounted and workflows treat the backend as unavailable. Fragile sources follow one pattern: feature flag, beta tag, aggressive caching, defensive parsing (`isinstance`/`.get()` chains plus structlog warnings), and `ToolError` on failure, so they never crash the orchestrator.
 
@@ -131,4 +131,4 @@ Plain-text file, updated ~4×/year. `RulesService` (file-based) downloads it laz
 - a glossary (lowercase term → definition)
 - a sections index (`"7"` → "Additional Rules")
 
-It tracks the 702.x keyword rules. It refreshes after `RULES_REFRESH_HOURS` (168h); if a refresh fails, it keeps serving the stale data. Methods: `lookup_by_number`, `search_rules(query, section)`, `glossary_lookup`, `list_keywords`, `list_sections`. When disabled, rules tools raise `ToolError` and nothing is downloaded.
+Each load finds the current TXT link on `magic.wizards.com/en/rules`; if that fails, it falls back to `RULES_URL` and logs `rules.discovery_failed`. It tracks the 702.x keyword rules. It refreshes after `RULES_REFRESH_HOURS` (168h); if a refresh fails, it keeps serving the stale data. Methods: `lookup_by_number`, `search_rules(query, section)`, `glossary_lookup`, `list_keywords`, `list_sections`. When disabled, rules tools raise `ToolError` and nothing is downloaded.

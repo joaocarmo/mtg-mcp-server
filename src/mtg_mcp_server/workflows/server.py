@@ -42,7 +42,7 @@ from mtg_mcp_server.services.base import ServiceError
 from mtg_mcp_server.services.edhrec import CommanderNotFoundError, EDHRECClient
 from mtg_mcp_server.services.moxfield import MoxfieldClient
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
-from mtg_mcp_server.services.rules import RulesService
+from mtg_mcp_server.services.rules import RULES_PAGE_URL, RulesService
 from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallClient
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
@@ -101,6 +101,7 @@ async def workflow_lifespan(server: FastMCP):
             _rules = RulesService(
                 rules_url=settings.rules_url,
                 refresh_hours=settings.rules_refresh_hours,
+                rules_page_url=RULES_PAGE_URL,
             )
             try:
                 await _rules.ensure_loaded()
