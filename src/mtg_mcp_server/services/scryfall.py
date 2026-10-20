@@ -36,7 +36,6 @@ class ScryfallClient(BaseClient):
     # Class-level caches shared across all instances.
     # Card data rarely changes (24h TTL); searches rotate faster (1h TTL).
     _card_name_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)  # 24h
-    _card_id_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)  # 24h
     _search_cache: TTLCache = TTLCache(maxsize=100, ttl=3600)  # 1h
     _rulings_cache: TTLCache = TTLCache(maxsize=200, ttl=86400)  # 24h
     _sets_cache: TTLCache = TTLCache(maxsize=50, ttl=86400)  # 24h
@@ -101,30 +100,6 @@ class ScryfallClient(BaseClient):
                 ) from exc
             raise ScryfallError(exc.message, status_code=exc.status_code) from exc
         return CardSearchResult.model_validate(response.json())
-
-    @async_cached(_card_id_cache, key=_method_key)
-    async def get_card_by_id(self, scryfall_id: str) -> Card:
-        """Look up a card by Scryfall UUID.
-
-        Args:
-            scryfall_id: Scryfall card UUID.
-
-        Returns:
-            Parsed Card model.
-
-        Raises:
-            CardNotFoundError: If the UUID does not exist.
-            ScryfallError: On other API errors.
-        """
-        try:
-            response = await self._get(f"/cards/{scryfall_id}")
-        except ServiceError as exc:
-            if exc.status_code == 404:
-                raise CardNotFoundError(
-                    f"Card not found: '{scryfall_id}'", status_code=404
-                ) from exc
-            raise ScryfallError(exc.message, status_code=exc.status_code) from exc
-        return Card.model_validate(response.json())
 
     @async_cached(_rulings_cache, key=_method_key)
     async def get_rulings(self, scryfall_id: str) -> list[Ruling]:

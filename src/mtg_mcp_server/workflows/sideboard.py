@@ -102,35 +102,30 @@ SIDEBOARD_CATEGORIES: dict[str, dict[str, list[str]]] = {
 _ARCHETYPE_STRATEGIES: dict[str, dict[str, list[str] | str]] = {
     "aggro": {
         "cut_types": ["sorcery", "enchantment"],
-        "cut_cmc_above": [],  # Handled via cmc heuristic
         "bring_categories": ["Board Wipes", "Lifegain Hate", "Direct Damage"],
         "cut_reasoning": "Slow/expensive cards are liabilities against aggressive strategies",
         "bring_reasoning": "Sweepers and lifegain stabilize against fast creature decks",
     },
     "control": {
         "cut_types": [],
-        "cut_cmc_above": [],
         "bring_categories": ["Counterspells", "Direct Damage"],
         "cut_reasoning": "Removal spells have fewer targets against control",
         "bring_reasoning": "Threats and disruption pressure control's answers",
     },
     "midrange": {
         "cut_types": [],
-        "cut_cmc_above": [],
         "bring_categories": ["Graveyard Hate", "Board Wipes"],
         "cut_reasoning": "Narrow interaction is less effective against versatile threats",
         "bring_reasoning": "Hate pieces and sweepers break midrange value engines",
     },
     "combo": {
         "cut_types": ["creature"],
-        "cut_cmc_above": [],
         "bring_categories": ["Counterspells", "Graveyard Hate"],
         "cut_reasoning": "Creature removal is dead against spell-based combo",
         "bring_reasoning": "Disruption and hate pieces interact with combo's game plan",
     },
     "tempo": {
         "cut_types": [],
-        "cut_cmc_above": [],
         "bring_categories": ["Board Wipes", "Direct Damage"],
         "cut_reasoning": "Slow cards get punished by tempo's efficiency",
         "bring_reasoning": "Sweepers and removal catch up against tempo's early pressure",
@@ -158,7 +153,7 @@ def _opposing_colors(deck_colors: set[str]) -> frozenset[str] | set[str]:
 
 
 def _match_archetype_name(query: str, archetypes: list[str]) -> str | None:
-    """Match a query against archetype names, falling back to strategy keywords.
+    """Match a query against archetype names.
 
     Returns ``None`` for empty or whitespace-only queries. Unknown names
     pass through as-is so callers can use custom matchup labels.
@@ -169,12 +164,6 @@ def _match_archetype_name(query: str, archetypes: list[str]) -> str | None:
     matched = match_archetype(query, archetypes)
     if matched is not None:
         return matched
-
-    # Fall back to strategy keyword recognition
-    query_lower = query.lower()
-    for keyword in _ARCHETYPE_STRATEGIES:
-        if keyword in query_lower or query_lower in keyword:
-            return query
 
     return query
 
@@ -232,14 +221,6 @@ def _card_addresses_matchup(card: Card | None, matchup_strategy: str) -> str:
             return "OUT"
 
     return "FLEX"
-
-
-def _is_sb_card_relevant(card: Card | None, category_texts: list[str]) -> bool:
-    """Check if a card's oracle text matches any sideboard category text patterns."""
-    if card is None:
-        return False
-    oracle = (card.oracle_text or "").lower()
-    return any(pattern.lower() in oracle for pattern in category_texts)
 
 
 # ---------------------------------------------------------------------------

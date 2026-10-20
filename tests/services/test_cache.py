@@ -279,21 +279,6 @@ class TestScryfallCaching:
         assert route.call_count == 1
 
     @respx.mock
-    async def test_get_card_by_id_cached(self):
-        """Second ID lookup returns cached result without a second HTTP call."""
-        fixture = _load_json(SCRYFALL_FIXTURES / "card_sol_ring.json")
-        card_id = fixture["id"]
-        route = respx.get(f"{SCRYFALL_URL}/cards/{card_id}").mock(
-            return_value=httpx.Response(200, json=fixture)
-        )
-
-        async with ScryfallClient(base_url=SCRYFALL_URL) as client:
-            await client.get_card_by_id(card_id)
-            await client.get_card_by_id(card_id)
-
-        assert route.call_count == 1
-
-    @respx.mock
     async def test_get_rulings_cached(self):
         """Second rulings lookup returns cached result without a second HTTP call."""
         fixture = _load_json(SCRYFALL_FIXTURES / "rulings_muldrotha.json")
@@ -327,7 +312,6 @@ class TestScryfallCaching:
     def test_cache_attributes_accessible(self):
         """Each cached method exposes the correct underlying TTLCache instance."""
         assert ScryfallClient.get_card_by_name.cache is ScryfallClient._card_name_cache
-        assert ScryfallClient.get_card_by_id.cache is ScryfallClient._card_id_cache
         assert ScryfallClient.search_cards.cache is ScryfallClient._search_cache
         assert ScryfallClient.get_rulings.cache is ScryfallClient._rulings_cache
 

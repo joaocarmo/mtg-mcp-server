@@ -374,7 +374,6 @@ async def tribal_staples(
     tribe: str,
     *,
     bulk: ScryfallBulkClient,
-    edhrec: EDHRECClient | None = None,
     color_identity: str | None = None,
     format: str | None = None,
     limit: int = 20,
@@ -388,7 +387,6 @@ async def tribal_staples(
     Args:
         tribe: Creature type (e.g. "Zombie", "Elf", "Dragon").
         bulk: Initialized ScryfallBulkClient.
-        edhrec: Initialized EDHRECClient, or None if disabled.
         color_identity: Color identity filter (e.g. "sultai", "BG").
         format: Format legality filter (e.g. "commander").
         limit: Maximum total cards to return.
@@ -650,15 +648,9 @@ async def precon_upgrade(
             data={"commander": commander, "cuts": [], "upgrades": [], "swaps": []},
         )
 
-    # Step 1/4: Resolve all cards via bulk data
+    # Step 1/3: Analyze for cuts (combo data + synergy data)
     if on_progress is not None:
-        await on_progress(1, 4)
-
-    await bulk.get_cards(decklist)
-
-    # Step 2/4: Analyze for cuts (combo data + synergy data)
-    if on_progress is not None:
-        await on_progress(2, 4)
+        await on_progress(1, 3)
 
     combo_data, edhrec_data, spellbook_ok, edhrec_ok = await _fetch_precon_data(
         commander, decklist, spellbook=spellbook, edhrec=edhrec
@@ -711,9 +703,9 @@ async def precon_upgrade(
     scored.sort(key=lambda c: c.cuttability, reverse=True)
     top_cuts = scored[:num_upgrades]
 
-    # Step 3/4: Find upgrades from EDHREC staples
+    # Step 2/3: Find upgrades from EDHREC staples
     if on_progress is not None:
-        await on_progress(3, 4)
+        await on_progress(2, 3)
 
     swaps: list[_Swap] = []
     decklist_lower = {name.lower() for name in decklist}
@@ -765,9 +757,9 @@ async def precon_upgrade(
                 )
             )
 
-    # Step 4/4: Format output
+    # Step 3/3: Format output
     if on_progress is not None:
-        await on_progress(4, 4)
+        await on_progress(3, 3)
 
     lines = _format_precon_upgrade(
         commander, top_cuts, swaps, spellbook_ok, edhrec_ok, edhrec is not None, response_format
@@ -881,7 +873,6 @@ async def color_identity_staples(
     color_identity: str,
     *,
     bulk: ScryfallBulkClient,
-    edhrec: EDHRECClient | None = None,
     category: str | None = None,
     limit: int = 20,
     response_format: Literal["detailed", "concise"] = "detailed",
@@ -894,7 +885,6 @@ async def color_identity_staples(
     Args:
         color_identity: Color identity string (e.g. "sultai", "BUG", "mono-red").
         bulk: Initialized ScryfallBulkClient.
-        edhrec: Initialized EDHRECClient, or None if disabled.
         category: Optional card type filter (e.g. "creatures", "instants").
         limit: Maximum results to return.
         response_format: 'detailed' or 'concise'.

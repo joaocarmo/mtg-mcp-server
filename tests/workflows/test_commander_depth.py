@@ -453,21 +453,6 @@ class TestTribalStaples:
 
         assert "no" in result.markdown.lower() or "0" in result.markdown
 
-    async def test_edhrec_enrichment(self, mock_bulk: AsyncMock, mock_edhrec: AsyncMock) -> None:
-        """EDHREC enriches results with synergy data when available."""
-        member = _mock_card(
-            "Gravecrawler",
-            type_line="Creature \u2014 Zombie",
-            color_identity=["B"],
-        )
-        mock_bulk.search_by_text = AsyncMock(return_value=[])
-        mock_bulk.search_by_type = AsyncMock(return_value=[member])
-        mock_bulk.filter_cards = AsyncMock(return_value=[])
-
-        # EDHREC won't be queried without a commander, so just check it handles it
-        result = await tribal_staples("Zombie", bulk=mock_bulk, edhrec=mock_edhrec)
-        assert isinstance(result.data, dict)
-
     async def test_limit_respected(self, mock_bulk: AsyncMock) -> None:
         """Limit caps the output."""
         cards = [
@@ -704,9 +689,9 @@ class TestPreconUpgrade:
             on_progress=on_progress,
         )
 
-        assert len(progress_calls) == 4
-        assert progress_calls[0] == (1, 4)
-        assert progress_calls[3] == (4, 4)
+        assert len(progress_calls) == 3
+        assert progress_calls[0] == (1, 3)
+        assert progress_calls[2] == (3, 3)
 
     async def test_spellbook_failure(
         self,
@@ -910,12 +895,3 @@ class TestColorIdentityStaples:
         assert result.data.get("error") is not None
         # Bulk data should not have been queried
         mock_bulk.filter_cards.assert_not_called()
-
-    async def test_edhrec_enrichment(self, mock_bulk: AsyncMock, mock_edhrec: AsyncMock) -> None:
-        """EDHREC data is noted but not required."""
-        card = _mock_card("Sol Ring", color_identity=[], edhrec_rank=1)
-        mock_bulk.filter_cards = AsyncMock(return_value=[card])
-
-        result = await color_identity_staples("sultai", bulk=mock_bulk, edhrec=mock_edhrec)
-
-        assert isinstance(result.data, dict)

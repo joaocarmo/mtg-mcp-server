@@ -74,7 +74,6 @@ class RulesService:
         self._rules: dict[str, Rule] = {}
         self._glossary: dict[str, GlossaryEntry] = {}
         self._sections: dict[str, str] = {}  # section number -> name
-        self._keyword_rule_numbers: set[str] = set()  # rule numbers under 702.x
 
         self._loaded = False
         self._loaded_at: float = 0.0
@@ -220,16 +219,6 @@ class RulesService:
             if lower in name.lower():
                 return num
         return None
-
-    async def section_rules(self, section_prefix: str) -> list[Rule]:
-        """Return all rules whose number starts with the given prefix."""
-        await self.ensure_loaded()
-        prefix = section_prefix.rstrip(".")
-        results: list[Rule] = []
-        for number, rule in self._rules.items():
-            if number.startswith(prefix):
-                results.append(rule)
-        return sorted(results, key=lambda r: _rule_sort_key(r.number))
 
     # -------------------------------------------------------------------
     # Private helpers
@@ -440,28 +429,3 @@ _KEYWORD_RULE_RE = re.compile(r"\brule 702\.")
 def _is_keyword_glossary_entry(entry: GlossaryEntry) -> bool:
     """Check if a glossary entry references a 702.x rule (keyword ability)."""
     return bool(_KEYWORD_RULE_RE.search(entry.definition))
-
-
-def _rule_sort_key(number: str) -> tuple[int, int, str]:
-    """Create a sort key from a rule number for natural ordering.
-
-    ``"704.5k"`` -> ``(704, 5, "k")``.
-    """
-    # Split on the dot
-    parts = number.split(".", 1)
-    major = int(parts[0]) if parts[0].isdigit() else 0
-    if len(parts) > 1:
-        rest = parts[1]
-        # Separate numeric part from letter suffix
-        digits = ""
-        suffix = ""
-        for char in rest:
-            if char.isdigit():
-                digits += char
-            else:
-                suffix += char
-        minor = int(digits) if digits else 0
-    else:
-        minor = 0
-        suffix = ""
-    return (major, minor, suffix)

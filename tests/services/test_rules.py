@@ -376,34 +376,6 @@ class TestListSections:
 
 
 # ---------------------------------------------------------------------------
-# section_rules
-# ---------------------------------------------------------------------------
-
-
-class TestSectionRules:
-    """Return all rules starting with a section prefix."""
-
-    async def test_returns_matching_rules(self, service: RulesService) -> None:
-        """Returns rules for a given section prefix."""
-        rules = await service.section_rules("704")
-        assert len(rules) > 0
-        for rule in rules:
-            assert rule.number.startswith("704")
-
-    async def test_single_digit_prefix(self, service: RulesService) -> None:
-        """Works with a single-digit section prefix."""
-        rules = await service.section_rules("100")
-        assert len(rules) > 0
-        for rule in rules:
-            assert rule.number.startswith("100")
-
-    async def test_empty_for_unknown_section(self, service: RulesService) -> None:
-        """Returns empty list for a non-existent section."""
-        rules = await service.section_rules("999")
-        assert rules == []
-
-
-# ---------------------------------------------------------------------------
 # Lazy loading
 # ---------------------------------------------------------------------------
 

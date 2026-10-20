@@ -140,28 +140,6 @@ class MoxfieldClient(BaseClient):
             raise MoxfieldError(f"Moxfield returned invalid JSON for deck '{deck_id}'") from exc
         return self._parse_deck(data)
 
-    async def get_deck_info(self, deck_id_or_url: str) -> MoxfieldDeck:
-        """Fetch deck metadata only (delegates to :meth:`get_deck`).
-
-        The full decklist is fetched and cached; this method returns only
-        the :class:`MoxfieldDeck` metadata portion.  Subsequent calls for
-        the same input benefit from the ``get_deck`` cache for free.  The
-        cache normalizes URLs to deck IDs, so URL and raw-ID lookups share
-        entries.
-
-        Args:
-            deck_id_or_url: Either a raw deck ID or a full Moxfield URL.
-
-        Returns:
-            Deck metadata.
-
-        Raises:
-            DeckNotFoundError: If the deck doesn't exist (404).
-            MoxfieldError: On other API errors.
-        """
-        decklist = await self.get_deck(deck_id_or_url)
-        return decklist.deck
-
     @async_cached(_search_cache)
     async def search_decks(
         self,

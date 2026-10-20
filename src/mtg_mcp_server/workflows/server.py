@@ -726,7 +726,6 @@ async def tribal_staples(
         result = await impl(
             tribe,
             bulk=_require_bulk(),
-            edhrec=_edhrec,
             color_identity=color_identity,
             format=format,
             limit=limit,
@@ -808,7 +807,6 @@ async def color_identity_staples(
         result = await impl(
             color_identity,
             bulk=_require_bulk(),
-            edhrec=_edhrec,
             category=category,
             limit=limit,
             response_format=response_format,
@@ -999,7 +997,6 @@ async def metagame_snapshot(
         result = await impl(
             format=format,
             mtggoldfish=_mtggoldfish,
-            bulk=_bulk,
             response_format=response_format,
         )
         return ToolResult(content=result.markdown, structured_content=result.data)
@@ -1075,7 +1072,6 @@ async def archetype_comparison(
             format=format,
             archetypes=archetypes,
             mtggoldfish=_require_mtggoldfish(),
-            bulk=_bulk,
             response_format=response_format,
         )
         return ToolResult(content=result.markdown, structured_content=result.data)

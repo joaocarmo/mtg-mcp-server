@@ -258,34 +258,6 @@ class TestGetDeck:
         assert result.deck.name == "Muldrotha Self-Mill"
 
 
-class TestGetDeckInfo:
-    """Deck info (metadata-only) retrieval."""
-
-    @respx.mock
-    async def test_returns_deck_metadata(self):
-        """Returns MoxfieldDeck from the underlying get_deck call."""
-        fixture = _load_fixture("deck_commander.json")
-        respx.get(f"{BASE_URL}/v3/decks/all/abc123").mock(
-            return_value=httpx.Response(200, json=fixture)
-        )
-        async with MoxfieldClient(base_url=BASE_URL) as client:
-            result = await client.get_deck_info("abc123")
-
-        assert isinstance(result, MoxfieldDeck)
-        assert result.name == "Muldrotha Self-Mill"
-        assert result.format == "commander"
-
-    @respx.mock
-    async def test_deck_not_found_raises(self):
-        """404 propagates through get_deck_info as DeckNotFoundError."""
-        respx.get(f"{BASE_URL}/v3/decks/all/nonexistent").mock(
-            return_value=httpx.Response(404, text="Not Found")
-        )
-        async with MoxfieldClient(base_url=BASE_URL) as client:
-            with pytest.raises(DeckNotFoundError):
-                await client.get_deck_info("nonexistent")
-
-
 class TestCaching:
     """TTL cache behavior for get_deck."""
 

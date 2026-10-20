@@ -81,7 +81,7 @@ async def suggest_cuts(
     synergy_lookup = build_synergy_lookup(edhrec_data)
 
     # -- 4. Score each card ----------------------------------------------------
-    scored = _score_cards(decklist, combo_pieces, synergy_lookup, sources)
+    scored = _score_cards(decklist, combo_pieces, synergy_lookup)
 
     # -- 5. Sort by cuttability descending and cap -----------------------------
     scored.sort(key=lambda c: c.cuttability, reverse=True)
@@ -211,7 +211,6 @@ def _score_cards(
     decklist: list[str],
     combo_pieces: set[str],
     synergy_lookup: dict[str, EDHRECCard],
-    sources: _DataSources,
 ) -> list[_CardScore]:
     """Score each card in the decklist for cuttability."""
     scored: list[_CardScore] = []

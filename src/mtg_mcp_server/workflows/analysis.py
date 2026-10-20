@@ -44,7 +44,6 @@ _CMC_HEADER = ["0", "1", "2", "3", "4", "5", "6", "7+"]
 class _DataSources:
     """Track which data sources succeeded or failed."""
 
-    scryfall_ok: bool = True
     spellbook_ok: bool = False
     spellbook_error: str | None = None
     edhrec_ok: bool = False
@@ -235,7 +234,7 @@ async def deck_analysis(
         "low_synergy": [{"name": n, "synergy": s} for n, s in low_synergy],
         "unresolved": failures,
         "sources": {
-            "scryfall": sources.scryfall_ok,
+            "scryfall": True,
             "spellbook": sources.spellbook_ok,
             "edhrec": sources.edhrec_ok,
             "bulk_data": sources.bulk_data_available,
@@ -518,9 +517,7 @@ def _format_output(
         # Data Sources footer (detailed only)
         lines.append("---")
         lines.append("**Data Sources:**")
-        lines.append(
-            f"- [Scryfall](https://scryfall.com): {'OK' if sources.scryfall_ok else 'Failed'}"
-        )
+        lines.append("- [Scryfall](https://scryfall.com): OK")
 
         if sources.spellbook_ok:
             lines.append("- [Commander Spellbook](https://commanderspellbook.com): OK")

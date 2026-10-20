@@ -26,7 +26,6 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 | Service | Method | TTL | Maxsize | Rationale |
 |---------|--------|-----|---------|-----------|
 | Scryfall | `get_card_by_name` | 24h | 500 | Oracle text, types and colours almost never change |
-| Scryfall | `get_card_by_id` | 24h | 500 | Same data, different lookup |
 | Scryfall | `search_cards` | 1h | 100 | Result sets change as cards are added |
 | Scryfall | `get_rulings` | 24h | 200 | Rarely change |
 | Scryfall | `get_sets` / `get_set` | 24h | 50 | Static after release |
@@ -48,7 +47,7 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 
 TTLs are hardcoded class constants because they reflect upstream data staleness, not deployment config. Maxsize values are conservative working-set estimates. Adaptive TTLs (e.g. 1h for 17Lands in a set's first week) were considered and rejected as not worth the complexity.
 
-- **Moxfield `get_deck`** uses a custom key (`_moxfield_deck_key`) that normalises URLs to deck IDs, so a URL and a bare ID share an entry. `get_deck_info` delegates to `get_deck`.
+- **Moxfield `get_deck`** uses a custom key (`_moxfield_deck_key`) that normalises URLs to deck IDs, so a URL and a bare ID share an entry.
 - **EDHREC `card_synergy`** delegates to `commander_top_cards` and scans the result. Both are cached independently, so they can briefly diverge (worst case: synergy up to 24h stale). That's acceptable, since both come from the same daily aggregation.
 
 **Testing:**
