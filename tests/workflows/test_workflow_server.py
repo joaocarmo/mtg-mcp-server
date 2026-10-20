@@ -235,9 +235,9 @@ class TestSuggestCutsToolError:
         self,
         mcp_client: Client,
     ):
-        """ServiceError from _require_spellbook → ToolError with tool name."""
+        """ServiceError from the workflow → ToolError with tool name."""
         with patch(
-            "mtg_mcp_server.workflows.server._require_spellbook",
+            "mtg_mcp_server.workflows.deck.suggest_cuts",
             side_effect=ServiceError("client not available"),
         ):
             result = await mcp_client.call_tool(
@@ -413,9 +413,9 @@ class TestDeckAnalysisToolError:
         assert not result.is_error
 
     async def test_service_error_becomes_tool_error(self, mcp_client: Client):
-        """Generic ServiceError from _require_scryfall → ToolError with tool name."""
+        """Generic ServiceError from the workflow → ToolError with tool name."""
         with patch(
-            "mtg_mcp_server.workflows.server._require_scryfall",
+            "mtg_mcp_server.workflows.analysis.deck_analysis",
             side_effect=ServiceError("client not available"),
         ):
             result = await mcp_client.call_tool(
@@ -526,9 +526,9 @@ class TestRulesLookupToolError:
         assert result.is_error
 
     async def test_service_error_becomes_tool_error(self, mcp_client: Client):
-        """Generic ServiceError from _require_rules → ToolError."""
+        """Generic ServiceError from the workflow → ToolError."""
         with patch(
-            "mtg_mcp_server.workflows.server._require_rules",
+            "mtg_mcp_server.workflows.rules.rules_lookup",
             side_effect=ServiceError("rules engine broken"),
         ):
             result = await mcp_client.call_tool(

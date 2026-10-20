@@ -16,7 +16,8 @@ so tool names stay clean (e.g. ``commander_overview``, not
 from __future__ import annotations
 
 from contextlib import AsyncExitStack
-from typing import Annotated, Literal
+from functools import partial
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import structlog
 from fastmcp import Context, FastMCP
@@ -47,6 +48,24 @@ from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallClient
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
+from mtg_mcp_server.workflows import WorkflowResult
+from mtg_mcp_server.workflows import analysis as analysis_wf
+from mtg_mcp_server.workflows import building as building_wf
+from mtg_mcp_server.workflows import commander as commander_wf
+from mtg_mcp_server.workflows import commander_depth as commander_depth_wf
+from mtg_mcp_server.workflows import constructed as constructed_wf
+from mtg_mcp_server.workflows import deck as deck_wf
+from mtg_mcp_server.workflows import draft as draft_wf
+from mtg_mcp_server.workflows import draft_limited as draft_limited_wf
+from mtg_mcp_server.workflows import mana_base as mana_base_wf
+from mtg_mcp_server.workflows import metagame as metagame_wf
+from mtg_mcp_server.workflows import pricing as pricing_wf
+from mtg_mcp_server.workflows import rules as rules_wf
+from mtg_mcp_server.workflows import sideboard as sideboard_wf
+from mtg_mcp_server.workflows import validation as validation_wf
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 # Module-level clients managed by the lifespan via AsyncExitStack.
 # Workflows need multiple clients simultaneously; AsyncExitStack is cleaner
@@ -198,6 +217,37 @@ async def _progress(ctx: Context, step: int, total: int) -> None:
         _log.warning("progress_report_failed", step=step, total=total, exc_info=True)
 
 
+async def _run(
+    error_prefix: str,
+    workflow: Awaitable[WorkflowResult],
+    *,
+    value_error: bool = False,
+    not_found: Callable[[ServiceError], str] | None = None,
+    not_found_type: type[ServiceError] = CardNotFoundError,
+) -> ToolResult:
+    """Await a workflow and wrap its result, converting known errors to ``ToolError``.
+
+    ``ValueError`` is surfaced only when ``value_error`` is set; ``not_found_type``
+    gets the ``not_found`` message when given. Any other ``ServiceError`` (including
+    an unhandled not-found) becomes ``"<error_prefix>: <exc>"``.
+    """
+    try:
+        result = await workflow
+    except ValueError as exc:
+        if not value_error:
+            raise
+        raise ToolError(str(exc)) from exc
+    except ServiceError as exc:
+        if not_found is not None and isinstance(exc, not_found_type):
+            raise ToolError(not_found(exc)) from exc
+        raise ToolError(f"{error_prefix}: {exc}") from exc
+    return ToolResult(content=result.markdown, structured_content=result.data)
+
+
+def _check_spelling(exc: ServiceError) -> str:
+    return f"{exc}. Check spelling."
+
+
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER)
 async def commander_overview(
     commander_name: Annotated[
@@ -213,26 +263,22 @@ async def commander_overview(
     Returns card details, top combos, EDHREC staples, and synergy scores.
     Degrades gracefully if optional sources (EDHREC, Spellbook) are unavailable.
     """
-    from mtg_mcp_server.workflows.commander import commander_overview as impl
-
     if not commander_name.strip():
         raise ToolError("Commander name cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "commander_overview failed",
+        commander_wf.commander_overview(
             commander_name,
             scryfall=_require_scryfall(),
             spellbook=_require_spellbook(),
             edhrec=_edhrec,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except CardNotFoundError as exc:
-        raise ToolError(
+        ),
+        not_found=lambda _: (
             f"Commander not found: '{commander_name}'. Check spelling or try a different name."
-        ) from exc
-    except ServiceError as exc:
-        raise ToolError(f"commander_overview failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER)
@@ -251,29 +297,25 @@ async def evaluate_upgrade(
     Returns card details, price, synergy score, and combos enabled for the caller to assess.
     Degrades gracefully if optional sources (EDHREC, Spellbook) are unavailable.
     """
-    from mtg_mcp_server.workflows.commander import evaluate_upgrade as impl
-
     if not card_name.strip():
         raise ToolError("Card name cannot be empty.")
     if not commander_name.strip():
         raise ToolError("Commander name cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "evaluate_upgrade failed",
+        commander_wf.evaluate_upgrade(
             card_name,
             commander_name,
             scryfall=_require_scryfall(),
             spellbook=_require_spellbook(),
             edhrec=_edhrec,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except CardNotFoundError as exc:
-        raise ToolError(
+        ),
+        not_found=lambda _: (
             f"Card not found: '{card_name}'. Check spelling or try a different name."
-        ) from exc
-    except ServiceError as exc:
-        raise ToolError(f"evaluate_upgrade failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_DRAFT)
@@ -296,19 +338,16 @@ async def draft_pack_pick(
     Provides GIH WR, ALSA, IWD stats, and color fit analysis based on current picks.
     Requires 17Lands to be enabled.
     """
-    from mtg_mcp_server.workflows.draft import draft_pack_pick as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "17Lands error",
+        draft_wf.draft_pack_pick(
             pack,
             set_code,
             seventeen_lands=_require_seventeen_lands(),
             current_picks=current_picks,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"17Lands error: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER)
@@ -326,23 +365,20 @@ async def suggest_cuts(
     Scores cards by synergy, inclusion rate, and combo membership.
     Degrades gracefully if EDHREC or Spellbook backends fail (uses whatever data is available).
     """
-    from mtg_mcp_server.workflows.deck import suggest_cuts as impl
-
     if not commander_name.strip():
         raise ToolError("Commander name cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "suggest_cuts failed",
+        deck_wf.suggest_cuts(
             decklist,
             commander_name,
             spellbook=_require_spellbook(),
             edhrec=_edhrec,
             num_cuts=num_cuts,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"suggest_cuts failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER)
@@ -360,8 +396,6 @@ async def card_comparison(
     Shows mana cost, type, synergy, inclusion rate, combo count, and price for each card.
     Scryfall and Spellbook required; EDHREC optional.
     """
-    from mtg_mcp_server.workflows.commander import card_comparison as impl
-
     if not commander_name.strip():
         raise ToolError("Commander name cannot be empty.")
 
@@ -372,21 +406,19 @@ async def card_comparison(
     if len(cards) > 5:
         raise ToolError("Maximum 5 cards can be compared at once.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "card_comparison failed",
+        commander_wf.card_comparison(
             cards,
             commander_name,
             scryfall=_require_scryfall(),
             spellbook=_require_spellbook(),
             edhrec=_edhrec,
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except CardNotFoundError as exc:
-        raise ToolError(f"{exc}. Check spelling.") from exc
-    except ServiceError as exc:
-        raise ToolError(f"card_comparison failed: {exc}") from exc
+        ),
+        not_found=_check_spelling,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER | TAGS_PRICING)
@@ -410,28 +442,25 @@ async def budget_upgrade(
     Ranks EDHREC staples by synergy-per-dollar within the given budget ceiling.
     Requires EDHREC (for staples) and Scryfall (for prices).
     """
-    from mtg_mcp_server.workflows.commander import budget_upgrade as impl
-
     if not commander_name.strip():
         raise ToolError("Commander name cannot be empty.")
     if budget <= 0:
         raise ToolError("Budget must be a positive number.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "budget_upgrade failed",
+        commander_wf.budget_upgrade(
             commander_name,
             budget=budget,
             num_suggestions=num_suggestions,
             scryfall=_require_scryfall(),
             edhrec=_require_edhrec(),
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except CommanderNotFoundError as exc:
-        raise ToolError(f"Commander not found: '{commander_name}'.") from exc
-    except ServiceError as exc:
-        raise ToolError(f"budget_upgrade failed: {exc}") from exc
+        ),
+        not_found=lambda _: f"Commander not found: '{commander_name}'.",
+        not_found_type=CommanderNotFoundError,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER)
@@ -452,25 +481,22 @@ async def deck_analysis(
     Scryfall API as fallback, Spellbook for combos and bracket estimation, EDHREC for
     synergy scores. Degrades gracefully if optional backends are unavailable.
     """
-    from mtg_mcp_server.workflows.analysis import deck_analysis as impl
-
     if not decklist:
         raise ToolError("Provide at least one card in the decklist.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "deck_analysis failed",
+        analysis_wf.deck_analysis(
             decklist,
             commander_name,
             bulk=_bulk,
             scryfall=_require_scryfall(),
             spellbook=_require_spellbook(),
             edhrec=_edhrec,
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"deck_analysis failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_DRAFT)
@@ -493,19 +519,16 @@ async def set_overview(
     Uses 17Lands card ratings to provide a data-driven format breakdown.
     Requires 17Lands to be enabled.
     """
-    from mtg_mcp_server.workflows.draft import set_overview as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "17Lands error",
+        draft_wf.set_overview(
             set_code,
             event_type=event_type,
             seventeen_lands=_require_seventeen_lands(),
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"17Lands error: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -540,13 +563,12 @@ async def theme_search(
     Maps themes to oracle text patterns and searches bulk data. Groups results
     by relevance tier (strong match, moderate match, flavor match).
     """
-    from mtg_mcp_server.workflows.building import theme_search as impl
-
     if not theme.strip():
         raise ToolError("Theme cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "theme_search failed",
+        building_wf.theme_search(
             theme,
             bulk=_require_bulk(),
             color_identity=color_identity,
@@ -554,10 +576,8 @@ async def theme_search(
             max_price=max_price,
             limit=limit,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"theme_search failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_BUILD)
@@ -579,16 +599,15 @@ async def build_around(
     Analyzes oracle text for key mechanics, searches for synergies,
     and checks combo potential. Groups results by role (enablers, payoffs, support).
     """
-    from mtg_mcp_server.workflows.building import build_around as impl
-
     cards = list(dict.fromkeys(cards))
     if not cards:
         raise ToolError("Provide at least 1 card to build around.")
     if len(cards) > 5:
         raise ToolError("Maximum 5 build-around cards.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "build_around failed",
+        building_wf.build_around(
             cards,
             format,
             bulk=_require_bulk(),
@@ -596,12 +615,9 @@ async def build_around(
             budget=budget,
             limit=limit,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except CardNotFoundError as exc:
-        raise ToolError(f"{exc}. Check spelling.") from exc
-    except ServiceError as exc:
-        raise ToolError(f"build_around failed: {exc}") from exc
+        ),
+        not_found=_check_spelling,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_BUILD)
@@ -631,24 +647,21 @@ async def complete_deck(
     Analyzes mana curve, card roles, and format-specific ratios, then suggests
     cards for underrepresented categories.
     """
-    from mtg_mcp_server.workflows.building import complete_deck as impl
-
     if not decklist:
         raise ToolError("Provide at least one card in the decklist.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "complete_deck failed",
+        building_wf.complete_deck(
             decklist,
             format,
             bulk=_require_bulk(),
             commander=commander,
             budget=budget,
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"complete_deck failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -672,30 +685,25 @@ async def commander_comparison(
     Side-by-side comparison table with mana cost, color identity, EDHREC rank,
     combo count, and shared/unique staples.
     """
-    from mtg_mcp_server.workflows.commander_depth import commander_comparison as impl
-
     commanders = list(dict.fromkeys(commanders))
     if len(commanders) < 2:
         raise ToolError("Provide at least 2 commanders to compare.")
     if len(commanders) > 5:
         raise ToolError("Maximum 5 commanders can be compared.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "commander_comparison failed",
+        commander_depth_wf.commander_comparison(
             commanders,
             bulk=_require_bulk(),
             spellbook=_require_spellbook(),
             edhrec=_edhrec,
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ValueError as exc:
-        raise ToolError(str(exc)) from exc
-    except CardNotFoundError as exc:
-        raise ToolError(f"{exc}. Check spelling.") from exc
-    except ServiceError as exc:
-        raise ToolError(f"commander_comparison failed: {exc}") from exc
+        ),
+        value_error=True,
+        not_found=_check_spelling,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER | TAGS_SEARCH)
@@ -717,23 +725,20 @@ async def tribal_staples(
 
     Groups results by: lords/anthems, tribal synergy, best members, tribal support.
     """
-    from mtg_mcp_server.workflows.commander_depth import tribal_staples as impl
-
     if not tribe.strip():
         raise ToolError("Tribe cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "tribal_staples failed",
+        commander_depth_wf.tribal_staples(
             tribe,
             bulk=_require_bulk(),
             color_identity=color_identity,
             format=format,
             limit=limit,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"tribal_staples failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER | TAGS_BUILD)
@@ -752,15 +757,14 @@ async def precon_upgrade(
 
     Pairs each upgrade with a specific cut, explaining the synergy improvement.
     """
-    from mtg_mcp_server.workflows.commander_depth import precon_upgrade as impl
-
     if not decklist:
         raise ToolError("Provide the precon decklist.")
     if not commander.strip():
         raise ToolError("Commander name cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "precon_upgrade failed",
+        commander_depth_wf.precon_upgrade(
             decklist,
             commander,
             bulk=_require_bulk(),
@@ -768,14 +772,11 @@ async def precon_upgrade(
             edhrec=_edhrec,
             budget=budget,
             num_upgrades=num_upgrades,
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except CardNotFoundError as exc:
-        raise ToolError(f"{exc}. Check spelling.") from exc
-    except ServiceError as exc:
-        raise ToolError(f"precon_upgrade failed: {exc}") from exc
+        ),
+        not_found=_check_spelling,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_COMMANDER | TAGS_SEARCH)
@@ -798,22 +799,19 @@ async def color_identity_staples(
 
     Uses EDHREC aggregated data when available, falls back to EDHREC rank from bulk data.
     """
-    from mtg_mcp_server.workflows.commander_depth import color_identity_staples as impl
-
     if not color_identity.strip():
         raise ToolError("Color identity cannot be empty.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "color_identity_staples failed",
+        commander_depth_wf.color_identity_staples(
             color_identity,
             bulk=_require_bulk(),
             category=category,
             limit=limit,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"color_identity_staples failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -838,23 +836,20 @@ async def sealed_pool_build(
     Evaluates each 2-color pair, selects best cards, and suggests land splits.
     Uses 17Lands data when available for card quality scoring.
     """
-    from mtg_mcp_server.workflows.draft_limited import sealed_pool_build as impl
-
     if not pool:
         raise ToolError("Provide at least one card in the sealed pool.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "sealed_pool_build failed",
+        draft_limited_wf.sealed_pool_build(
             pool,
             set_code,
             bulk=_require_bulk(),
             seventeen_lands=_seventeen_lands,
-            on_progress=lambda step, total: _progress(ctx, step, total),
+            on_progress=partial(_progress, ctx),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"sealed_pool_build failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_LIMITED)
@@ -876,23 +871,20 @@ async def draft_signal_read(
 
     Uses ALSA data to detect which colors are open (cards seen later than expected = open).
     """
-    from mtg_mcp_server.workflows.draft_limited import draft_signal_read as impl
-
     if not picks:
         raise ToolError("Provide at least one pick.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "draft_signal_read failed",
+        draft_limited_wf.draft_signal_read(
             picks,
             set_code,
             bulk=_require_bulk(),
             seventeen_lands=_require_seventeen_lands(),
             current_pack=current_pack,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"draft_signal_read failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_LIMITED)
@@ -916,23 +908,20 @@ async def draft_log_review(
     Identifies where you could have taken a higher-WR card, pivot points,
     and overall draft grade.
     """
-    from mtg_mcp_server.workflows.draft_limited import draft_log_review as impl
-
     if not picks:
         raise ToolError("Provide at least one pick.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "draft_log_review failed",
+        draft_limited_wf.draft_log_review(
             picks,
             set_code,
             bulk=_require_bulk(),
             seventeen_lands=_require_seventeen_lands(),
             final_deck=final_deck,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"draft_log_review failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -956,18 +945,15 @@ async def rotation_check(
     Shows sets currently in Standard with rotation dates. If cards provided,
     identifies which are in rotating sets and suggests replacements.
     """
-    from mtg_mcp_server.workflows.constructed import rotation_check as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "rotation_check failed",
+        constructed_wf.rotation_check(
             scryfall=_require_scryfall(),
             bulk=_require_bulk(),
             cards=cards,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"rotation_check failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -991,17 +977,14 @@ async def metagame_snapshot(
     Shows top archetypes with meta share %, tier classification, and prices.
     Uses MTGGoldfish as the data source.
     """
-    from mtg_mcp_server.workflows.metagame import metagame_snapshot as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "metagame_snapshot failed",
+        metagame_wf.metagame_snapshot(
             format=format,
             mtggoldfish=_mtggoldfish,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"metagame_snapshot failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
@@ -1026,19 +1009,16 @@ async def archetype_decklist(
     Returns a full decklist (mainboard + sideboard) with deck metadata and
     total price when available. Archetype name is fuzzy-matched.
     """
-    from mtg_mcp_server.workflows.metagame import archetype_decklist as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "archetype_decklist failed",
+        metagame_wf.archetype_decklist(
             format=format,
             archetype=archetype,
             mtggoldfish=_require_mtggoldfish(),
             bulk=_bulk,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"archetype_decklist failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
@@ -1060,23 +1040,20 @@ async def archetype_comparison(
 
     Shows price, colors, key cards, shared staples, and differences.
     """
-    from mtg_mcp_server.workflows.metagame import archetype_comparison as impl
-
     if len(archetypes) < 2:
         raise ToolError("Provide at least 2 archetypes to compare.")
     if len(archetypes) > 4:
         raise ToolError("Compare at most 4 archetypes at a time.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "archetype_comparison failed",
+        metagame_wf.archetype_comparison(
             format=format,
             archetypes=archetypes,
             mtggoldfish=_require_mtggoldfish(),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"archetype_comparison failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
@@ -1099,19 +1076,16 @@ async def format_entry_guide(
     Shows archetypes sorted by budget accessibility, cross-archetype staples
     (buy once, play everywhere), and format rules summary.
     """
-    from mtg_mcp_server.workflows.metagame import format_entry_guide as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "format_entry_guide failed",
+        metagame_wf.format_entry_guide(
             format=format,
             mtggoldfish=_mtggoldfish,
             bulk=_bulk,
             budget=budget,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"format_entry_guide failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1144,20 +1118,17 @@ async def suggest_sideboard(
     per-card reasoning. Works with heuristic analysis alone; enhanced with
     MTGGoldfish frequency data when available.
     """
-    from mtg_mcp_server.workflows.sideboard import suggest_sideboard as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "suggest_sideboard failed",
+        sideboard_wf.suggest_sideboard(
             decklist=decklist,
             format=format,
             bulk=_require_bulk(),
             mtggoldfish=_mtggoldfish,
             meta_context=meta_context,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"suggest_sideboard failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
@@ -1185,10 +1156,9 @@ async def sideboard_guide(
     Given a full 75 and a matchup archetype, produces specific boarding
     instructions with reasoning.
     """
-    from mtg_mcp_server.workflows.sideboard import sideboard_guide as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "sideboard_guide failed",
+        sideboard_wf.sideboard_guide(
             decklist=decklist,
             sideboard=sideboard,
             format=format,
@@ -1196,10 +1166,8 @@ async def sideboard_guide(
             bulk=_require_bulk(),
             mtggoldfish=_mtggoldfish,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"sideboard_guide failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
@@ -1227,10 +1195,9 @@ async def sideboard_matrix(
     Matrix shows which sideboard cards come IN/OUT/FLEX for each matchup.
     Auto-detects top matchups from metagame data or uses provided matchup list.
     """
-    from mtg_mcp_server.workflows.sideboard import sideboard_matrix as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "sideboard_matrix failed",
+        sideboard_wf.sideboard_matrix(
             decklist=decklist,
             sideboard=sideboard,
             format=format,
@@ -1238,10 +1205,8 @@ async def sideboard_matrix(
             mtggoldfish=_mtggoldfish,
             matchups=matchups,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"sideboard_matrix failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1388,25 +1353,21 @@ async def deck_validate(
     Checks legality, deck size, copy limits, color identity (Commander), singleton
     rules, and Pauper rarity. Returns VALID or INVALID with actionable error messages.
     """
-    from mtg_mcp_server.workflows.validation import deck_validate as impl
-
     if not decklist:
         raise ToolError("Provide at least one card in the decklist.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "deck_validate failed",
+        validation_wf.deck_validate(
             decklist,
             format,
             commander=commander,
             sideboard=sideboard,
             bulk=_require_bulk(),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ValueError as exc:
-        raise ToolError(str(exc)) from exc
-    except ServiceError as exc:
-        raise ToolError(f"deck_validate failed: {exc}") from exc
+        ),
+        value_error=True,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_BUILD)
@@ -1429,24 +1390,20 @@ async def suggest_mana_base(
     Analyzes color requirements, recommends land count, and suggests format-legal
     dual lands. Handles hybrid and phyrexian mana.
     """
-    from mtg_mcp_server.workflows.mana_base import suggest_mana_base as impl
-
     if not decklist:
         raise ToolError("Provide at least one card in the decklist.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "suggest_mana_base failed",
+        mana_base_wf.suggest_mana_base(
             decklist,
             format,
             total_lands=total_lands,
             bulk=_require_bulk(),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ValueError as exc:
-        raise ToolError(str(exc)) from exc
-    except ServiceError as exc:
-        raise ToolError(f"suggest_mana_base failed: {exc}") from exc
+        ),
+        value_error=True,
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_PRICING)
@@ -1461,8 +1418,6 @@ async def price_comparison(
 
     Returns a markdown table with USD, USD foil, and EUR prices sorted by USD descending.
     """
-    from mtg_mcp_server.workflows.pricing import price_comparison as impl
-
     cards = list(dict.fromkeys(cards))  # Deduplicate, preserving order
 
     if len(cards) < 2:
@@ -1470,17 +1425,15 @@ async def price_comparison(
     if len(cards) > 20:
         raise ToolError("Maximum 20 cards for price comparison.")
 
-    try:
-        result = await impl(
+    return await _run(
+        "price_comparison failed",
+        pricing_wf.price_comparison(
             cards,
             bulk=_require_bulk(),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ValueError as exc:
-        raise ToolError(str(exc)) from exc
-    except ServiceError as exc:
-        raise ToolError(f"price_comparison failed: {exc}") from exc
+        ),
+        value_error=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1618,18 +1571,15 @@ async def rules_lookup(
 
     Returns matching rules with full text, parent context, and subrules.
     """
-    from mtg_mcp_server.workflows.rules import rules_lookup as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "rules_lookup failed",
+        rules_wf.rules_lookup(
             query,
             section=section,
             rules=_require_rules(),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"rules_lookup failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_RULES)
@@ -1646,18 +1596,15 @@ async def keyword_explain(
 
     Returns the rules definition, reminder text, and up to 5 example cards from bulk data.
     """
-    from mtg_mcp_server.workflows.rules import keyword_explain as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "keyword_explain failed",
+        rules_wf.keyword_explain(
             keyword,
             rules=_require_rules(),
             bulk=_bulk,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"keyword_explain failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_RULES)
@@ -1673,19 +1620,16 @@ async def rules_interaction(
 
     Returns relevant rules, step-by-step resolution, and common misconceptions.
     """
-    from mtg_mcp_server.workflows.rules import rules_interaction as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "rules_interaction failed",
+        rules_wf.rules_interaction(
             mechanic_a,
             mechanic_b,
             rules=_require_rules(),
             bulk=_bulk,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"rules_interaction failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_RULES)
@@ -1702,17 +1646,14 @@ async def rules_scenario(
 
     Covers priority, stack resolution, state-based actions, and triggers with rule citations.
     """
-    from mtg_mcp_server.workflows.rules import rules_scenario as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "rules_scenario failed",
+        rules_wf.rules_scenario(
             scenario,
             rules=_require_rules(),
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"rules_scenario failed: {exc}") from exc
+        ),
+    )
 
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_RULES)
@@ -1735,20 +1676,17 @@ async def combat_calculator(
     Resolves declare attackers → declare blockers → damage steps → state-based actions.
     Looks up card keywords from bulk data if card names are provided.
     """
-    from mtg_mcp_server.workflows.rules import combat_calculator as impl
-
-    try:
-        result = await impl(
+    return await _run(
+        "combat_calculator failed",
+        rules_wf.combat_calculator(
             attackers,
             blockers,
             keywords=keywords,
             rules=_require_rules(),
             bulk=_bulk,
             response_format=response_format,
-        )
-        return ToolResult(content=result.markdown, structured_content=result.data)
-    except ServiceError as exc:
-        raise ToolError(f"combat_calculator failed: {exc}") from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2133,13 +2071,11 @@ Present: complete 75-card decklist with sideboard and total price."""
 @workflow_mcp.resource("mtg://theme/{theme}")
 async def get_theme_mappings(theme: str) -> dict[str, object]:
     """Theme keyword mappings — oracle text patterns that define a theme."""
-    from mtg_mcp_server.workflows.building import THEME_MAPPINGS
-
     theme_lower = theme.lower().strip()
-    if theme_lower in THEME_MAPPINGS:
-        mapping = THEME_MAPPINGS[theme_lower]
+    if theme_lower in building_wf.THEME_MAPPINGS:
+        mapping = building_wf.THEME_MAPPINGS[theme_lower]
         return {"theme": theme, "patterns": {k: v for k, v in mapping.items()}}
-    return {"theme": theme, "available_themes": sorted(THEME_MAPPINGS.keys())}
+    return {"theme": theme, "available_themes": sorted(building_wf.THEME_MAPPINGS.keys())}
 
 
 @workflow_mcp.resource("mtg://tribe/{tribe}/staples")
