@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 from mtg_mcp_server.services.base import ServiceError
+from mtg_mcp_server.utils.color_identity import VALID_COLORS
 from mtg_mcp_server.utils.decklist import parse_decklist
 from mtg_mcp_server.utils.fuzzy import match_archetype
 from mtg_mcp_server.workflows import WorkflowResult
@@ -32,8 +33,6 @@ log = structlog.get_logger(service="workflow.sideboard")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-
-ALL_COLORS = frozenset({"W", "U", "B", "R", "G"})
 
 # Default archetype categories used when MTGGoldfish is unavailable.
 _DEFAULT_ARCHETYPES = ["Aggro", "Control", "Midrange", "Combo", "Tempo"]
@@ -149,7 +148,7 @@ def _extract_deck_colors(resolved: dict[str, Card | None]) -> set[str]:
 
 def _opposing_colors(deck_colors: set[str]) -> frozenset[str] | set[str]:
     """Return colors not in the deck's color set."""
-    return ALL_COLORS - deck_colors
+    return VALID_COLORS - deck_colors
 
 
 def _match_archetype_name(query: str, archetypes: list[str]) -> str | None:

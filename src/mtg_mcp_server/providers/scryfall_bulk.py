@@ -35,28 +35,10 @@ from mtg_mcp_server.providers import mtggoldfish as _goldfish_mod
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient, ScryfallBulkError
 from mtg_mcp_server.utils.color_identity import is_within_identity, parse_color_identity
-from mtg_mcp_server.utils.format_rules import get_format_rules
+from mtg_mcp_server.utils.format_rules import get_format_rules, normalize_format
 from mtg_mcp_server.utils.formatters import ResponseFormat, format_card_detail
 from mtg_mcp_server.utils.query_parser import parse_query
 from mtg_mcp_server.utils.slim import slim_card
-
-# Lightweight format alias map — maps common abbreviations to Scryfall legality
-# keys. Unlike utils.format_rules.normalize_format, this does NOT reject unknown
-# formats so it can pass through any Scryfall legality key (historic, alchemy, etc.).
-_FORMAT_ALIASES: dict[str, str] = {
-    "edh": "commander",
-    "cedh": "commander",
-    "cmdr": "commander",
-    "draft": "limited",
-    "sealed": "limited",
-}
-
-
-def normalize_format(raw: str) -> str:
-    """Normalize a format name for Scryfall legality lookup (no validation)."""
-    lowered = raw.strip().lower()
-    return _FORMAT_ALIASES.get(lowered, lowered)
-
 
 if TYPE_CHECKING:
     from mtg_mcp_server.types import Card
@@ -281,7 +263,7 @@ async def format_legality(
         raise ToolError("Provide at least one card name to check.")
 
     client = _get_client()
-    fmt = normalize_format(format)
+    fmt = normalize_format(format, strict=False)
 
     try:
         resolved = await client.get_cards(cards)
@@ -354,7 +336,7 @@ async def format_search(
         raise ToolError("Provide a search query.")
 
     client = _get_client()
-    fmt = normalize_format(format)
+    fmt = normalize_format(format, strict=False)
     try:
         identity = parse_color_identity(color_identity) if color_identity else None
     except ValueError as exc:
@@ -584,7 +566,7 @@ async def format_staples(
     available, falling back to a mana-efficiency heuristic.
     """
     client = _get_client()
-    fmt = normalize_format(format)
+    fmt = normalize_format(format, strict=False)
     resolved_mode = _resolve_ranking_mode(ranking_mode, fmt)
 
     try:
@@ -807,7 +789,7 @@ async def similar_cards(
     if source is None:
         raise ToolError(f"Card not found: '{card_name}'. Check spelling.")
 
-    fmt = normalize_format(format) if format else None
+    fmt = normalize_format(format, strict=False) if format else None
 
     scored: list[tuple[float, Card]] = []
     source_name_lower = source.name.lower()
@@ -886,7 +868,7 @@ async def random_card(
     Returns full card details in the same format as card_lookup.
     """
     client = _get_client()
-    fmt = normalize_format(format) if format else None
+    fmt = normalize_format(format, strict=False) if format else None
     try:
         identity = parse_color_identity(color_identity) if color_identity else None
     except ValueError as exc:
@@ -927,7 +909,7 @@ async def ban_list(
         raise ToolError("Provide a format name.")
 
     client = _get_client()
-    fmt = normalize_format(format)
+    fmt = normalize_format(format, strict=False)
 
     try:
         banned = await client.cards_by_legality(fmt, "banned")
@@ -1034,7 +1016,7 @@ async def card_in_formats(
 async def format_legal_cards_resource(format: str) -> str:
     """Count of legal cards in a format as JSON."""
     client = _get_client()
-    fmt = normalize_format(format)
+    fmt = normalize_format(format, strict=False)
     try:
         legal = await client.cards_by_legality(fmt, "legal")
     except ScryfallBulkError as exc:
@@ -1048,7 +1030,7 @@ async def format_legal_cards_resource(format: str) -> str:
 async def format_banned_resource(format: str) -> str:
     """Banned card list for a format as JSON."""
     client = _get_client()
-    fmt = normalize_format(format)
+    fmt = normalize_format(format, strict=False)
     try:
         banned_cards = await client.cards_by_legality(fmt, "banned")
     except ScryfallBulkError as exc:

@@ -70,11 +70,6 @@ class EDHRECClient(BaseClient):
             user_agent=user_agent,
         )
 
-    @staticmethod
-    def _slugify(name: str) -> str:
-        """Convert a card name to an EDHREC URL slug."""
-        return slugify(name)
-
     @async_cached(_commander_cache, key=_method_key)
     async def commander_top_cards(
         self, commander_name: str, category: str | None = None
@@ -93,7 +88,7 @@ class EDHRECClient(BaseClient):
             CommanderNotFoundError: If the commander page doesn't exist.
             EDHRECError: On other API errors.
         """
-        slug = self._slugify(commander_name)
+        slug = slugify(commander_name)
         try:
             response = await self._get(f"/pages/commanders/{slug}.json")
         except ServiceError as exc:
