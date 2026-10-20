@@ -11,7 +11,7 @@ Every data source evaluated, what it provides, and its status. Endpoints, auth, 
 | EDHREC | Commander metagame: top cards per commander with synergy and inclusion, average decks, themes, salt scores | Reverse-engineered JSON (`pyedhrec` is the best reference) | Fragile | Implemented, flagged |
 | Comprehensive Rules | Full rules text, glossary, keyword rules | Wizards-hosted text file | Stable | Implemented |
 | Moxfield | Public decklists, deck/user search. Collection data needs auth (unused) | Reverse-engineered REST | Fragile | Implemented, flagged |
-| Spicerack | Paper tournament results: standings, Swiss/bracket records, Moxfield decklist URLs (Modern, Legacy, Pauper, Pioneer, Standard, Premodern, Commander, …) | Documented REST | Solid | Implemented |
+| Spicerack | Paper tournament results: standings, Swiss/bracket records, Moxfield decklist URLs (Modern, Legacy, Pauper, Pioneer, Standard, Premodern, Commander, …) | Documented REST | Defunct | Shut down 2026-05-27; removed |
 | MTGGoldfish | Constructed metagame shares, sample decklists, format staples, deck prices | HTML scraping (no API) | Fragile | Implemented, flagged |
 | Archidekt | Public decks with categories and stats | Undocumented REST. Archidekt tolerates reverse-engineering but may lock it down if abused | Fragile | Deferred: EDHREC already aggregates Archidekt (and Moxfield) data |
 

@@ -24,7 +24,6 @@ SPELLBOOK_FIXTURES = FIXTURES / "spellbook"
 SEVENTEEN_LANDS_FIXTURES = FIXTURES / "seventeen_lands"
 EDHREC_FIXTURES = FIXTURES / "edhrec"
 MOXFIELD_FIXTURES = FIXTURES / "moxfield"
-SPICERACK_FIXTURES = FIXTURES / "spicerack"
 MTGGOLDFISH_FIXTURES = FIXTURES / "mtggoldfish"
 SCRYFALL_BULK_FIXTURES = FIXTURES / "scryfall_bulk"
 
@@ -35,7 +34,6 @@ SPELLBOOK_BASE = "https://backend.commanderspellbook.com"
 SEVENTEEN_LANDS_BASE = "https://www.17lands.com"
 EDHREC_BASE = "https://json.edhrec.com"
 MOXFIELD_BASE = "https://api2.moxfield.com"
-SPICERACK_BASE = "https://api.spicerack.gg"
 MTGGOLDFISH_BASE = "https://www.mtggoldfish.com"
 RULES_URL = "https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt"
 
@@ -171,13 +169,6 @@ async def mcp_client():
         respx.get(url__regex=re.escape(MOXFIELD_BASE) + r"/v2/users/search-sfw").mock(
             return_value=httpx.Response(
                 200, json=_load_json(MOXFIELD_FIXTURES / "user_search.json")
-            )
-        )
-
-        # --- Spicerack routes ---
-        respx.get(f"{SPICERACK_BASE}/api/export-decklists/").mock(
-            return_value=httpx.Response(
-                200, json=_load_json(SPICERACK_FIXTURES / "tournaments_legacy.json")
             )
         )
 

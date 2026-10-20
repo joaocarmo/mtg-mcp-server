@@ -581,27 +581,6 @@ For the full matrix:
 
 ---
 
-### Find Tournament Results
-
-You want to see what won recent events.
-
-**Tools involved:**
-- `spicerack_recent_tournaments`
-- `spicerack_tournament_results`
-- `spicerack_format_decklists`
-
-**Prompts:**
-
-> What Legacy tournaments happened in the last two weeks?
-
-> Show me the top 8 standings from that tournament.
-
-> Show me the top-finishing decklists in Modern from the last two weeks.
-
-**What you get:** Tournament listings with dates and player counts, full standings with Swiss and bracket records, and links to top-finishing decklists on Moxfield.
-
----
-
 ### Search for Decks on Moxfield
 
 You want to find decklists for inspiration.

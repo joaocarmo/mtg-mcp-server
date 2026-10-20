@@ -11,7 +11,7 @@ A unified MCP server that exposes Magic: The Gathering data to AI assistants. Ea
 ```
 MCP client (Claude Code / Desktop / any) ── stdio
                      │
-        MTG Orchestrator — FastMCP("MTG"): 69 tools, 19 prompts, 21 resource templates
+        MTG Orchestrator — FastMCP("MTG"): 66 tools, 19 prompts, 20 resource templates
                      │
    ├── Workflows (no namespace) — commander, draft/limited, deck building,
    │     constructed/metagame, sideboard, rules engine (see TOOL_DESIGN.md)
@@ -21,7 +21,6 @@ MCP client (Claude Code / Desktop / any) ── stdio
    ├── draft_      → 17lands.com                  card win rates, archetype stats
    ├── edhrec_     → json.edhrec.com (scraped)    commander staples, synergy
    ├── moxfield_   → api2.moxfield.com (rev-eng)  decklists, deck/user search
-   ├── spicerack_  → api.spicerack.gg             tournament results, standings
    └── goldfish_   → mtggoldfish.com (HTML)       metagame, archetypes, staples, prices
 ```
 
@@ -109,7 +108,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 | Transport | stdio only, run locally | Claude Code/Desktop launch it as a subprocess; no hosted deployment to maintain |
 | Type checker | ty (beta) | Astral stack, speed |
 | HTTP mocking | respx | Clean async httpx mocking |
-| Namespaces | `scryfall_`, `bulk_`, `spellbook_`, `draft_`, `edhrec_`, `moxfield_`, `spicerack_`, `goldfish_`; workflows unprefixed | Avoid collisions; clean workflow names |
+| Namespaces | `scryfall_`, `bulk_`, `spellbook_`, `draft_`, `edhrec_`, `moxfield_`, `goldfish_`; workflows unprefixed | Avoid collisions; clean workflow names |
 | Client lifecycle | Lifespan + module-level `_client` | `Depends()`/`lifespan_context` break through `mount()` |
 | Settings wiring | `Settings()` in each lifespan | Base URLs overridable via env |
 | Errors | `ToolError` from `fastmcp.exceptions` | FastMCP handles `is_error` conversion |

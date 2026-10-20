@@ -12,7 +12,6 @@ Endpoints, auth, rate limits and response quirks for each backend. Full response
 | 17Lands | `www.17lands.com` | none | 1 req/s max, aggressive limiting | `ENABLE_17LANDS` | Unofficial, stable for years |
 | EDHREC | `json.edhrec.com` | none | self-imposed 0.5 req/s | `ENABLE_EDHREC` | Reverse-engineered, fragile |
 | Moxfield | `api2.moxfield.com` | Moxfield/browser-style UA (bot UAs blocked) | self-imposed 1 req/s | `ENABLE_MOXFIELD` | Reverse-engineered, fragile |
-| Spicerack | `api.spicerack.gg` | optional `X-API-Key` for higher limits | undocumented; 1 req/s | `ENABLE_SPICERACK` | Documented public API |
 | MTGGoldfish | `www.mtggoldfish.com` | browser-like UA (403 otherwise) | self-imposed 0.5 req/s | `ENABLE_MTGGOLDFISH` | HTML scraping, fragile |
 | Comp. Rules | `media.wizards.com/…/MagicCompRules%20<date>.txt`, discovered from `magic.wizards.com/en/rules` (fallback `RULES_URL`) | none | n/a (file) | `ENABLE_RULES` | Official |
 
@@ -100,16 +99,6 @@ Reverse-engineered; no stability guarantees.
 | `GET /v2/users/search-sfw?filter=` | `{data: [{userName, displayName, badges}]}` |
 
 Errors: `MoxfieldError(ServiceError)`, which is also raised on non-dict responses.
-
-## Spicerack
-
-Docs: https://docs.spicerack.gg/api-reference/public-decklist-database
-
-`GET /api/export-decklists/?num_days=14&event_format=Legacy&decklist_as_text=true` (optional `organization_id`) returns an array of tournaments with embedded standings (fixture: `tournaments_legacy.json`).
-- `event_format` and `format` are **title-case** ("Modern", "Legacy", "Pauper", …).
-- `TID` is a string, used for `tournament_results`. `startDate` is a **unix timestamp int**.
-- Other fields: `players`, `swissRounds`, `topCut`, `bracketUrl`.
-- Standings have **no rank field**; rank comes from array position. `decklist` is a Moxfield URL and may be empty.
 
 ## MTGGoldfish
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Claude Code GitHub workflows and Codecov upload (no secrets configured)
+- Spicerack backend (`spicerack_*` tools, `mtg://tournament/{event_format}/recent`, `MTG_MCP_ENABLE_SPICERACK`): the service shut down on 2026-05-27
 - Hosted/remote option: Smithery adapter, `smithery.yaml`, FastMCP Horizon and Smithery publish jobs
 - Streamable HTTP transport (`MTG_MCP_TRANSPORT`, `MTG_MCP_HTTP_PORT`, `serve:http`); the server is stdio only
 - PyPI and MCP Registry publishing (`publish.yml`, `server.json`); install from git instead (see README)

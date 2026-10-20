@@ -47,7 +47,6 @@ from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallClient
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
-from mtg_mcp_server.services.spicerack import SpicerackClient
 
 # Module-level clients managed by the lifespan via AsyncExitStack.
 # Workflows need multiple clients simultaneously; AsyncExitStack is cleaner
@@ -59,7 +58,6 @@ _edhrec: EDHRECClient | None = None
 _bulk: ScryfallBulkClient | None = None
 _rules: RulesService | None = None
 _mtggoldfish: MTGGoldfishClient | None = None
-_spicerack: SpicerackClient | None = None
 _moxfield: MoxfieldClient | None = None
 
 
@@ -69,11 +67,11 @@ async def workflow_lifespan(server: FastMCP):
 
     Uses ``AsyncExitStack`` to manage multiple clients in a single lifespan.
     Feature-flagged backends (17Lands, EDHREC, Scryfall bulk data, MTGGoldfish,
-    Spicerack, Moxfield) are only created when their corresponding ``Settings``
+    Moxfield) are only created when their corresponding ``Settings``
     flag is enabled. All clients are torn down when the server shuts down.
     """
     global _scryfall, _spellbook, _seventeen_lands, _edhrec, _bulk, _rules
-    global _mtggoldfish, _spicerack, _moxfield
+    global _mtggoldfish, _moxfield
     settings = Settings()
     async with AsyncExitStack() as stack:
         _scryfall = await stack.enter_async_context(
@@ -115,13 +113,6 @@ async def workflow_lifespan(server: FastMCP):
             _mtggoldfish = await stack.enter_async_context(
                 MTGGoldfishClient(base_url=settings.mtggoldfish_base_url)
             )
-        if settings.enable_spicerack:
-            _spicerack = await stack.enter_async_context(
-                SpicerackClient(
-                    base_url=settings.spicerack_base_url,
-                    api_key=settings.spicerack_api_key,
-                )
-            )
         if settings.enable_moxfield:
             _moxfield = await stack.enter_async_context(
                 MoxfieldClient(base_url=settings.moxfield_base_url)
@@ -134,7 +125,6 @@ async def workflow_lifespan(server: FastMCP):
     _bulk = None
     _rules = None
     _mtggoldfish = None
-    _spicerack = None
     _moxfield = None
 
 
@@ -188,13 +178,6 @@ def _require_mtggoldfish() -> MTGGoldfishClient:
     if _mtggoldfish is None:
         raise ToolError("MTGGoldfish is not enabled. Set MTG_MCP_ENABLE_MTGGOLDFISH=true.")
     return _mtggoldfish
-
-
-def _require_spicerack() -> SpicerackClient:
-    """Return Spicerack client or raise ToolError if the feature flag is off."""
-    if _spicerack is None:
-        raise ToolError("Spicerack is not enabled. Set MTG_MCP_ENABLE_SPICERACK=true.")
-    return _spicerack
 
 
 def _require_moxfield() -> MoxfieldClient:
@@ -1008,7 +991,7 @@ async def metagame_snapshot(
     """Get the current metagame breakdown for a competitive format.
 
     Shows top archetypes with meta share %, tier classification, and prices.
-    Uses MTGGoldfish as primary source with Spicerack tournament data as fallback.
+    Uses MTGGoldfish as the data source.
     """
     from mtg_mcp_server.workflows.metagame import metagame_snapshot as impl
 
@@ -1016,7 +999,6 @@ async def metagame_snapshot(
         result = await impl(
             format=format,
             mtggoldfish=_mtggoldfish,
-            spicerack=_spicerack,
             bulk=_bulk,
             response_format=response_format,
         )
@@ -1127,7 +1109,6 @@ async def format_entry_guide(
         result = await impl(
             format=format,
             mtggoldfish=_mtggoldfish,
-            spicerack=_spicerack,
             bulk=_bulk,
             budget=budget,
             response_format=response_format,

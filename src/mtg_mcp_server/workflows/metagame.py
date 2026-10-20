@@ -30,7 +30,6 @@ from mtg_mcp_server.workflows import WorkflowResult
 if TYPE_CHECKING:
     from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
     from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
-    from mtg_mcp_server.services.spicerack import SpicerackClient
     from mtg_mcp_server.types import GoldfishArchetype, GoldfishMetaSnapshot
 
 log = structlog.get_logger(service="workflow.metagame")
@@ -128,52 +127,6 @@ def _format_tier_table(
 
 
 # ---------------------------------------------------------------------------
-# Spicerack fallback helpers
-# ---------------------------------------------------------------------------
-
-
-def _estimate_metagame_from_tournaments(
-    tournaments: list,
-    format_name: str,
-) -> WorkflowResult:
-    """Build a WorkflowResult from Spicerack tournament data.
-
-    Used as a fallback when MTGGoldfish is unavailable. Reports tournament
-    activity summary rather than archetype breakdown, since Spicerack does
-    not provide archetype classification.
-    """
-    # Count how many top finishes each tournament has
-    tournament_count = len(tournaments)
-    total_players = sum(t.player_count for t in tournaments)
-
-    lines: list[str] = [
-        f"# {format_name} Metagame (Tournament Data)",
-        "",
-        f"*Based on {tournament_count} recent tournaments ({total_players} total players)*",
-        "",
-        "**Note:** Archetype breakdown unavailable (MTGGoldfish disabled). "
-        "Showing tournament activity summary instead.",
-        "",
-    ]
-
-    # Show top tournaments
-    lines.append("| Tournament | Date | Players |")
-    lines.append("|------------|------|---------|")
-    for t in tournaments[:10]:
-        lines.append(f"| {t.name} | {t.date} | {t.player_count} |")
-
-    data: dict[str, object] = {
-        "format": format_name,
-        "source": "spicerack",
-        "tournament_count": tournament_count,
-        "total_players": total_players,
-        "tiers": {"T1": [], "T2": [], "T3": []},
-        "archetypes": [],
-    }
-    return WorkflowResult(markdown="\n".join(lines), data=data)
-
-
-# ---------------------------------------------------------------------------
 # Workflow functions
 # ---------------------------------------------------------------------------
 
@@ -182,20 +135,17 @@ async def metagame_snapshot(
     format: str,
     *,
     mtggoldfish: MTGGoldfishClient | None,
-    spicerack: SpicerackClient | None,
     bulk: ScryfallBulkClient | None,
     response_format: Literal["detailed", "concise"] = "detailed",
 ) -> WorkflowResult:
     """Get the current metagame breakdown for a competitive format.
 
-    Primary path uses MTGGoldfish for archetype-level data. Falls back to
-    Spicerack tournament frequency if MTGGoldfish is unavailable. Returns
-    an error message if neither source is available.
+    Uses MTGGoldfish for archetype-level data. Returns an error message if
+    MTGGoldfish is disabled or fails.
 
     Args:
         format: Format name (e.g. "Modern", "Legacy", "Pioneer").
         mtggoldfish: Initialized MTGGoldfishClient, or None if disabled.
-        spicerack: Initialized SpicerackClient, or None if disabled.
         bulk: Initialized ScryfallBulkClient, or None if disabled.
         response_format: "detailed" or "concise".
 
@@ -215,7 +165,6 @@ async def metagame_snapshot(
                 format=format,
                 error=str(exc),
             )
-            # Fall through to Spicerack
         else:
             tiers = _classify_tiers(snapshot.archetypes)
             lines: list[str] = [
@@ -247,35 +196,12 @@ async def metagame_snapshot(
             }
             return WorkflowResult(markdown="\n".join(lines), data=data)
 
-    # Fallback path: Spicerack
-    if spicerack is not None:
-        try:
-            tournaments = await spicerack.get_tournaments(
-                event_format=format.title(),
-            )
-        except ServiceError as exc:
-            log.warning(
-                "metagame_snapshot.spicerack_failed",
-                format=format,
-                error=str(exc),
-            )
-        else:
-            if tournaments:
-                log.info(
-                    "metagame_snapshot.complete",
-                    format=format,
-                    source="spicerack",
-                    tournaments=len(tournaments),
-                )
-                return _estimate_metagame_from_tournaments(tournaments, format.title())
-
-    # Neither source available
+    # No source available
     log.warning("metagame_snapshot.no_sources", format=format)
     return WorkflowResult(
         markdown=(
             f"No metagame data available for {format}.\n\n"
-            "Enable MTGGoldfish (`MTG_MCP_ENABLE_MTGGOLDFISH=true`) or "
-            "Spicerack (`MTG_MCP_ENABLE_SPICERACK=true`) for metagame data."
+            "Enable MTGGoldfish (`MTG_MCP_ENABLE_MTGGOLDFISH=true`) for metagame data."
         ),
         data={
             "format": format,
@@ -601,7 +527,6 @@ async def format_entry_guide(
     format: str,
     *,
     mtggoldfish: MTGGoldfishClient | None,
-    spicerack: SpicerackClient | None,
     bulk: ScryfallBulkClient | None,
     budget: float | None = None,
     response_format: Literal["detailed", "concise"] = "detailed",
@@ -614,7 +539,6 @@ async def format_entry_guide(
     Args:
         format: Format name (e.g. "Modern").
         mtggoldfish: Initialized MTGGoldfishClient, or None if disabled.
-        spicerack: Initialized SpicerackClient, or None if disabled.
         bulk: Initialized ScryfallBulkClient, or None if disabled.
         budget: Optional maximum budget in USD for deck filtering.
         response_format: "detailed" or "concise".
@@ -626,7 +550,7 @@ async def format_entry_guide(
     concise = response_format == "concise"
 
     # Try to get typed metagame data directly for the mtggoldfish path,
-    # falling back to metagame_snapshot() for spicerack/no-source paths.
+    # falling back to metagame_snapshot() for the no-source path.
     source: str | None = None
     goldfish_archetypes: list[GoldfishArchetype] = []
 
@@ -642,13 +566,12 @@ async def format_entry_guide(
                 error=str(exc),
             )
 
-    # Fallback: use metagame_snapshot for spicerack or no-source
+    # Fallback: use metagame_snapshot for the no-source message
     snapshot_result: WorkflowResult | None = None
     if source is None:
         snapshot_result = await metagame_snapshot(
             format,
             mtggoldfish=None,  # Already failed or unavailable
-            spicerack=spicerack,
             bulk=bulk,
             response_format=response_format,
         )
@@ -740,14 +663,6 @@ async def format_entry_guide(
             )
             lines.append("")
 
-    elif source == "spicerack":
-        lines.append("## Tournament Activity")
-        lines.append("")
-        lines.append(
-            "Archetype pricing unavailable (MTGGoldfish disabled). "
-            "Enable it for budget-sorted deck recommendations."
-        )
-        lines.append("")
     else:
         lines.append("## Metagame Data")
         lines.append("")
@@ -783,8 +698,6 @@ async def format_entry_guide(
         sources: list[str] = []
         if source == "mtggoldfish":
             sources.append("[MTGGoldfish](https://www.mtggoldfish.com)")
-        if source == "spicerack":
-            sources.append("[Spicerack](https://spicerack.gg)")
         if bulk is not None:
             sources.append("[Scryfall](https://scryfall.com)")
         if sources:
