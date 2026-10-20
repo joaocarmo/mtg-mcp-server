@@ -78,7 +78,7 @@ Commit before launching worktree agents.
 
 ## PRs
 
-Always open as drafts (`gh pr create --draft`); Claude review triggers on `ready_for_review`.
+Always open as drafts (`gh pr create --draft`).
 
 Handling review comments:
 1. Fetch them: `gh api /repos/{owner}/{repo}/pulls/{number}/comments`.
