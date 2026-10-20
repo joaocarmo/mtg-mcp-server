@@ -42,7 +42,6 @@ dependencies = [
     "pydantic-settings>=2.0",
     "tenacity>=9.0",
     "structlog>=24.0",
-    "smithery>=0.4.4",
     "selectolax>=0.4.7",
 ]
 
@@ -50,10 +49,10 @@ dependencies = [
 code-mode = ["fastmcp[code-mode]>=3.2.0"]
 
 [project.urls]
-Homepage = "https://github.com/j4th/mtg-mcp-server"
-Repository = "https://github.com/j4th/mtg-mcp-server"
-Issues = "https://github.com/j4th/mtg-mcp-server/issues"
-Changelog = "https://github.com/j4th/mtg-mcp-server/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/joaocarmo/mtg-mcp-server"
+Repository = "https://github.com/joaocarmo/mtg-mcp-server"
+Issues = "https://github.com/joaocarmo/mtg-mcp-server/issues"
+Changelog = "https://github.com/joaocarmo/mtg-mcp-server/blob/main/CHANGELOG.md"
 
 [project.scripts]
 mtg-mcp-server = "mtg_mcp_server.server:main"
@@ -70,7 +69,6 @@ build-backend = "uv_build"
 dev = [
     "pip-audit>=2.10.0",
     "pygments>=2.20.0",
-    "pyyaml>=6.0",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
@@ -90,9 +88,6 @@ default-groups = ["dev"]
 # ---------------------------------------------------------------------------
 # Ruff — linting & formatting
 # ---------------------------------------------------------------------------
-
-[tool.smithery]
-server = "mtg_mcp_server.smithery:create_server"
 
 [tool.ruff]
 line-length = 100

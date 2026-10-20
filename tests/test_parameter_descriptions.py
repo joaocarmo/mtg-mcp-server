@@ -1,4 +1,4 @@
-"""Verify every tool parameter has a description for Smithery compliance."""
+"""Verify every tool parameter has a description."""
 
 from __future__ import annotations
 

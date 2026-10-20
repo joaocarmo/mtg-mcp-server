@@ -13,7 +13,7 @@ import pytest
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT
 from mtg_mcp_server.services.rules import RULES_PAGE_URL, RulesService
 
-pytestmark = pytest.mark.live
+pytestmark = [pytest.mark.live, pytest.mark.asyncio(loop_scope="session")]
 
 
 class TestServerHealth:

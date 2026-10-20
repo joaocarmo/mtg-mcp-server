@@ -277,7 +277,7 @@ class TestScryfallBulkMounted:
 
 
 class TestServerMetadata:
-    """Verify server-level metadata used by quality scorers (Smithery, etc.)."""
+    """Verify server-level metadata shown to MCP clients."""
 
     def test_server_instructions_set(self):
         """Server instructions are non-empty and reference all tool categories."""

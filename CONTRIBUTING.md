@@ -5,7 +5,7 @@
 Requires [mise](https://mise.jdx.dev) and Git; mise installs Python, uv, ruff and ty.
 
 ```bash
-git clone https://github.com/j4th/mtg-mcp-server.git
+git clone https://github.com/joaocarmo/mtg-mcp-server.git
 cd mtg-mcp-server
 mise install
 mise run setup     # venv + dependencies

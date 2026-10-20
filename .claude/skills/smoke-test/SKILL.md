@@ -2,7 +2,6 @@
 name: smoke-test
 description: Use when interactively verifying the MTG MCP server works end-to-end by calling its MCP tools against real APIs
 disable-model-invocation: true
-argument-hint: "[horizon]"
 ---
 
 # Interactive MCP Server Smoke Test
@@ -11,10 +10,7 @@ Exercise every tool category on the MTG MCP server via real MCP tool calls and v
 
 ## Target Server
 
-- **Default:** local server — tools prefixed `mcp__mtg__`
-- **`/smoke-test horizon`:** production Horizon server — tools prefixed `mcp__claude_ai_mtg-mcp-server-horizon__`
-
-Use `$ARGUMENTS` to select. If empty or not "horizon", use local.
+Local server — tools prefixed `mcp__mtg__`.
 
 ## Execution
 
@@ -154,7 +150,7 @@ Compare results from step 1 (`scryfall_card_details("Sol Ring")`) and step 2 (`b
 ## Report Format
 
 ```
-## Smoke Test Results — [local/horizon] — [date]
+## Smoke Test Results — [date]
 
 | Category | Tests | Pass | Fail | Skip |
 |----------|-------|------|------|------|
