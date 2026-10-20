@@ -150,60 +150,17 @@ async def workflow_lifespan(server: FastMCP):
 workflow_mcp = FastMCP("Workflows", lifespan=workflow_lifespan, mask_error_details=True)
 
 
-def _require_scryfall() -> ScryfallClient:
-    """Return Scryfall client or raise RuntimeError if lifespan hasn't started."""
-    if _scryfall is None:
-        raise RuntimeError("ScryfallClient not initialized — workflow lifespan not running")
-    return _scryfall
+def _require[T](client: T | None, label: str, env_var: str | None = None) -> T:
+    """Return a lifespan-managed client, or raise if it is unavailable.
 
-
-def _require_spellbook() -> SpellbookClient:
-    """Return Spellbook client or raise RuntimeError if lifespan hasn't started."""
-    if _spellbook is None:
-        raise RuntimeError("SpellbookClient not initialized — workflow lifespan not running")
-    return _spellbook
-
-
-def _require_seventeen_lands() -> SeventeenLandsClient:
-    """Return 17Lands client or raise ToolError if the feature flag is off."""
-    if _seventeen_lands is None:
-        raise ToolError("17Lands data is not enabled. Set MTG_MCP_ENABLE_17LANDS=true.")
-    return _seventeen_lands
-
-
-def _require_edhrec() -> EDHRECClient:
-    """Return EDHREC client or raise ToolError if the feature flag is off."""
-    if _edhrec is None:
-        raise ToolError("EDHREC is not enabled. Set MTG_MCP_ENABLE_EDHREC=true.")
-    return _edhrec
-
-
-def _require_bulk() -> ScryfallBulkClient:
-    """Return bulk data client or raise ToolError if the feature flag is off."""
-    if _bulk is None:
-        raise ToolError("Bulk data is not enabled. Set MTG_MCP_ENABLE_BULK_DATA=true.")
-    return _bulk
-
-
-def _require_rules() -> RulesService:
-    """Return rules service or raise ToolError if the feature flag is off."""
-    if _rules is None:
-        raise ToolError("Rules engine is not enabled. Set MTG_MCP_ENABLE_RULES=true.")
-    return _rules
-
-
-def _require_mtggoldfish() -> MTGGoldfishClient:
-    """Return MTGGoldfish client or raise ToolError if the feature flag is off."""
-    if _mtggoldfish is None:
-        raise ToolError("MTGGoldfish is not enabled. Set MTG_MCP_ENABLE_MTGGOLDFISH=true.")
-    return _mtggoldfish
-
-
-def _require_moxfield() -> MoxfieldClient:
-    """Return Moxfield client or raise ToolError if the feature flag is off."""
-    if _moxfield is None:
-        raise ToolError("Moxfield is not enabled. Set MTG_MCP_ENABLE_MOXFIELD=true.")
-    return _moxfield
+    With ``env_var``, a missing client means its feature flag is off (``ToolError``);
+    without it, the workflow lifespan isn't running (``RuntimeError``).
+    """
+    if client is None:
+        if env_var is None:
+            raise RuntimeError(f"{label} not initialized — workflow lifespan not running")
+        raise ToolError(f"{label} is not enabled. Set {env_var}=true.")
+    return client
 
 
 _log = structlog.get_logger(service="workflows")
@@ -270,8 +227,8 @@ async def commander_overview(
         "commander_overview failed",
         commander_wf.commander_overview(
             commander_name,
-            scryfall=_require_scryfall(),
-            spellbook=_require_spellbook(),
+            scryfall=_require(_scryfall, "ScryfallClient"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             response_format=response_format,
         ),
@@ -307,8 +264,8 @@ async def evaluate_upgrade(
         commander_wf.evaluate_upgrade(
             card_name,
             commander_name,
-            scryfall=_require_scryfall(),
-            spellbook=_require_spellbook(),
+            scryfall=_require(_scryfall, "ScryfallClient"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             response_format=response_format,
         ),
@@ -343,7 +300,7 @@ async def draft_pack_pick(
         draft_wf.draft_pack_pick(
             pack,
             set_code,
-            seventeen_lands=_require_seventeen_lands(),
+            seventeen_lands=_require(_seventeen_lands, "17Lands data", "MTG_MCP_ENABLE_17LANDS"),
             current_picks=current_picks,
             response_format=response_format,
         ),
@@ -373,7 +330,7 @@ async def suggest_cuts(
         deck_wf.suggest_cuts(
             decklist,
             commander_name,
-            spellbook=_require_spellbook(),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             num_cuts=num_cuts,
             response_format=response_format,
@@ -411,8 +368,8 @@ async def card_comparison(
         commander_wf.card_comparison(
             cards,
             commander_name,
-            scryfall=_require_scryfall(),
-            spellbook=_require_spellbook(),
+            scryfall=_require(_scryfall, "ScryfallClient"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             on_progress=partial(_progress, ctx),
             response_format=response_format,
@@ -453,8 +410,8 @@ async def budget_upgrade(
             commander_name,
             budget=budget,
             num_suggestions=num_suggestions,
-            scryfall=_require_scryfall(),
-            edhrec=_require_edhrec(),
+            scryfall=_require(_scryfall, "ScryfallClient"),
+            edhrec=_require(_edhrec, "EDHREC", "MTG_MCP_ENABLE_EDHREC"),
             on_progress=partial(_progress, ctx),
             response_format=response_format,
         ),
@@ -490,8 +447,8 @@ async def deck_analysis(
             decklist,
             commander_name,
             bulk=_bulk,
-            scryfall=_require_scryfall(),
-            spellbook=_require_spellbook(),
+            scryfall=_require(_scryfall, "ScryfallClient"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             on_progress=partial(_progress, ctx),
             response_format=response_format,
@@ -524,7 +481,7 @@ async def set_overview(
         draft_wf.set_overview(
             set_code,
             event_type=event_type,
-            seventeen_lands=_require_seventeen_lands(),
+            seventeen_lands=_require(_seventeen_lands, "17Lands data", "MTG_MCP_ENABLE_17LANDS"),
             on_progress=partial(_progress, ctx),
             response_format=response_format,
         ),
@@ -570,7 +527,7 @@ async def theme_search(
         "theme_search failed",
         building_wf.theme_search(
             theme,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             color_identity=color_identity,
             format=format,
             max_price=max_price,
@@ -610,8 +567,8 @@ async def build_around(
         building_wf.build_around(
             cards,
             format,
-            bulk=_require_bulk(),
-            spellbook=_require_spellbook(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             budget=budget,
             limit=limit,
             response_format=response_format,
@@ -655,7 +612,7 @@ async def complete_deck(
         building_wf.complete_deck(
             decklist,
             format,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             commander=commander,
             budget=budget,
             on_progress=partial(_progress, ctx),
@@ -695,8 +652,8 @@ async def commander_comparison(
         "commander_comparison failed",
         commander_depth_wf.commander_comparison(
             commanders,
-            bulk=_require_bulk(),
-            spellbook=_require_spellbook(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             on_progress=partial(_progress, ctx),
             response_format=response_format,
@@ -732,7 +689,7 @@ async def tribal_staples(
         "tribal_staples failed",
         commander_depth_wf.tribal_staples(
             tribe,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             color_identity=color_identity,
             format=format,
             limit=limit,
@@ -767,8 +724,8 @@ async def precon_upgrade(
         commander_depth_wf.precon_upgrade(
             decklist,
             commander,
-            bulk=_require_bulk(),
-            spellbook=_require_spellbook(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             budget=budget,
             num_upgrades=num_upgrades,
@@ -806,7 +763,7 @@ async def color_identity_staples(
         "color_identity_staples failed",
         commander_depth_wf.color_identity_staples(
             color_identity,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             category=category,
             limit=limit,
             response_format=response_format,
@@ -844,7 +801,7 @@ async def sealed_pool_build(
         draft_limited_wf.sealed_pool_build(
             pool,
             set_code,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             seventeen_lands=_seventeen_lands,
             on_progress=partial(_progress, ctx),
             response_format=response_format,
@@ -879,8 +836,8 @@ async def draft_signal_read(
         draft_limited_wf.draft_signal_read(
             picks,
             set_code,
-            bulk=_require_bulk(),
-            seventeen_lands=_require_seventeen_lands(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            seventeen_lands=_require(_seventeen_lands, "17Lands data", "MTG_MCP_ENABLE_17LANDS"),
             current_pack=current_pack,
             response_format=response_format,
         ),
@@ -916,8 +873,8 @@ async def draft_log_review(
         draft_limited_wf.draft_log_review(
             picks,
             set_code,
-            bulk=_require_bulk(),
-            seventeen_lands=_require_seventeen_lands(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            seventeen_lands=_require(_seventeen_lands, "17Lands data", "MTG_MCP_ENABLE_17LANDS"),
             final_deck=final_deck,
             response_format=response_format,
         ),
@@ -948,8 +905,8 @@ async def rotation_check(
     return await _run(
         "rotation_check failed",
         constructed_wf.rotation_check(
-            scryfall=_require_scryfall(),
-            bulk=_require_bulk(),
+            scryfall=_require(_scryfall, "ScryfallClient"),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             cards=cards,
             response_format=response_format,
         ),
@@ -1014,7 +971,7 @@ async def archetype_decklist(
         metagame_wf.archetype_decklist(
             format=format,
             archetype=archetype,
-            mtggoldfish=_require_mtggoldfish(),
+            mtggoldfish=_require(_mtggoldfish, "MTGGoldfish", "MTG_MCP_ENABLE_MTGGOLDFISH"),
             bulk=_bulk,
             response_format=response_format,
         ),
@@ -1050,7 +1007,7 @@ async def archetype_comparison(
         metagame_wf.archetype_comparison(
             format=format,
             archetypes=archetypes,
-            mtggoldfish=_require_mtggoldfish(),
+            mtggoldfish=_require(_mtggoldfish, "MTGGoldfish", "MTG_MCP_ENABLE_MTGGOLDFISH"),
             response_format=response_format,
         ),
     )
@@ -1123,7 +1080,7 @@ async def suggest_sideboard(
         sideboard_wf.suggest_sideboard(
             decklist=decklist,
             format=format,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             mtggoldfish=_mtggoldfish,
             meta_context=meta_context,
             response_format=response_format,
@@ -1163,7 +1120,7 @@ async def sideboard_guide(
             sideboard=sideboard,
             format=format,
             matchup=matchup,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             mtggoldfish=_mtggoldfish,
             response_format=response_format,
         ),
@@ -1201,7 +1158,7 @@ async def sideboard_matrix(
             decklist=decklist,
             sideboard=sideboard,
             format=format,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             mtggoldfish=_mtggoldfish,
             matchups=matchups,
             response_format=response_format,
@@ -1363,7 +1320,7 @@ async def deck_validate(
             format,
             commander=commander,
             sideboard=sideboard,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             response_format=response_format,
         ),
         value_error=True,
@@ -1399,7 +1356,7 @@ async def suggest_mana_base(
             decklist,
             format,
             total_lands=total_lands,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             response_format=response_format,
         ),
         value_error=True,
@@ -1429,7 +1386,7 @@ async def price_comparison(
         "price_comparison failed",
         pricing_wf.price_comparison(
             cards,
-            bulk=_require_bulk(),
+            bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
             response_format=response_format,
         ),
         value_error=True,
@@ -1576,7 +1533,7 @@ async def rules_lookup(
         rules_wf.rules_lookup(
             query,
             section=section,
-            rules=_require_rules(),
+            rules=_require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES"),
             response_format=response_format,
         ),
     )
@@ -1600,7 +1557,7 @@ async def keyword_explain(
         "keyword_explain failed",
         rules_wf.keyword_explain(
             keyword,
-            rules=_require_rules(),
+            rules=_require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES"),
             bulk=_bulk,
             response_format=response_format,
         ),
@@ -1625,7 +1582,7 @@ async def rules_interaction(
         rules_wf.rules_interaction(
             mechanic_a,
             mechanic_b,
-            rules=_require_rules(),
+            rules=_require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES"),
             bulk=_bulk,
             response_format=response_format,
         ),
@@ -1650,7 +1607,7 @@ async def rules_scenario(
         "rules_scenario failed",
         rules_wf.rules_scenario(
             scenario,
-            rules=_require_rules(),
+            rules=_require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES"),
             response_format=response_format,
         ),
     )
@@ -1682,7 +1639,7 @@ async def combat_calculator(
             attackers,
             blockers,
             keywords=keywords,
-            rules=_require_rules(),
+            rules=_require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES"),
             bulk=_bulk,
             response_format=response_format,
         ),
@@ -1697,7 +1654,7 @@ async def combat_calculator(
 @workflow_mcp.resource("mtg://rules/{number}")
 async def get_rule(number: str) -> dict[str, object]:
     """Rule text by number (e.g. mtg://rules/704.5k)."""
-    rules = _require_rules()
+    rules = _require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES")
     rule = await rules.lookup_by_number(number)
     return rule.model_dump(mode="json") if rule else {"error": f"Rule {number} not found"}
 
@@ -1705,7 +1662,7 @@ async def get_rule(number: str) -> dict[str, object]:
 @workflow_mcp.resource("mtg://rules/glossary/{term}")
 async def get_glossary_term(term: str) -> dict[str, object]:
     """Glossary definition by term."""
-    rules = _require_rules()
+    rules = _require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES")
     entry = await rules.glossary_lookup(term)
     return entry.model_dump(mode="json") if entry else {"error": f"Term '{term}' not found"}
 
@@ -1713,14 +1670,14 @@ async def get_glossary_term(term: str) -> dict[str, object]:
 @workflow_mcp.resource("mtg://rules/keywords")
 async def list_keywords() -> list[dict[str, str]]:
     """All keywords with brief definitions."""
-    rules = _require_rules()
+    rules = _require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES")
     return await rules.list_keywords()
 
 
 @workflow_mcp.resource("mtg://rules/sections")
 async def list_sections() -> list[dict[str, str]]:
     """Section index for the Comprehensive Rules."""
-    rules = _require_rules()
+    rules = _require(_rules, "Rules engine", "MTG_MCP_ENABLE_RULES")
     return await rules.list_sections()
 
 
