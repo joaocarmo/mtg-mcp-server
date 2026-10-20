@@ -94,16 +94,6 @@ run = "uv run fastmcp dev inspector src/mtg_mcp_server/server.py"
 description = "Run server via stdio transport"
 run = "uv run python -m mtg_mcp_server.server"
 
-[tasks."serve:http"]
-description = "Run server via streamable HTTP transport"
-run = "uv run python -m mtg_mcp_server.server http"
-
-# --- Fixtures ---
-
-[tasks.fixtures]
-description = "Capture fresh fixtures from live APIs"
-run = "uv run python scripts/capture_fixtures.py"
-
 # --- Utilities ---
 
 [tasks.clean]
@@ -113,26 +103,3 @@ run = [
     "find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true",
     "find . -type d -name '*.egg-info' -exec rm -rf {} + 2>/dev/null || true",
 ]
-
-# --- Smithery ---
-
-[tasks."smithery:metadata"]
-description = "Update Smithery registry metadata (requires SMITHERY_API_KEY)"
-run = "bash scripts/update_smithery_metadata.sh"
-
-[tasks."smithery:publish"]
-description = "Re-publish to Smithery with config schema (requires SMITHERY_API_KEY)"
-run = """
-uv run python -c "
-from mtg_mcp_server.smithery import SmitheryConfig
-import json
-print(json.dumps(SmitheryConfig.model_json_schema()))
-" > /tmp/smithery-config-schema.json
-npx -y @smithery/cli mcp publish "https://mtg-mcp-server.fastmcp.app/mcp" \
-  -n @j4th/mtg-mcp-server \
-  --config-schema /tmp/smithery-config-schema.json
-"""
-
-[tasks."smithery:check-schema"]
-description = "Verify smithery.yaml matches SmitheryConfig model"
-run = "uv run python scripts/check_smithery_schema.py"

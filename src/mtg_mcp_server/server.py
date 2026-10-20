@@ -36,10 +36,10 @@ mcp = FastMCP(
     "MTG",
     version=__version__,
     mask_error_details=True,
-    website_url="https://github.com/j4th/mtg-mcp-server",
+    website_url="https://github.com/joaocarmo/mtg-mcp-server",
     icons=[
         Icon(
-            src="https://raw.githubusercontent.com/j4th/mtg-mcp-server/main/icon.svg",
+            src="https://raw.githubusercontent.com/joaocarmo/mtg-mcp-server/main/icon.svg",
             mimeType="image/svg+xml",
             sizes=["512x512"],
         )
@@ -166,18 +166,11 @@ async def ping() -> str:
 
 
 def main() -> None:  # pragma: no cover
-    """Entry point: load settings, configure logging, start transport."""
+    """Entry point: configure logging, serve over stdio."""
     try:
         configure_logging(_settings.log_level)
 
-        transport = _settings.transport
-        if len(sys.argv) > 1:
-            transport = sys.argv[1]
-
-        if transport == "http":
-            mcp.run(transport="streamable-http", host="127.0.0.1", port=_settings.http_port)
-        else:
-            mcp.run(transport="stdio")
+        mcp.run(transport="stdio")
     except KeyboardInterrupt:
         pass
     except Exception:

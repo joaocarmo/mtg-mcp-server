@@ -67,31 +67,6 @@ jobs:
 
       - uses: jdx/mise-action@v4
 
-      - name: Verify server.json matches pyproject.toml
-        run: |
-          python3 -c "
-          import json, tomllib, sys
-          proj = tomllib.load(open('pyproject.toml', 'rb'))['project']
-          sj = json.load(open('server.json'))
-          errors = []
-          # Version check
-          for path, val in [('version', sj['version']), ('packages[0].version', sj['packages'][0]['version'])]:
-              if val != proj['version']:
-                  errors.append(f'server.json {path} ({val}) != pyproject.toml ({proj[\"version\"]})')
-          # Description check
-          if sj.get('description', '') != proj['description']:
-              errors.append(f'server.json description does not match pyproject.toml')
-              errors.append(f'  server.json:   {sj.get(\"description\", \"\")}')
-              errors.append(f'  pyproject.toml: {proj[\"description\"]}')
-          if errors:
-              for e in errors: print(f'::error::{e}')
-              sys.exit(1)
-          print(f'OK: version={proj[\"version\"]}, description matches')
-          "
-
-      - name: Verify smithery.yaml matches SmitheryConfig
-        run: uv run python scripts/check_smithery_schema.py
-
       - name: Build package
         run: uv build
 

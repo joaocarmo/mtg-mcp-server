@@ -67,15 +67,6 @@ body:
       required: true
 
   - type: dropdown
-    id: transport
-    attributes:
-      label: Transport
-      options:
-        - stdio
-        - streamable HTTP
-        - FastMCP Horizon (hosted)
-
-  - type: dropdown
     id: client
     attributes:
       label: MCP Client

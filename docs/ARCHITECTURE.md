@@ -9,7 +9,7 @@ A unified MCP server that exposes Magic: The Gathering data to AI assistants. Ea
 ## 1. System
 
 ```
-MCP client (Claude Code / Desktop / any) ── stdio (default) or streamable HTTP
+MCP client (Claude Code / Desktop / any) ── stdio
                      │
         MTG Orchestrator — FastMCP("MTG"): 69 tools, 19 prompts, 21 resource templates
                      │
@@ -44,10 +44,10 @@ Per-backend endpoints, rate limits and feature flags: [SERVICE_CONTRACTS.md](SER
 
 ```
 src/mtg_mcp_server/
-├── server.py        # Orchestrator: mounts providers, middleware, transport
+├── server.py        # Orchestrator: mounts providers, middleware, stdio entry point
 ├── config.py        # Settings (pydantic-settings, MTG_MCP_ prefix)
 ├── types.py         # Shared Pydantic models (services return, tools consume)
-├── logging.py, smithery.py (Smithery deployment adapter)
+├── logging.py
 ├── services/        # Async API clients — NO MCP awareness. base.py, cache.py, one file per backend
 ├── providers/       # One FastMCP sub-server per backend, independently runnable.
 │                    #   __init__.py: TOOL_ANNOTATIONS, tag constants, ATTRIBUTION_* strings
@@ -57,7 +57,6 @@ src/mtg_mcp_server/
                      #   resources). card_resolver.py: bulk-data-first lookup, Scryfall fallback
 tests/               # Mirrors src/: services/, providers/, workflows/, utils/,
                      #   integration/ (fixture-mocked E2E), live/ (real APIs), fixtures/ (captured responses)
-scripts/capture_fixtures.py
 ```
 
 **Services vs providers:** services are plain async classes that call external APIs and raise typed exceptions; providers register tools on top of them. **Workflows** are pure async functions that take service clients as keyword arguments and return `WorkflowResult` (markdown + data). They have zero MCP imports: `workflows/server.py` wraps them and converts exceptions to `ToolError`. That avoids circular imports and lets tests use `AsyncMock`.
@@ -76,7 +75,7 @@ scripts/capture_fixtures.py
 
 **Response size:** heavy tools get `ResponseLimitingMiddleware(max_size=30_000)`, with a global `100_000` safety net. The main control is slim field sets plus `limit` parameters.
 
-**Transport:** stdio by default; streamable HTTP on `127.0.0.1:$MTG_MCP_HTTP_PORT` (default 8000) via `MTG_MCP_TRANSPORT=http` or the `http` CLI arg.
+**Transport:** stdio only; the client launches the server as a local subprocess.
 
 ## 5. Service layer
 
@@ -97,7 +96,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 |------|----------|------|
 | Unit | `tests/{services,providers,utils,workflows}/` | respx + fixtures for HTTP; providers through `fastmcp.Client(transport=server)` in-memory; workflows with `AsyncMock` |
 | Integration | `tests/integration/` | Full orchestrator with all backends respx-mocked; catches registration/namespacing issues. `@pytest.mark.integration` |
-| Live | `tests/live/` | Real server subprocess on an ephemeral port, real APIs; catches data quirks that fixtures miss. `@pytest.mark.live`, skipped by default |
+| Live | `tests/live/` | Real server subprocess over stdio, real APIs; catches data quirks that fixtures miss. `@pytest.mark.live`, skipped by default |
 
 `Client.call_tool()` returns a `CallToolResult`: read `.content[0].text`; for error cases pass `raise_on_error=False` and check `.is_error`. Commands and gates: see CLAUDE.md / CONTRIBUTING.md.
 
@@ -107,7 +106,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 |----------|--------|-----------|
 | Framework | FastMCP 3.2.x | Native composition, provider architecture, OTEL, annotations |
 | Architecture | Single server, mounted sub-servers | Independent testability + single deployment |
-| Transport | stdio default, HTTP optional | stdio for Claude Code/Desktop; HTTP for remote use |
+| Transport | stdio only, run locally | Claude Code/Desktop launch it as a subprocess; no hosted deployment to maintain |
 | Type checker | ty (beta) | Astral stack, speed |
 | HTTP mocking | respx | Clean async httpx mocking |
 | Namespaces | `scryfall_`, `bulk_`, `spellbook_`, `draft_`, `edhrec_`, `moxfield_`, `spicerack_`, `goldfish_`; workflows unprefixed | Avoid collisions; clean workflow names |

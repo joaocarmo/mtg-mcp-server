@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Hosted/remote option: Smithery adapter, `smithery.yaml`, FastMCP Horizon and Smithery publish jobs
+- Streamable HTTP transport (`MTG_MCP_TRANSPORT`, `MTG_MCP_HTTP_PORT`, `serve:http`); the server is stdio only
+- PyPI and MCP Registry publishing (`publish.yml`, `server.json`); install from git instead (see README)
+
+### Changed
+- Live tests drive the server over stdio instead of HTTP
+- Project URLs point at `joaocarmo/mtg-mcp-server`
+
 ### Fixed
 - Server crashed on import with selectolax 1.0+ (which `uvx` installs); MTGGoldfish parsing now uses the lexbor backend
 - Comprehensive Rules were served from the April 2025 file; the current URL is now discovered from the official rules page on each load, falling back to `MTG_MCP_RULES_URL` (default bumped to 2026-09-25)

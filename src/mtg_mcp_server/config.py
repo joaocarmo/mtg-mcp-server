@@ -6,12 +6,9 @@ file. No credentials are required — all APIs are public.
 Example::
 
     MTG_MCP_ENABLE_EDHREC = false  # Disable fragile EDHREC scraping
-    MTG_MCP_TRANSPORT = http  # Use streamable HTTP instead of stdio
 """
 
 from __future__ import annotations
-
-from typing import Literal
 
 from pydantic_settings import BaseSettings
 
@@ -24,10 +21,6 @@ class Settings(BaseSettings):
     All fields have sensible defaults and can be overridden with
     ``MTG_MCP_``-prefixed environment variables or a ``.env`` file.
     """
-
-    # --- Transport ---
-    transport: Literal["stdio", "http"] = "stdio"
-    http_port: int = 8000
 
     # --- Logging ---
     log_level: str = "INFO"
