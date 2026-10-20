@@ -12,7 +12,6 @@ from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
 from mtg_mcp_server.services.scryfall import ScryfallClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
-from mtg_mcp_server.services.spicerack import SpicerackClient
 
 
 @pytest.fixture(autouse=True)
@@ -39,7 +38,6 @@ def _clear_caches():
     MoxfieldClient._deck_cache.clear()
     MoxfieldClient._search_cache.clear()
     MoxfieldClient._user_search_cache.clear()
-    SpicerackClient._tournaments_cache.clear()
     MTGGoldfishClient._metagame_cache.clear()
     MTGGoldfishClient._archetype_cache.clear()
     MTGGoldfishClient._staples_cache.clear()

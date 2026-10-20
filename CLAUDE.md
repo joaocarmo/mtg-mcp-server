@@ -1,6 +1,6 @@
 # MTG MCP Server
 
-Unified MCP server providing Magic: The Gathering data to AI assistants. Composes Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield, Spicerack and MTGGoldfish into one server using FastMCP 3.x's provider/mount architecture.
+Unified MCP server providing Magic: The Gathering data to AI assistants. Composes Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield and MTGGoldfish into one server using FastMCP 3.x's provider/mount architecture.
 
 Stack: Python 3.12+ · FastMCP 3.2.x · httpx · Pydantic v2 · structlog. Tooling: mise · uv · ruff · ty · pytest · respx. Prerequisite: [mise](https://mise.jdx.dev); `mise install` gets everything else.
 
@@ -106,7 +106,7 @@ Handling review comments:
 
 ## Status
 
-All backends are implemented; none are stubbed. 69 tools (incl. `ping`), 19 prompts, 21 resource templates. History: `CHANGELOG.md`.
+All backends are implemented; none are stubbed. 66 tools (incl. `ping`), 19 prompts, 20 resource templates. History: `CHANGELOG.md`.
 
 ## Environment
 

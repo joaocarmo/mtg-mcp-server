@@ -12,15 +12,12 @@ import pytest
 
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkError
-from mtg_mcp_server.services.spicerack import SpicerackError
 from mtg_mcp_server.types import (
     Card,
     CardPrices,
     GoldfishArchetype,
     GoldfishArchetypeDetail,
     GoldfishMetaSnapshot,
-    SpicerackStanding,
-    SpicerackTournament,
 )
 from mtg_mcp_server.workflows.metagame import (
     _classify_tiers,
@@ -137,47 +134,6 @@ def _mock_archetype_detail(
     )
 
 
-def _mock_tournaments() -> list[SpicerackTournament]:
-    """Create test tournament data for Spicerack fallback."""
-    return [
-        SpicerackTournament(
-            tournament_id="3001",
-            name="Modern Challenge #1",
-            format="Modern",
-            date="2026-03-20",
-            player_count=64,
-            rounds_swiss=6,
-            top_cut=8,
-            standings=[
-                SpicerackStanding(
-                    rank=1,
-                    player_name="Alice",
-                    wins=6,
-                    losses=0,
-                    decklist_url="https://moxfield.com/decks/a1",
-                ),
-                SpicerackStanding(
-                    rank=2,
-                    player_name="Bob",
-                    wins=5,
-                    losses=1,
-                    decklist_url="https://moxfield.com/decks/b2",
-                ),
-            ],
-        ),
-        SpicerackTournament(
-            tournament_id="3002",
-            name="Modern Challenge #2",
-            format="Modern",
-            date="2026-03-22",
-            player_count=48,
-            rounds_swiss=5,
-            top_cut=8,
-            standings=[],
-        ),
-    ]
-
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -189,14 +145,6 @@ def mock_mtggoldfish() -> AsyncMock:
     client = AsyncMock()
     client.get_metagame = AsyncMock(return_value=_mock_snapshot())
     client.get_archetype = AsyncMock(return_value=_mock_archetype_detail())
-    return client
-
-
-@pytest.fixture
-def mock_spicerack() -> AsyncMock:
-    """Mock SpicerackClient."""
-    client = AsyncMock()
-    client.get_tournaments = AsyncMock(return_value=_mock_tournaments())
     return client
 
 
@@ -326,7 +274,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
         )
 
@@ -342,7 +289,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
             response_format="concise",
         )
@@ -352,43 +298,10 @@ class TestMetagameSnapshot:
         assert "Data Sources" not in result.markdown
 
     @pytest.mark.anyio
-    async def test_spicerack_fallback(
-        self,
-        mock_spicerack: AsyncMock,
-    ) -> None:
-        result = await metagame_snapshot(
-            "modern",
-            mtggoldfish=None,
-            spicerack=mock_spicerack,
-            bulk=None,
-        )
-
-        assert "Tournament Data" in result.markdown
-        assert result.data["source"] == "spicerack"
-
-    @pytest.mark.anyio
-    async def test_mtggoldfish_failure_falls_back_to_spicerack(
-        self,
-        mock_mtggoldfish: AsyncMock,
-        mock_spicerack: AsyncMock,
-    ) -> None:
-        mock_mtggoldfish.get_metagame.side_effect = MTGGoldfishError("scrape failed")
-
-        result = await metagame_snapshot(
-            "modern",
-            mtggoldfish=mock_mtggoldfish,
-            spicerack=mock_spicerack,
-            bulk=None,
-        )
-
-        assert result.data["source"] == "spicerack"
-
-    @pytest.mark.anyio
     async def test_no_sources_available(self) -> None:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=None,
-            spicerack=None,
             bulk=None,
         )
 
@@ -396,18 +309,15 @@ class TestMetagameSnapshot:
         assert result.data["source"] is None
 
     @pytest.mark.anyio
-    async def test_both_sources_fail(
+    async def test_mtggoldfish_failure_returns_no_sources(
         self,
         mock_mtggoldfish: AsyncMock,
-        mock_spicerack: AsyncMock,
     ) -> None:
         mock_mtggoldfish.get_metagame.side_effect = MTGGoldfishError("scrape failed")
-        mock_spicerack.get_tournaments.side_effect = SpicerackError("api down")
 
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=mock_spicerack,
             bulk=None,
         )
 
@@ -419,7 +329,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
         )
 
@@ -430,23 +339,6 @@ class TestMetagameSnapshot:
         # T1 should have Boros Energy (20.3%)
         t1_names = [a["name"] for a in tiers["T1"]]
         assert "Boros Energy" in t1_names
-
-    @pytest.mark.anyio
-    async def test_spicerack_empty_tournaments(
-        self,
-        mock_spicerack: AsyncMock,
-    ) -> None:
-        mock_spicerack.get_tournaments.return_value = []
-
-        result = await metagame_snapshot(
-            "modern",
-            mtggoldfish=None,
-            spicerack=mock_spicerack,
-            bulk=None,
-        )
-
-        # Empty tournaments should fall through to no-sources
-        assert "No metagame data available" in result.markdown
 
 
 # ---------------------------------------------------------------------------
@@ -801,7 +693,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=mock_bulk,
         )
 
@@ -818,7 +709,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
         )
 
@@ -835,7 +725,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
             budget=200.0,
         )
@@ -854,7 +743,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
             budget=50.0,
         )
@@ -871,7 +759,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
         )
 
@@ -884,7 +771,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=None,
-            spicerack=None,
             bulk=None,
         )
 
@@ -900,7 +786,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=mock_bulk,
         )
 
@@ -918,7 +803,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=mock_bulk,
         )
 
@@ -934,7 +818,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
             response_format="concise",
         )
@@ -944,21 +827,6 @@ class TestFormatEntryGuide:
         assert "Data Sources" not in result.markdown
 
     @pytest.mark.anyio
-    async def test_spicerack_fallback_in_guide(
-        self,
-        mock_spicerack: AsyncMock,
-    ) -> None:
-        result = await format_entry_guide(
-            "modern",
-            mtggoldfish=None,
-            spicerack=mock_spicerack,
-            bulk=None,
-        )
-
-        assert "Modern Format Entry Guide" in result.markdown
-        assert "Tournament Activity" in result.markdown
-
-    @pytest.mark.anyio
     async def test_structured_data_fields(
         self,
         mock_mtggoldfish: AsyncMock,
@@ -966,7 +834,6 @@ class TestFormatEntryGuide:
         result = await format_entry_guide(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            spicerack=None,
             bulk=None,
             budget=1000.0,
         )

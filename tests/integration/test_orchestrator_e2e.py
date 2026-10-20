@@ -20,12 +20,12 @@ pytestmark = pytest.mark.integration
 class TestToolRegistration:
     """Verify the orchestrator exposes the expected tools."""
 
-    async def test_all_69_tools_registered(self, mcp_client: Client):
-        """The orchestrator exposes exactly 69 tools."""
+    async def test_all_66_tools_registered(self, mcp_client: Client):
+        """The orchestrator exposes exactly 66 tools."""
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
-        # 1 ping + 6 scryfall + 4 spellbook + 2 draft + 2 edhrec + 4 moxfield + 3 spicerack + 4 goldfish + 9 bulk + 29 workflows + 5 rules = 69
-        assert len(tools) == 69, f"Expected 69 tools, got {len(tools)}.\nTools: {tool_names}"
+        # 1 ping + 6 scryfall + 4 spellbook + 2 draft + 2 edhrec + 4 moxfield + 4 goldfish + 9 bulk + 29 workflows + 5 rules = 66
+        assert len(tools) == 66, f"Expected 66 tools, got {len(tools)}.\nTools: {tool_names}"
 
     async def test_no_mtgjson_tools(self, mcp_client: Client):
         """No tool names contain 'mtgjson' (replaced by Scryfall bulk data)."""

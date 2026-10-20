@@ -7,7 +7,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 - Every tool returns markdown (`content`) plus a structured `data` dict (`structured_content`).
 - `fmt` below means `response_format: "detailed" | "concise" = "detailed"`. All workflow tools accept it.
 - `limit: 0` means "all" where noted.
-- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 69 tools.
+- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 66 tools.
 
 ---
 
@@ -53,14 +53,6 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | `moxfield_deck_info` | `deck_id` | Name, format, author, description, dates, URL, per-board counts | `get_deck()` (metadata) |
 | `moxfield_search_decks` | `query=None`, `format=None`, `sort="Updated"` (also "Created", "Views"), `page=1`, `page_size=20` | Paginated summaries: name, format, author, colors, counts, URL | `search_decks()` |
 | `moxfield_user_decks` | `username`, `format=None` | User's public decks; verifies the user exists first | `search_users()` + `search_decks()` |
-
-## Spicerack (`spicerack_`, tag: constructed)
-
-| Tool | Inputs | Output | Backend |
-|------|--------|--------|---------|
-| `spicerack_recent_tournaments` | `format` (title-case: "Modern", "Legacy", …), `num_days=14`, `limit=10`, `fmt` | Name, date, format, players, tournament ID | `get_tournaments()` |
-| `spicerack_tournament_results` | `tournament_id`, `top_n=8`, `fmt` | Metadata + standings: rank, player, Swiss W-L-D, bracket record, decklist URL | `get_tournaments()` filtered by ID |
-| `spicerack_format_decklists` | `format`, `num_days=14`, `limit=10`, `fmt` | Top finishes: player, tournament, standing, Moxfield URL | `get_tournaments()` |
 
 ## MTGGoldfish (`goldfish_`, tag: beta)
 
@@ -136,10 +128,10 @@ Archetype and matchup names are fuzzy-matched.
 
 | Tool | Inputs | Output | Backends |
 |------|--------|--------|----------|
-| `metagame_snapshot` | `format` | Archetypes tiered T1 >10%, T2 3-10%, T3 <3%, with share, decks, price. Falls back to Spicerack tournament frequency; returns an error message if neither source is available | MTGGoldfish → Spicerack |
+| `metagame_snapshot` | `format` | Archetypes tiered T1 >10%, T2 3-10%, T3 <3%, with share, decks, price. Returns an error message if MTGGoldfish is unavailable | MTGGoldfish |
 | `archetype_decklist` | `format`, `archetype` | Metadata, main and sideboard, card roles, optional pricing | MTGGoldfish (req), Bulk |
 | `archetype_comparison` | `format`, `archetypes` (2-4) | Share, decks, price, colours, main/side sizes; shared staples | MTGGoldfish (req), Bulk |
-| `format_entry_guide` | `format`, `budget=None` | Format rules, archetypes by budget, recommended first deck, cross-archetype staples; returns the rules even with no metagame data | MTGGoldfish, Spicerack, Bulk (all optional) |
+| `format_entry_guide` | `format`, `budget=None` | Format rules, archetypes by budget, recommended first deck, cross-archetype staples; returns the rules even with no metagame data | MTGGoldfish, Bulk (all optional) |
 | `suggest_sideboard` | `decklist`, `format`, `meta_context=None` | 15 cards by category (graveyard hate, removal, counters, wipes, …), format staples marked | Bulk (req), MTGGoldfish |
 | `sideboard_guide` | `decklist`, `sideboard`, `format`, `matchup` | Matchup strategy, IN/OUT plan with per-card reasoning, balanced swaps | Bulk (req), MTGGoldfish |
 | `sideboard_matrix` | `decklist`, `sideboard`, `format`, `matchups=None` (auto from metagame) | Rows = sideboard cards, columns = matchups, cells IN/OUT/FLEX | Bulk (req), MTGGoldfish |
@@ -197,7 +189,6 @@ Each prompt returns step-by-step instructions that chain the tools listed.
 | `mtg://draft/{set_code}/ratings` | 17Lands | Card ratings |
 | `mtg://commander/{name}/staples` | EDHREC | Commander staples |
 | `mtg://moxfield/{deck_id}` | Moxfield | Deck data |
-| `mtg://tournament/{event_format}/recent` | Spicerack | Recent tournaments |
 | `mtg://metagame/{format}` | MTGGoldfish | Metagame breakdown |
 | `mtg://card-data/{name}` | Bulk | Card data |
 | `mtg://format/{format}/legal-cards` | Bulk | Legal cards |

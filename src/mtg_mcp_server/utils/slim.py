@@ -18,8 +18,6 @@ if TYPE_CHECKING:
         GoldfishArchetype,
         GoldfishFormatStaple,
         Rule,
-        SpicerackStanding,
-        SpicerackTournament,
     )
 
 
@@ -99,27 +97,4 @@ def slim_format_staple(staple: GoldfishFormatStaple) -> dict:
         "name": staple.name,
         "pct_of_decks": staple.pct_of_decks,
         "copies_played": staple.copies_played,
-    }
-
-
-def slim_standing(standing: SpicerackStanding) -> dict:
-    """Essential standing fields for tournament results."""
-    d: dict = {
-        "rank": standing.rank,
-        "player_name": standing.player_name,
-        "record": f"{standing.wins}-{standing.losses}-{standing.draws}",
-    }
-    if standing.decklist_url:
-        d["decklist_url"] = standing.decklist_url
-    return d
-
-
-def slim_tournament(tournament: SpicerackTournament) -> dict:
-    """Essential tournament fields for list contexts."""
-    return {
-        "tournament_id": tournament.tournament_id,
-        "name": tournament.name,
-        "format": tournament.format,
-        "date": tournament.date,
-        "player_count": tournament.player_count,
     }

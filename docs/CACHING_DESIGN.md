@@ -41,7 +41,6 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 | Moxfield | `get_deck` | 4h | 100 | Lists are stable within a session |
 | Moxfield | `search_decks` | 1h | 50 | New decks posted constantly |
 | Moxfield | `search_users` | 4h | 100 | Rarely changes |
-| Spicerack | `get_tournaments` | 4h | 50 | Events added daily; posted results are stable |
 | MTGGoldfish | `get_metagame` | 6h | 50 | Shares shift slowly; limits scraping load |
 | MTGGoldfish | `get_archetype` | 12h | 100 | Sample lists stable once posted |
 | MTGGoldfish | `get_format_staples` | 12h | 50 | Rankings shift slowly |

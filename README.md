@@ -34,7 +34,7 @@ claude mcp add mtg -- uv run --directory /path/to/mtg-mcp-server mtg-mcp-server
 
 ## Configuration
 
-Settings are `MTG_MCP_` environment variables, all with working defaults (see `.env.example`). To turn off a backend, set `MTG_MCP_ENABLE_<NAME>=false`, where `<NAME>` is `17LANDS`, `EDHREC`, `MOXFIELD`, `SPICERACK`, `MTGGOLDFISH`, `BULK_DATA` (skips a ~30 MB download) or `RULES`.
+Settings are `MTG_MCP_` environment variables, all with working defaults (see `.env.example`). To turn off a backend, set `MTG_MCP_ENABLE_<NAME>=false`, where `<NAME>` is `17LANDS`, `EDHREC`, `MOXFIELD`, `MTGGOLDFISH`, `BULK_DATA` (skips a ~30 MB download) or `RULES`.
 
 ```bash
 claude mcp add mtg -e MTG_MCP_ENABLE_EDHREC=false -- uvx --from git+https://github.com/joaocarmo/mtg-mcp-server mtg-mcp-server
@@ -48,7 +48,7 @@ claude mcp add mtg -e MTG_MCP_ENABLE_EDHREC=false -- uvx --from git+https://gith
 
 ## Data sources
 
-[Scryfall](https://scryfall.com), [Commander Spellbook](https://commanderspellbook.com), [17Lands](https://www.17lands.com), [EDHREC](https://edhrec.com), [Moxfield](https://www.moxfield.com), [Spicerack](https://spicerack.gg) and [MTGGoldfish](https://www.mtggoldfish.com). Licences and usage terms: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[Scryfall](https://scryfall.com), [Commander Spellbook](https://commanderspellbook.com), [17Lands](https://www.17lands.com), [EDHREC](https://edhrec.com), [Moxfield](https://www.moxfield.com) and [MTGGoldfish](https://www.mtggoldfish.com). Licences and usage terms: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Disclaimer
 
