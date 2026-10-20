@@ -84,7 +84,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 
 **Errors:**
 - Services raise typed exceptions and never format for MCP.
-- Providers catch them and raise `ToolError(...) from exc`; FastMCP sets `is_error`. Provider servers use `mask_error_details=True` to hide unexpected internals.
+- Providers catch them and raise `ToolError(...) from exc`; FastMCP sets `is_error`. All servers (orchestrator, providers, workflows) use `mask_error_details=True` to hide unexpected internals.
 - Workflows tolerate partial failure: if an optional backend is down or disabled, they return what they can and note the gap.
 
 **Logging:** `structlog.get_logger(service=...)`, debug events like `search` / `search.complete`, always to stderr (stdout is the MCP transport in stdio mode).

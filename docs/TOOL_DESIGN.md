@@ -7,7 +7,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 - Every tool returns markdown (`content`) plus a structured `data` dict (`structured_content`).
 - `fmt` below means `response_format: "detailed" | "concise" = "detailed"`. All workflow tools accept it.
 - `limit: 0` means "all" where noted.
-- The orchestrator also exposes `ping` (health check, returns "pong"), which brings the total to 69 tools.
+- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 69 tools.
 
 ---
 
