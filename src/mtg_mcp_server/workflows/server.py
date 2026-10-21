@@ -41,7 +41,6 @@ from mtg_mcp_server.providers import (
 )
 from mtg_mcp_server.services.base import ServiceError
 from mtg_mcp_server.services.edhrec import CommanderNotFoundError, EDHRECClient
-from mtg_mcp_server.services.moxfield import MoxfieldClient
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
 from mtg_mcp_server.services.rules import RULES_PAGE_URL, RulesService
 from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallClient
@@ -78,7 +77,6 @@ _edhrec: EDHRECClient | None = None
 _bulk: ScryfallBulkClient | None = None
 _rules: RulesService | None = None
 _mtggoldfish: MTGGoldfishClient | None = None
-_moxfield: MoxfieldClient | None = None
 
 
 @lifespan
@@ -86,12 +84,11 @@ async def workflow_lifespan(server: FastMCP):
     """Initialize all service clients needed by workflow tools.
 
     Uses ``AsyncExitStack`` to manage multiple clients in a single lifespan.
-    Feature-flagged backends (17Lands, EDHREC, Scryfall bulk data, MTGGoldfish,
-    Moxfield) are only created when their corresponding ``Settings``
-    flag is enabled. All clients are torn down when the server shuts down.
+    Feature-flagged backends (17Lands, EDHREC, Scryfall bulk data, MTGGoldfish)
+    are only created when their corresponding ``Settings`` flag is enabled.
+    All clients are torn down when the server shuts down.
     """
-    global _scryfall, _spellbook, _seventeen_lands, _edhrec, _bulk, _rules
-    global _mtggoldfish, _moxfield
+    global _scryfall, _spellbook, _seventeen_lands, _edhrec, _bulk, _rules, _mtggoldfish
     settings = Settings()
     async with AsyncExitStack() as stack:
         _scryfall = await stack.enter_async_context(
@@ -133,10 +130,6 @@ async def workflow_lifespan(server: FastMCP):
             _mtggoldfish = await stack.enter_async_context(
                 MTGGoldfishClient(base_url=settings.mtggoldfish_base_url)
             )
-        if settings.enable_moxfield:
-            _moxfield = await stack.enter_async_context(
-                MoxfieldClient(base_url=settings.moxfield_base_url)
-            )
         yield {}
     _scryfall = None
     _spellbook = None
@@ -145,7 +138,6 @@ async def workflow_lifespan(server: FastMCP):
     _bulk = None
     _rules = None
     _mtggoldfish = None
-    _moxfield = None
 
 
 workflow_mcp = FastMCP("Workflows", lifespan=workflow_lifespan, mask_error_details=True)
