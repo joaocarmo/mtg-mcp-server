@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import sys
 from typing import TYPE_CHECKING, Annotated, Literal
 
 import structlog
@@ -33,7 +34,11 @@ from mtg_mcp_server.providers import (
 # whether tournament-mode ranking is available.
 from mtg_mcp_server.providers import mtggoldfish as _goldfish_mod
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
-from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient, ScryfallBulkError
+from mtg_mcp_server.services.scryfall_bulk import (
+    ScryfallBulkClient,
+    ScryfallBulkError,
+    filter_card_pool,
+)
 from mtg_mcp_server.utils.color_identity import is_within_identity, parse_color_identity
 from mtg_mcp_server.utils.format_rules import get_format_rules, normalize_format
 from mtg_mcp_server.utils.formatters import (
@@ -345,60 +350,32 @@ async def format_search(
     # Parse natural language into structured filters
     parsed = parse_query(query)
 
-    # Pre-lowercase parsed terms to avoid re-lowering per card
-    type_lower_terms = [t.lower() for t in parsed.type_contains] if parsed.type_contains else None
-    text_any_lower = [p.lower() for p in parsed.text_any] if parsed.text_any else None
-    text_contains_lower = (
-        [t.lower() for t in parsed.text_contains] if parsed.text_contains else None
+    matches = filter_card_pool(
+        all_cards,
+        format=fmt,
+        color_identity=identity,
+        type_contains=list(parsed.type_contains),
+        text_any=list(parsed.text_any),
+        cmc_eq=parsed.cmc_eq,
+        max_price=max_price,
+        rarity=rarity.lower() if rarity else None,
+        limit=sys.maxsize,
     )
-    rarity_lower = rarity.lower() if rarity else None
-
+    # Free-text terms may match the name or type line as well as oracle text
+    if parsed.text_contains:
+        terms = [t.lower() for t in parsed.text_contains]
+        matches = [
+            c
+            for c in matches
+            if all(
+                t in c.name.lower()
+                or t in c.type_line.lower()
+                or t in (c.oracle_text or "").lower()
+                for t in terms
+            )
+        ]
     MAX_CANDIDATES = 5000  # Cap accumulation for very broad queries
-    matches: list[Card] = []
-    for card in all_cards:
-        # Format legality check
-        if card.legalities.get(fmt) != "legal":
-            continue
-        # Color identity check
-        if identity is not None and not is_within_identity(card.color_identity, identity):
-            continue
-        # Price check
-        if max_price is not None:
-            price_str = card.prices.usd
-            if price_str is None:
-                continue
-            try:
-                if float(price_str) > max_price:
-                    continue
-            except ValueError:
-                continue
-        # Rarity check
-        if rarity_lower is not None and card.rarity.lower() != rarity_lower:
-            continue
-        # CMC checks from parsed query
-        if parsed.cmc_eq is not None and card.cmc != parsed.cmc_eq:
-            continue
-        # Type check from parsed query
-        if type_lower_terms is not None:
-            type_lower = card.type_line.lower()
-            if not all(t in type_lower for t in type_lower_terms):
-                continue
-        # Text matching -- use parsed filters
-        oracle_lower = (card.oracle_text or "").lower()
-        if text_any_lower is not None and not any(p in oracle_lower for p in text_any_lower):
-            continue
-        if text_contains_lower is not None:
-            name_lower = card.name.lower()
-            type_lower_text = card.type_line.lower()
-            if not all(
-                t in name_lower or t in type_lower_text or t in oracle_lower
-                for t in text_contains_lower
-            ):
-                continue
-
-        matches.append(card)
-        if len(matches) >= MAX_CANDIDATES:
-            break
+    matches = matches[:MAX_CANDIDATES]
 
     if not matches:
         raise ToolError(
@@ -591,18 +568,16 @@ async def format_staples(
     except ScryfallBulkError as exc:
         raise ToolError(f"Scryfall bulk data error: {exc}") from exc
 
-    matches: list[Card] = []
-    for card in all_cards:
-        if card.legalities.get(fmt) != "legal":
-            continue
-        # EDHREC mode excludes cards without rank; competitive does not
-        if resolved_mode == "edhrec" and card.edhrec_rank is None:
-            continue
-        if identity is not None and not is_within_identity(card.color_identity, identity):
-            continue
-        if card_type is not None and card_type.lower() not in card.type_line.lower():
-            continue
-        matches.append(card)
+    matches = filter_card_pool(
+        all_cards,
+        format=fmt,
+        color_identity=identity,
+        type_contains=[card_type] if card_type else None,
+        limit=sys.maxsize,
+    )
+    # EDHREC mode excludes cards without rank; competitive does not
+    if resolved_mode == "edhrec":
+        matches = [c for c in matches if c.edhrec_rank is not None]
 
     if not matches:
         raise ToolError(f"No staples found for {fmt}" + (f" ({color})" if color else "") + ".")
@@ -781,21 +756,10 @@ async def similar_cards(
     scored: list[tuple[float, Card]] = []
     source_name_lower = source.name.lower()
 
-    for card in all_cards:
+    pool = filter_card_pool(all_cards, format=fmt or None, max_price=max_price, limit=sys.maxsize)
+    for card in pool:
         if card.name.lower() == source_name_lower:
             continue
-        if fmt and card.legalities.get(fmt) != "legal":
-            continue
-        if max_price is not None:
-            price_str = card.prices.usd
-            if price_str is None:
-                continue
-            try:
-                if float(price_str) > max_price:
-                    continue
-            except ValueError:
-                continue
-
         score = _score_similarity(source, card)
         if score > 0:
             scored.append((score, card))
