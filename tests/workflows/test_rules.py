@@ -66,14 +66,6 @@ def _make_rules() -> AsyncMock:
     )
     mock.list_keywords = AsyncMock(return_value=[{"term": "Deathtouch", "section": "702.2"}])
     mock.list_sections = AsyncMock(return_value=[{"number": "1", "name": "Game Concepts"}])
-    mock.section_rules = AsyncMock(
-        return_value=[
-            Rule(
-                number="100.1",
-                text="These Magic rules apply to any Magic game with two or more players.",
-            ),
-        ]
-    )
     return mock
 
 

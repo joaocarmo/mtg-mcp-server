@@ -18,7 +18,7 @@ import structlog
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, ServiceError
 from mtg_mcp_server.types import GlossaryEntry, Rule
 
-__all__ = ["RULES_PAGE_URL", "RulesDownloadError", "RulesError", "RulesService"]
+__all__ = ["RULES_PAGE_URL", "RulesError", "RulesService"]
 
 log = structlog.get_logger(service="rules")
 
@@ -46,10 +46,6 @@ class RulesError(ServiceError):
         super().__init__(message, status_code=None)
 
 
-class RulesDownloadError(RulesError):
-    """Error downloading the Comprehensive Rules file."""
-
-
 class RulesService:
     """Index and query the MTG Comprehensive Rules.
 
@@ -74,10 +70,8 @@ class RulesService:
         self._rules: dict[str, Rule] = {}
         self._glossary: dict[str, GlossaryEntry] = {}
         self._sections: dict[str, str] = {}  # section number -> name
-        self._keyword_rule_numbers: set[str] = set()  # rule numbers under 702.x
 
-        self._loaded = False
-        self._loaded_at: float = 0.0
+        self._loaded_at: float = 0.0  # monotonic timestamp; 0 = never loaded
         self._load_lock = asyncio.Lock()
 
     async def ensure_loaded(self) -> None:
@@ -93,13 +87,12 @@ class RulesService:
             if not self._is_stale():
                 return
 
-            is_refresh = self._loaded
+            is_refresh = self._loaded_at != 0.0
             log.info("rules.loading", is_refresh=is_refresh)
 
             try:
                 raw_text = await self._download()
                 self._parse(raw_text)
-                self._loaded = True
                 self._loaded_at = time.monotonic()
                 log.info(
                     "rules.loaded",
@@ -107,18 +100,6 @@ class RulesService:
                     glossary_count=len(self._glossary),
                     section_count=len(self._sections),
                 )
-            except RulesError:
-                if is_refresh:
-                    log.warning(
-                        "rules.refresh_failed",
-                        exc_info=True,
-                        retry_in_seconds=_REFRESH_RETRY_SECONDS,
-                    )
-                    self._loaded_at = (
-                        time.monotonic() - self._refresh_seconds + _REFRESH_RETRY_SECONDS
-                    )
-                    return
-                raise
             except Exception as exc:
                 if is_refresh:
                     log.warning(
@@ -130,6 +111,8 @@ class RulesService:
                         time.monotonic() - self._refresh_seconds + _REFRESH_RETRY_SECONDS
                     )
                     return
+                if isinstance(exc, RulesError):
+                    raise
                 raise RulesError(f"Unexpected error loading rules: {exc}") from exc
 
     # -------------------------------------------------------------------
@@ -221,23 +204,13 @@ class RulesService:
                 return num
         return None
 
-    async def section_rules(self, section_prefix: str) -> list[Rule]:
-        """Return all rules whose number starts with the given prefix."""
-        await self.ensure_loaded()
-        prefix = section_prefix.rstrip(".")
-        results: list[Rule] = []
-        for number, rule in self._rules.items():
-            if number.startswith(prefix):
-                results.append(rule)
-        return sorted(results, key=lambda r: _rule_sort_key(r.number))
-
     # -------------------------------------------------------------------
     # Private helpers
     # -------------------------------------------------------------------
 
     def _is_stale(self) -> bool:
         """Check if the loaded data has exceeded the refresh interval."""
-        if not self._loaded:
+        if self._loaded_at == 0.0:
             return True
         return (time.monotonic() - self._loaded_at) >= self._refresh_seconds
 
@@ -262,20 +235,20 @@ class RulesService:
                             "Set MTG_MCP_RULES_URL to the current URL from "
                             "https://magic.wizards.com/en/rules"
                         )
-                    raise RulesDownloadError(
+                    raise RulesError(
                         f"HTTP {response.status_code} downloading rules from {url}{hint}"
                     )
                 # Decode as UTF-8 and strip BOM if present
                 try:
                     text = response.content.decode("utf-8-sig")
                 except UnicodeDecodeError as exc:
-                    raise RulesDownloadError(
+                    raise RulesError(
                         f"Rules file is not valid UTF-8 "
                         f"(got {len(response.content)} bytes from {url})"
                     ) from exc
                 return text
         except httpx.RequestError as exc:
-            raise RulesDownloadError(f"Network error downloading rules: {exc}") from exc
+            raise RulesError(f"Network error downloading rules: {exc}") from exc
 
     async def _discover_url(self, http: httpx.AsyncClient) -> str:
         """Find the current rules TXT URL on the rules page, else the configured URL."""
@@ -423,15 +396,7 @@ def _parent_rule_number(number: str) -> str | None:
     """
     if "." not in number:
         return None
-    parts = number.split(".", 1)
-    rest = parts[1]
-    # If rest ends with letter(s), parent is the numeric portion
-    if rest and rest[-1].isalpha():
-        parent_rest = rest.rstrip("abcdefghijklmnopqrstuvwxyz")
-        if parent_rest:
-            return f"{parts[0]}.{parent_rest}"
-        return parts[0]
-    return parts[0]
+    return number[:-1] if number[-1].isalpha() else number.split(".")[0]
 
 
 _KEYWORD_RULE_RE = re.compile(r"\brule 702\.")
@@ -440,28 +405,3 @@ _KEYWORD_RULE_RE = re.compile(r"\brule 702\.")
 def _is_keyword_glossary_entry(entry: GlossaryEntry) -> bool:
     """Check if a glossary entry references a 702.x rule (keyword ability)."""
     return bool(_KEYWORD_RULE_RE.search(entry.definition))
-
-
-def _rule_sort_key(number: str) -> tuple[int, int, str]:
-    """Create a sort key from a rule number for natural ordering.
-
-    ``"704.5k"`` -> ``(704, 5, "k")``.
-    """
-    # Split on the dot
-    parts = number.split(".", 1)
-    major = int(parts[0]) if parts[0].isdigit() else 0
-    if len(parts) > 1:
-        rest = parts[1]
-        # Separate numeric part from letter suffix
-        digits = ""
-        suffix = ""
-        for char in rest:
-            if char.isdigit():
-                digits += char
-            else:
-                suffix += char
-        minor = int(digits) if digits else 0
-    else:
-        minor = 0
-        suffix = ""
-    return (major, minor, suffix)

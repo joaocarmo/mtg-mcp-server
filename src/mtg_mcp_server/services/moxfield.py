@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import structlog
 from cachetools import TTLCache
 
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
+from mtg_mcp_server.services.base import BaseClient, ServiceError
 from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import (
     MoxfieldCard,
@@ -67,11 +67,6 @@ class MoxfieldClient(BaseClient):
     Endpoints are reverse-engineered and may break without notice.  Use
     defensive parsing with ``.get()`` chains and ``isinstance`` checks at
     every nesting level.
-
-    Args:
-        base_url: Moxfield API base URL.
-        rate_limit_rps: Max requests per second.
-        user_agent: User-Agent header value.
     """
 
     # 4h cache — decklists change infrequently during a session.
@@ -81,17 +76,7 @@ class MoxfieldClient(BaseClient):
     # 4h cache — user profiles rarely change.
     _user_search_cache: TTLCache = TTLCache(maxsize=100, ttl=14400)
 
-    def __init__(
-        self,
-        base_url: str = "https://api2.moxfield.com",
-        rate_limit_rps: float = 1.0,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = 1.0
 
     @staticmethod
     def extract_deck_id(deck_id_or_url: str) -> str:
@@ -139,28 +124,6 @@ class MoxfieldClient(BaseClient):
         except (ValueError, UnicodeDecodeError) as exc:
             raise MoxfieldError(f"Moxfield returned invalid JSON for deck '{deck_id}'") from exc
         return self._parse_deck(data)
-
-    async def get_deck_info(self, deck_id_or_url: str) -> MoxfieldDeck:
-        """Fetch deck metadata only (delegates to :meth:`get_deck`).
-
-        The full decklist is fetched and cached; this method returns only
-        the :class:`MoxfieldDeck` metadata portion.  Subsequent calls for
-        the same input benefit from the ``get_deck`` cache for free.  The
-        cache normalizes URLs to deck IDs, so URL and raw-ID lookups share
-        entries.
-
-        Args:
-            deck_id_or_url: Either a raw deck ID or a full Moxfield URL.
-
-        Returns:
-            Deck metadata.
-
-        Raises:
-            DeckNotFoundError: If the deck doesn't exist (404).
-            MoxfieldError: On other API errors.
-        """
-        decklist = await self.get_deck(deck_id_or_url)
-        return decklist.deck
 
     @async_cached(_search_cache)
     async def search_decks(

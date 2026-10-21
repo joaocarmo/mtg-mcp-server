@@ -18,6 +18,7 @@ class FormatRules:
 _FORMAT_ALIASES: dict[str, str] = {
     "edh": "commander",
     "cedh": "commander",
+    "cmdr": "commander",
     "draft": "limited",
     "sealed": "limited",
 }
@@ -70,15 +71,17 @@ _BASIC_LANDS: frozenset[str] = frozenset(
 )
 
 
-def normalize_format(raw: str) -> str:
+def normalize_format(raw: str, *, strict: bool = True) -> str:
     """Normalize a format name to its canonical form.
 
-    Handles aliases (edh -> commander, draft -> limited) and case insensitivity.
-    Raises ValueError for unknown formats.
+    Handles aliases (edh -> commander, draft -> limited), surrounding
+    whitespace and case insensitivity. Raises ValueError for unknown formats
+    unless ``strict`` is False, in which case they pass through lowercased
+    (e.g. any Scryfall legality key such as historic or alchemy).
     """
-    lowered = raw.lower()
+    lowered = raw.strip().lower()
     resolved = _FORMAT_ALIASES.get(lowered, lowered)
-    if resolved not in _FORMAT_RULES:
+    if strict and resolved not in _FORMAT_RULES:
         msg = f"Unknown format: '{raw}'. Valid formats: {', '.join(sorted(_FORMAT_RULES))}"
         raise ValueError(msg)
     return resolved

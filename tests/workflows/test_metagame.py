@@ -274,7 +274,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "Modern Metagame" in result.markdown
@@ -289,7 +288,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
             response_format="concise",
         )
 
@@ -302,7 +300,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=None,
-            bulk=None,
         )
 
         assert "No metagame data available" in result.markdown
@@ -318,7 +315,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "No metagame data available" in result.markdown
@@ -329,7 +325,6 @@ class TestMetagameSnapshot:
         result = await metagame_snapshot(
             "modern",
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         tiers = result.data["tiers"]
@@ -522,7 +517,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Azorius Control"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "Archetype Comparison" in result.markdown
@@ -540,7 +534,6 @@ class TestArchetypeComparison:
             "modern",
             ["Nonexistent Deck A", "Nonexistent Deck B"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "Could not match enough" in result.markdown
@@ -555,7 +548,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Nonexistent Deck"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         # Only 1 match found — insufficient for comparison
@@ -584,7 +576,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Azorius Control"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "Shared Staples" in result.markdown
@@ -600,7 +591,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Azorius Control"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         # get_archetype should receive names — it slugifies internally
@@ -624,7 +614,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Azorius Control"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "Boros Energy" in result.markdown
@@ -651,7 +640,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Azorius Control"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
             response_format="concise",
         )
 
@@ -667,7 +655,6 @@ class TestArchetypeComparison:
             "modern",
             ["Boros Energy", "Azorius Control", "Nonexistent"],
             mtggoldfish=mock_mtggoldfish,
-            bulk=None,
         )
 
         assert "Not found" in result.markdown

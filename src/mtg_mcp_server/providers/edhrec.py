@@ -18,7 +18,7 @@ from pydantic import Field
 from mtg_mcp_server.config import Settings
 from mtg_mcp_server.providers import ATTRIBUTION_EDHREC, TAGS_BETA, TOOL_ANNOTATIONS
 from mtg_mcp_server.services.edhrec import CommanderNotFoundError, EDHRECClient, EDHRECError
-from mtg_mcp_server.utils.formatters import ResponseFormat  # noqa: TC001 — runtime for FastMCP
+from mtg_mcp_server.utils.formatters import ResponseFormatParam  # noqa: TC001 (FastMCP)
 from mtg_mcp_server.utils.slim import slim_edhrec_card
 
 # Module-level client set by the lifespan. See scryfall.py for pattern rationale.
@@ -64,10 +64,7 @@ async def commander_staples(
         int,
         Field(description="Max cards per category (default 10, 0 for all)"),
     ] = 10,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get the most-played cards for a commander with synergy scores and inclusion rates.
 

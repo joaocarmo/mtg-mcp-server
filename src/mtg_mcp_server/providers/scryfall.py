@@ -23,7 +23,11 @@ from mtg_mcp_server.providers import (
     format_legalities,
 )
 from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallClient, ScryfallError
-from mtg_mcp_server.utils.formatters import ResponseFormat, format_card_detail, format_card_line
+from mtg_mcp_server.utils.formatters import (
+    ResponseFormatParam,
+    format_card_detail,
+    format_card_line,
+)
 from mtg_mcp_server.utils.slim import slim_card
 
 # Module-level client set by the lifespan. This pattern is required because
@@ -72,10 +76,7 @@ async def search_cards(
         int,
         Field(description="Max cards to return (default 30, 0 for all)"),
     ] = 30,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Search for Magic cards using Scryfall syntax.
 
@@ -130,10 +131,7 @@ async def card_details(
             description="Use fuzzy matching for approximate names (e.g. 'muldrotha' finds 'Muldrotha, the Gravetide')"
         ),
     ] = False,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get full details for a Magic card by exact or fuzzy name."""
     client = _get_client()
@@ -272,10 +270,7 @@ async def whats_new(
         int,
         Field(description="Max cards to return (default 30, 0 for all)"),
     ] = 30,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Find recently printed or released Magic cards.
 

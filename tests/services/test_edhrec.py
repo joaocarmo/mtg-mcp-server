@@ -11,6 +11,7 @@ import respx
 
 from mtg_mcp_server.services.edhrec import CommanderNotFoundError, EDHRECClient, EDHRECError
 from mtg_mcp_server.types import EDHRECCard, EDHRECCardList, EDHRECCommanderData
+from mtg_mcp_server.utils.formatters import slugify
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "edhrec"
 BASE_URL = "https://json.edhrec.com"
@@ -22,37 +23,31 @@ def _load_fixture(name: str) -> dict:
 
 
 class TestSlugify:
-    """Test the name-to-slug conversion for EDHREC URLs."""
+    """Test the shared slugify function used to build EDHREC URLs."""
 
     def test_basic_name(self):
         """Simple two-word name converts to lowercase hyphenated slug."""
-        client = EDHRECClient.__new__(EDHRECClient)
-        assert client._slugify("Sol Ring") == "sol-ring"
+        assert slugify("Sol Ring") == "sol-ring"
 
     def test_comma_removed(self):
         """Commas are stripped from the slug."""
-        client = EDHRECClient.__new__(EDHRECClient)
-        assert client._slugify("Muldrotha, the Gravetide") == "muldrotha-the-gravetide"
+        assert slugify("Muldrotha, the Gravetide") == "muldrotha-the-gravetide"
 
     def test_apostrophe_removed(self):
         """Apostrophes are stripped from the slug."""
-        client = EDHRECClient.__new__(EDHRECClient)
-        assert client._slugify("Kaya's Ghostform") == "kayas-ghostform"
+        assert slugify("Kaya's Ghostform") == "kayas-ghostform"
 
     def test_multiple_special_chars(self):
         """Multiple special characters are all stripped from the slug."""
-        client = EDHRECClient.__new__(EDHRECClient)
-        assert client._slugify("Urza's Saga") == "urzas-saga"
+        assert slugify("Urza's Saga") == "urzas-saga"
 
     def test_multiple_spaces(self):
         """Consecutive spaces are collapsed into a single hyphen."""
-        client = EDHRECClient.__new__(EDHRECClient)
-        assert client._slugify("The  Gitrog   Monster") == "the-gitrog-monster"
+        assert slugify("The  Gitrog   Monster") == "the-gitrog-monster"
 
     def test_period_removed(self):
         """Periods are stripped from the slug."""
-        client = EDHRECClient.__new__(EDHRECClient)
-        assert client._slugify("Dr. Julius Jumblemorph") == "dr-julius-jumblemorph"
+        assert slugify("Dr. Julius Jumblemorph") == "dr-julius-jumblemorph"
 
 
 class TestCommanderTopCards:

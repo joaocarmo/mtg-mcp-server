@@ -14,7 +14,7 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 **Why no locks:** everything runs on a single asyncio loop, and the per-service rate limiter already serialises cold-cache stampedes.
 
 **Key functions:**
-- `_method_key` (default) skips `self`, so entries are keyed on arguments, not instance identity.
+- `cachetools.keys.methodkey` (default) skips `self`, so entries are keyed on arguments, not instance identity.
 - `_decklist_key` converts positional and keyword `list` args to tuples (lists are unhashable). Spellbook's POST methods use it: they are read-only queries, so caching them is correct.
 
 **Lifecycle:**
@@ -26,7 +26,6 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 | Service | Method | TTL | Maxsize | Rationale |
 |---------|--------|-----|---------|-----------|
 | Scryfall | `get_card_by_name` | 24h | 500 | Oracle text, types and colours almost never change |
-| Scryfall | `get_card_by_id` | 24h | 500 | Same data, different lookup |
 | Scryfall | `search_cards` | 1h | 100 | Result sets change as cards are added |
 | Scryfall | `get_rulings` | 24h | 200 | Rarely change |
 | Scryfall | `get_sets` / `get_set` | 24h | 50 | Static after release |
@@ -48,7 +47,7 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 
 TTLs are hardcoded class constants because they reflect upstream data staleness, not deployment config. Maxsize values are conservative working-set estimates. Adaptive TTLs (e.g. 1h for 17Lands in a set's first week) were considered and rejected as not worth the complexity.
 
-- **Moxfield `get_deck`** uses a custom key (`_moxfield_deck_key`) that normalises URLs to deck IDs, so a URL and a bare ID share an entry. `get_deck_info` delegates to `get_deck`.
+- **Moxfield `get_deck`** uses a custom key (`_moxfield_deck_key`) that normalises URLs to deck IDs, so a URL and a bare ID share an entry.
 - **EDHREC `card_synergy`** delegates to `commander_top_cards` and scans the result. Both are cached independently, so they can briefly diverge (worst case: synergy up to 24h stale). That's acceptable, since both come from the same daily aggregation.
 
 **Testing:**
@@ -63,6 +62,6 @@ Service details (lazy download, layout filtering, 12h background refresh, stale-
 It's used in three ways:
 1. The `bulk_` provider: rate-limit-free lookup, search, legality, staples, ban lists, similar and random cards.
 2. A separate `ScryfallBulkClient` instance in the workflow lifespan.
-3. `workflows/card_resolver.py`: workflows check bulk data first and fall back to the Scryfall API, which then populates the TTL cache.
+3. `workflows/analysis.py` (`deck_analysis`): checks bulk data first and falls back to the Scryfall API, which then populates the TTL cache.
 
 Provider-level `scryfall_` tools always hit the API (TTL-cached). When the flag is off, the provider isn't mounted and workflows go straight to the API.

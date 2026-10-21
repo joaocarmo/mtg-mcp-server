@@ -135,7 +135,6 @@ async def metagame_snapshot(
     format: str,
     *,
     mtggoldfish: MTGGoldfishClient | None,
-    bulk: ScryfallBulkClient | None,
     response_format: Literal["detailed", "concise"] = "detailed",
 ) -> WorkflowResult:
     """Get the current metagame breakdown for a competitive format.
@@ -146,7 +145,6 @@ async def metagame_snapshot(
     Args:
         format: Format name (e.g. "Modern", "Legacy", "Pioneer").
         mtggoldfish: Initialized MTGGoldfishClient, or None if disabled.
-        bulk: Initialized ScryfallBulkClient, or None if disabled.
         response_format: "detailed" or "concise".
 
     Returns:
@@ -356,7 +354,6 @@ async def archetype_comparison(
     archetypes: list[str],
     *,
     mtggoldfish: MTGGoldfishClient,
-    bulk: ScryfallBulkClient | None,
     response_format: Literal["detailed", "concise"] = "detailed",
 ) -> WorkflowResult:
     """Compare 2-4 competitive archetypes side-by-side.
@@ -368,7 +365,6 @@ async def archetype_comparison(
         format: Format name (e.g. "Modern").
         archetypes: 2-4 archetype names to compare.
         mtggoldfish: Initialized MTGGoldfishClient (required).
-        bulk: Initialized ScryfallBulkClient, or None if disabled.
         response_format: "detailed" or "concise".
 
     Returns:
@@ -572,7 +568,6 @@ async def format_entry_guide(
         snapshot_result = await metagame_snapshot(
             format,
             mtggoldfish=None,  # Already failed or unavailable
-            bulk=bulk,
             response_format=response_format,
         )
         raw_source = snapshot_result.data.get("source")

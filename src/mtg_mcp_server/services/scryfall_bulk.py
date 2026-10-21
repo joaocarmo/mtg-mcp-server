@@ -24,8 +24,9 @@ import contextlib
 import gzip
 import json
 import random
+import sys
 import time
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import httpx
 import structlog
@@ -34,7 +35,10 @@ from pydantic import ValidationError
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, ServiceError
 from mtg_mcp_server.types import Card
 
-__all__ = ["ScryfallBulkClient", "ScryfallBulkDownloadError", "ScryfallBulkError"]
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+__all__ = ["ScryfallBulkClient", "ScryfallBulkError", "filter_card_pool"]
 
 log = structlog.get_logger(service="ScryfallBulkClient")
 
@@ -62,10 +66,6 @@ class ScryfallBulkError(ServiceError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message, status_code=None)
-
-
-class ScryfallBulkDownloadError(ScryfallBulkError):
-    """Error downloading Scryfall bulk data (network or HTTP failure)."""
 
 
 class ScryfallBulkClient:
@@ -153,8 +153,7 @@ class ScryfallBulkClient:
         Uses ``asyncio.Lock`` to prevent duplicate concurrent downloads.
 
         Raises:
-            ScryfallBulkDownloadError: On first-load network/HTTP failure.
-            ScryfallBulkError: On first-load parse failure.
+            ScryfallBulkError: On first-load network/HTTP or parse failure.
         """
         if not self._is_stale():
             return
@@ -226,15 +225,7 @@ class ScryfallBulkClient:
         Returns:
             Matching cards, up to ``limit``.
         """
-        await self.ensure_loaded()
-        query_lower = query.lower()
-        results: list[Card] = []
-        for card in self._unique_cards:
-            if query_lower in card.name.lower():
-                results.append(card)
-                if len(results) >= limit:
-                    break
-        return results
+        return await self.filter_cards(name_contains=query, limit=limit)
 
     async def search_by_type(self, type_query: str, limit: int = 20) -> list[Card]:
         """Search cards by type line substring (case-insensitive).
@@ -246,15 +237,7 @@ class ScryfallBulkClient:
         Returns:
             Matching cards, up to ``limit``.
         """
-        await self.ensure_loaded()
-        query_lower = type_query.lower()
-        results: list[Card] = []
-        for card in self._unique_cards:
-            if query_lower in card.type_line.lower():
-                results.append(card)
-                if len(results) >= limit:
-                    break
-        return results
+        return await self.filter_cards(type_contains=[type_query], limit=limit)
 
     async def search_by_text(self, text_query: str, limit: int = 20) -> list[Card]:
         """Search cards by oracle text substring (case-insensitive).
@@ -266,16 +249,7 @@ class ScryfallBulkClient:
         Returns:
             Matching cards, up to ``limit``.
         """
-        await self.ensure_loaded()
-        query_lower = text_query.lower()
-        results: list[Card] = []
-        for card in self._unique_cards:
-            oracle = card.oracle_text or ""
-            if query_lower in oracle.lower():
-                results.append(card)
-                if len(results) >= limit:
-                    break
-        return results
+        return await self.filter_cards(text_contains=[text_query], limit=limit)
 
     async def filter_cards(
         self,
@@ -293,84 +267,23 @@ class ScryfallBulkClient:
         name_contains: str | None = None,
         limit: int = 100,
     ) -> list[Card]:
-        """Multi-criteria filter over all cards. Returns up to ``limit`` matches.
-
-        All filter parameters are optional. Only cards matching **all** specified
-        criteria are returned (AND logic). ``text_any`` is the exception: it uses
-        OR logic among its terms.
-
-        Args:
-            format: Only cards where ``legalities[format] == "legal"``.
-            color_identity: Cards whose color identity is a subset of this set.
-            type_contains: ALL strings must appear in the type line (case-insensitive).
-            text_contains: ALL strings must appear in oracle text (case-insensitive).
-            text_any: ANY string must appear in oracle text (case-insensitive).
-            keywords: ALL must be in the card's keywords (case-insensitive).
-            cmc_eq: Exact CMC match.
-            cmc_lte: CMC at or below this value.
-            max_price: Maximum USD price (cards without a USD price are excluded).
-            rarity: Exact rarity match (e.g. ``"mythic"``).
-            name_contains: Substring match on card name (case-insensitive).
-            limit: Maximum results to return.
-
-        Returns:
-            Matching cards, up to ``limit``.
-        """
+        """Multi-criteria filter over all cards; see :func:`filter_card_pool`."""
         await self.ensure_loaded()
-
-        # Pre-compute lowercase versions of string filters
-        type_lower = [t.lower() for t in type_contains] if type_contains else None
-        text_lower = [t.lower() for t in text_contains] if text_contains else None
-        text_any_lower = [t.lower() for t in text_any] if text_any else None
-        kw_lower = [k.lower() for k in keywords] if keywords else None
-        name_lower = name_contains.lower() if name_contains else None
-
-        results: list[Card] = []
-        for card in self._unique_cards:
-            if format is not None and card.legalities.get(format) != "legal":
-                continue
-            if color_identity is not None and not frozenset(card.color_identity).issubset(
-                color_identity
-            ):
-                continue
-            if type_lower is not None:
-                tl = card.type_line.lower()
-                if not all(t in tl for t in type_lower):
-                    continue
-            if text_lower is not None:
-                oracle = (card.oracle_text or "").lower()
-                if not all(t in oracle for t in text_lower):
-                    continue
-            if text_any_lower is not None:
-                oracle = (card.oracle_text or "").lower()
-                if not any(t in oracle for t in text_any_lower):
-                    continue
-            if kw_lower is not None:
-                card_kw = {k.lower() for k in card.keywords}
-                if not all(k in card_kw for k in kw_lower):
-                    continue
-            if cmc_eq is not None and card.cmc != cmc_eq:
-                continue
-            if cmc_lte is not None and card.cmc > cmc_lte:
-                continue
-            if max_price is not None:
-                if card.prices.usd is None:
-                    continue
-                try:
-                    if float(card.prices.usd) > max_price:
-                        continue
-                except ValueError:
-                    continue
-            if rarity is not None and card.rarity != rarity:
-                continue
-            if name_lower is not None and name_lower not in card.name.lower():
-                continue
-
-            results.append(card)
-            if len(results) >= limit:
-                break
-
-        return results
+        return filter_card_pool(
+            self._unique_cards,
+            format=format,
+            color_identity=color_identity,
+            type_contains=type_contains,
+            text_contains=text_contains,
+            text_any=text_any,
+            keywords=keywords,
+            cmc_eq=cmc_eq,
+            cmc_lte=cmc_lte,
+            max_price=max_price,
+            rarity=rarity,
+            name_contains=name_contains,
+            limit=limit,
+        )
 
     async def cards_by_legality(self, format: str, status: str) -> list[Card]:
         """All cards with a specific legality status in a format.
@@ -432,24 +345,13 @@ class ScryfallBulkClient:
         Returns:
             A random matching card, or None if no cards match.
         """
-        await self.ensure_loaded()
-
-        pool: list[Card] = []
-        type_lower = type_contains.lower() if type_contains else None
-
-        for card in self._unique_cards:
-            if format is not None and card.legalities.get(format) != "legal":
-                continue
-            if color_identity is not None and not frozenset(card.color_identity).issubset(
-                color_identity
-            ):
-                continue
-            if type_lower is not None and type_lower not in card.type_line.lower():
-                continue
-            if rarity is not None and card.rarity != rarity:
-                continue
-            pool.append(card)
-
+        pool = await self.filter_cards(
+            format=format,
+            color_identity=color_identity,
+            type_contains=[type_contains] if type_contains else None,
+            rarity=rarity,
+            limit=sys.maxsize,
+        )
         if not pool:
             return None
         return random.choice(pool)
@@ -468,7 +370,7 @@ class ScryfallBulkClient:
         """Fetch the bulk-data metadata to get the current download URI.
 
         Raises:
-            ScryfallBulkDownloadError: On HTTP errors or network failures.
+            ScryfallBulkError: On HTTP errors or network failures.
         """
         url = f"{self._base_url}/bulk-data/oracle_cards"
         try:
@@ -481,17 +383,17 @@ class ScryfallBulkClient:
             ) as http:
                 response = await http.get(url)
                 if response.status_code != 200:
-                    raise ScryfallBulkDownloadError(
+                    raise ScryfallBulkError(
                         f"HTTP {response.status_code} fetching bulk metadata from {url}"
                     )
                 try:
                     return response.json()
                 except (json.JSONDecodeError, ValueError) as exc:
-                    raise ScryfallBulkDownloadError(
+                    raise ScryfallBulkError(
                         f"Metadata response is not valid JSON from {url}: {exc}"
                     ) from exc
         except httpx.RequestError as exc:
-            raise ScryfallBulkDownloadError(f"Network error fetching bulk metadata: {exc}") from exc
+            raise ScryfallBulkError(f"Network error fetching bulk metadata: {exc}") from exc
 
     async def _download(self, url: str) -> bytes | None:
         """Download the Oracle Cards bulk data file.
@@ -501,7 +403,7 @@ class ScryfallBulkClient:
         304 (data unchanged).
 
         Raises:
-            ScryfallBulkDownloadError: On HTTP errors or network failures.
+            ScryfallBulkError: On HTTP errors or network failures.
         """
         headers: dict[str, str] = {
             "User-Agent": DEFAULT_USER_AGENT,
@@ -521,7 +423,7 @@ class ScryfallBulkClient:
                     return None
 
                 if response.status_code != 200:
-                    raise ScryfallBulkDownloadError(
+                    raise ScryfallBulkError(
                         f"HTTP {response.status_code} downloading bulk data from {url}"
                     )
 
@@ -533,7 +435,7 @@ class ScryfallBulkClient:
 
                 return response.content
         except httpx.RequestError as exc:
-            raise ScryfallBulkDownloadError(f"Network error downloading bulk data: {exc}") from exc
+            raise ScryfallBulkError(f"Network error downloading bulk data: {exc}") from exc
 
     def _parse(self, raw_bytes: bytes) -> None:
         """Parse the Oracle Cards bulk file into the in-memory card dicts.
@@ -629,3 +531,97 @@ class ScryfallBulkClient:
                 log.warning("scryfall_bulk.background_refresh_error", exc_info=True)
             except Exception:
                 log.error("scryfall_bulk.background_refresh_unexpected_error", exc_info=True)
+
+
+def filter_card_pool(
+    cards: Iterable[Card],
+    *,
+    format: str | None = None,
+    color_identity: frozenset[str] | None = None,
+    type_contains: list[str] | None = None,
+    text_contains: list[str] | None = None,
+    text_any: list[str] | None = None,
+    keywords: list[str] | None = None,
+    cmc_eq: float | None = None,
+    cmc_lte: float | None = None,
+    max_price: float | None = None,
+    rarity: str | None = None,
+    name_contains: str | None = None,
+    limit: int = 100,
+) -> list[Card]:
+    """Multi-criteria filter over ``cards``. Returns up to ``limit`` matches.
+
+    All filter parameters are optional. Only cards matching **all** specified
+    criteria are returned (AND logic). ``text_any`` is the exception: it uses
+    OR logic among its terms.
+
+    Args:
+        format: Only cards where ``legalities[format] == "legal"``.
+        color_identity: Cards whose color identity is a subset of this set.
+        type_contains: ALL strings must appear in the type line (case-insensitive).
+        text_contains: ALL strings must appear in oracle text (case-insensitive).
+        text_any: ANY string must appear in oracle text (case-insensitive).
+        keywords: ALL must be in the card's keywords (case-insensitive).
+        cmc_eq: Exact CMC match.
+        cmc_lte: CMC at or below this value.
+        max_price: Maximum USD price (cards without a USD price are excluded).
+        rarity: Exact rarity match (e.g. ``"mythic"``).
+        name_contains: Substring match on card name (case-insensitive).
+        limit: Maximum results to return.
+
+    Returns:
+        Matching cards, up to ``limit``.
+    """
+    # Pre-compute lowercase versions of string filters
+    type_lower = [t.lower() for t in type_contains] if type_contains else None
+    text_lower = [t.lower() for t in text_contains] if text_contains else None
+    text_any_lower = [t.lower() for t in text_any] if text_any else None
+    kw_lower = [k.lower() for k in keywords] if keywords else None
+    name_lower = name_contains.lower() if name_contains else None
+
+    results: list[Card] = []
+    for card in cards:
+        if format is not None and card.legalities.get(format) != "legal":
+            continue
+        if color_identity is not None and not frozenset(card.color_identity).issubset(
+            color_identity
+        ):
+            continue
+        if type_lower is not None:
+            tl = card.type_line.lower()
+            if not all(t in tl for t in type_lower):
+                continue
+        if text_lower is not None:
+            oracle = (card.oracle_text or "").lower()
+            if not all(t in oracle for t in text_lower):
+                continue
+        if text_any_lower is not None:
+            oracle = (card.oracle_text or "").lower()
+            if not any(t in oracle for t in text_any_lower):
+                continue
+        if kw_lower is not None:
+            card_kw = {k.lower() for k in card.keywords}
+            if not all(k in card_kw for k in kw_lower):
+                continue
+        if cmc_eq is not None and card.cmc != cmc_eq:
+            continue
+        if cmc_lte is not None and card.cmc > cmc_lte:
+            continue
+        if max_price is not None:
+            if card.prices.usd is None:
+                continue
+            try:
+                if float(card.prices.usd) > max_price:
+                    continue
+            except ValueError:
+                continue
+        if rarity is not None and card.rarity != rarity:
+            continue
+        if name_lower is not None and name_lower not in card.name.lower():
+            continue
+
+        results.append(card)
+        if len(results) >= limit:
+            break
+
+    return results

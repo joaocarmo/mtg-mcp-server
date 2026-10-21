@@ -53,6 +53,14 @@ class TestNormalizeFormat:
         assert normalize_format("EDH") == "commander"
         assert normalize_format("Draft") == "limited"
 
+    def test_cmdr_alias_and_whitespace(self) -> None:
+        assert normalize_format("cmdr") == "commander"
+        assert normalize_format("  Modern ") == "modern"
+
+    def test_non_strict_passes_unknown_formats_through(self) -> None:
+        assert normalize_format(" Historic ", strict=False) == "historic"
+        assert normalize_format("EDH", strict=False) == "commander"
+
 
 class TestGetFormatRules:
     """Tests for get_format_rules()."""

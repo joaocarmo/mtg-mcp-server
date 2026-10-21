@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from mtg_mcp_server.config import Settings
-from mtg_mcp_server.logging import configure_logging, get_logger
+from mtg_mcp_server.logging import configure_logging
 from mtg_mcp_server.server import mcp
 
 if TYPE_CHECKING:
@@ -109,10 +109,8 @@ class TestConfig:
     def test_config_reads_env_vars(self, monkeypatch: pytest.MonkeyPatch):
         """MTG_MCP_ env vars override defaults."""
         monkeypatch.setenv("MTG_MCP_LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("MTG_MCP_SCRYFALL_RATE_LIMIT_MS", "250")
         settings = Settings()
         assert settings.log_level == "DEBUG"
-        assert settings.scryfall_rate_limit_ms == 250
 
 
 class TestLogging:
@@ -122,12 +120,6 @@ class TestLogging:
     def test_logging_accepts_all_levels(self, level: str):
         """All standard Python log levels are accepted."""
         configure_logging(level)
-
-    def test_get_logger_returns_bound_logger(self):
-        """get_logger() returns a structlog bound logger with service context."""
-        configure_logging("INFO")
-        log = get_logger("test_service")
-        assert log is not None
 
     def test_invalid_log_level_raises_value_error(self):
         """Invalid log level name raises ValueError at configure time."""

@@ -31,7 +31,6 @@ class QueryFilters:
     text_contains: tuple[str, ...] = ()
     text_any: tuple[str, ...] = ()
     cmc_eq: float | None = None
-    cmc_lte: float | None = None
     description: str = ""
 
 

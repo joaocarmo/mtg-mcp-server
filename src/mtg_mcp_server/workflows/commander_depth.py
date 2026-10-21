@@ -23,6 +23,14 @@ import structlog
 from mtg_mcp_server.utils.color_identity import is_within_identity, parse_color_identity
 from mtg_mcp_server.workflows import WorkflowResult
 from mtg_mcp_server.workflows.commander import _fmt_synergy
+from mtg_mcp_server.workflows.deck import (
+    CardScore,
+    DataSources,
+    build_synergy_lookup,
+    extract_combo_pieces,
+    fetch_data,
+    score_cards,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -30,7 +38,7 @@ if TYPE_CHECKING:
     from mtg_mcp_server.services.edhrec import EDHRECClient
     from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
     from mtg_mcp_server.services.spellbook import SpellbookClient
-    from mtg_mcp_server.types import Card, DecklistCombos, EDHRECCard, EDHRECCommanderData
+    from mtg_mcp_server.types import Card, EDHRECCard, EDHRECCommanderData
 
 log = structlog.get_logger(service="workflow.commander_depth")
 
@@ -95,19 +103,6 @@ class _CommanderStats:
     staples: list[EDHRECCard] = field(default_factory=list)
     edhrec_total_decks: int = 0
     edhrec_error: str | None = None
-
-
-@dataclass
-class _CardScore:
-    """Scoring data for a single card in the precon."""
-
-    name: str
-    synergy_score: float = 0.0
-    inclusion_rate: int = 0
-    is_combo_piece: bool = False
-    has_edhrec_data: bool = False
-    has_data: bool = False
-    cuttability: float = 0.0
 
 
 @dataclass
@@ -374,7 +369,6 @@ async def tribal_staples(
     tribe: str,
     *,
     bulk: ScryfallBulkClient,
-    edhrec: EDHRECClient | None = None,
     color_identity: str | None = None,
     format: str | None = None,
     limit: int = 20,
@@ -388,7 +382,6 @@ async def tribal_staples(
     Args:
         tribe: Creature type (e.g. "Zombie", "Elf", "Dragon").
         bulk: Initialized ScryfallBulkClient.
-        edhrec: Initialized EDHRECClient, or None if disabled.
         color_identity: Color identity filter (e.g. "sultai", "BG").
         format: Format legality filter (e.g. "commander").
         limit: Maximum total cards to return.
@@ -570,47 +563,6 @@ def _format_tribal_staples(
 # ---------------------------------------------------------------------------
 
 
-async def _fetch_precon_data(
-    commander: str,
-    decklist: list[str],
-    *,
-    spellbook: SpellbookClient,
-    edhrec: EDHRECClient | None,
-) -> tuple[DecklistCombos | None, EDHRECCommanderData | None, bool, bool]:
-    """Fetch combo and EDHREC data concurrently, returning results + status flags.
-
-    Returns:
-        (combo_data, edhrec_data, spellbook_ok, edhrec_ok)
-    """
-    combo_data: DecklistCombos | None = None
-    edhrec_data: EDHRECCommanderData | None = None
-    spellbook_ok = False
-    edhrec_ok = False
-
-    # Run Spellbook and EDHREC in parallel — they're independent
-    spellbook_task = asyncio.ensure_future(spellbook.find_decklist_combos([commander], decklist))
-    edhrec_task = (
-        asyncio.ensure_future(edhrec.commander_top_cards(commander)) if edhrec is not None else None
-    )
-
-    # Await Spellbook
-    try:
-        combo_data = await spellbook_task
-        spellbook_ok = True
-    except Exception as exc:
-        log.warning("precon_upgrade.spellbook_failed", error=str(exc))
-
-    # Await EDHREC (if requested)
-    if edhrec_task is not None:
-        try:
-            edhrec_data = await edhrec_task
-            edhrec_ok = True
-        except Exception as exc:
-            log.warning("precon_upgrade.edhrec_failed", error=str(exc))
-
-    return combo_data, edhrec_data, spellbook_ok, edhrec_ok
-
-
 async def precon_upgrade(
     decklist: list[str],
     commander: str,
@@ -650,70 +602,23 @@ async def precon_upgrade(
             data={"commander": commander, "cuts": [], "upgrades": [], "swaps": []},
         )
 
-    # Step 1/4: Resolve all cards via bulk data
+    # Step 1/3: Analyze for cuts (combo data + synergy data)
     if on_progress is not None:
-        await on_progress(1, 4)
+        await on_progress(1, 3)
 
-    await bulk.get_cards(decklist)
-
-    # Step 2/4: Analyze for cuts (combo data + synergy data)
-    if on_progress is not None:
-        await on_progress(2, 4)
-
-    combo_data, edhrec_data, spellbook_ok, edhrec_ok = await _fetch_precon_data(
-        commander, decklist, spellbook=spellbook, edhrec=edhrec
+    sources = DataSources(edhrec_available=edhrec is not None)
+    combo_data, edhrec_data = await fetch_data(
+        decklist, commander, spellbook=spellbook, edhrec=edhrec, sources=sources
     )
-
-    # Extract combo pieces
-    combo_pieces: set[str] = set()
-    if combo_data is not None:
-        for combo in combo_data.included:
-            for card in combo.cards:
-                combo_pieces.add(card.name.lower())
-
-    # Build synergy lookup from EDHREC
-    synergy_lookup: dict[str, EDHRECCard] = {}
-    if edhrec_data is not None:
-        for cardlist in edhrec_data.cardlists:
-            for ecard in cardlist.cardviews:
-                synergy_lookup[ecard.name.lower()] = ecard
-
-    # Score each card for cuttability
-    scored: list[_CardScore] = []
-    for card_name in decklist:
-        cs = _CardScore(name=card_name)
-        key = card_name.lower()
-
-        ecard = synergy_lookup.get(key)
-        if ecard is not None:
-            cs.synergy_score = ecard.synergy
-            cs.inclusion_rate = ecard.inclusion
-            cs.has_edhrec_data = True
-            cs.has_data = True
-
-        cs.is_combo_piece = key in combo_pieces
-        if cs.is_combo_piece:
-            cs.has_data = True
-
-        # Cuttability formula (same as suggest_cuts)
-        cuttability = 0.0
-        if cs.has_edhrec_data:
-            cuttability += 1.0 - cs.synergy_score
-            cuttability += (100 - cs.inclusion_rate) / 100.0
-        if cs.is_combo_piece:
-            cuttability -= 2.0
-        if not cs.has_data:
-            cuttability += 0.5
-
-        cs.cuttability = cuttability
-        scored.append(cs)
-
+    scored = score_cards(
+        decklist, extract_combo_pieces(combo_data), build_synergy_lookup(edhrec_data)
+    )
     scored.sort(key=lambda c: c.cuttability, reverse=True)
     top_cuts = scored[:num_upgrades]
 
-    # Step 3/4: Find upgrades from EDHREC staples
+    # Step 2/3: Find upgrades from EDHREC staples
     if on_progress is not None:
-        await on_progress(3, 4)
+        await on_progress(2, 3)
 
     swaps: list[_Swap] = []
     decklist_lower = {name.lower() for name in decklist}
@@ -765,13 +670,11 @@ async def precon_upgrade(
                 )
             )
 
-    # Step 4/4: Format output
+    # Step 3/3: Format output
     if on_progress is not None:
-        await on_progress(4, 4)
+        await on_progress(3, 3)
 
-    lines = _format_precon_upgrade(
-        commander, top_cuts, swaps, spellbook_ok, edhrec_ok, edhrec is not None, response_format
-    )
+    lines = _format_precon_upgrade(commander, top_cuts, swaps, sources, response_format)
 
     log.info("precon_upgrade.complete", commander=commander, swaps=len(swaps))
     data = {
@@ -802,18 +705,16 @@ async def precon_upgrade(
             }
             for s in swaps
         ],
-        "sources": {"spellbook": spellbook_ok, "edhrec": edhrec_ok},
+        "sources": {"spellbook": sources.spellbook_ok, "edhrec": sources.edhrec_ok},
     }
     return WorkflowResult(markdown="\n".join(lines), data=data)
 
 
 def _format_precon_upgrade(
     commander: str,
-    cuts: list[_CardScore],
+    cuts: list[CardScore],
     swaps: list[_Swap],
-    spellbook_ok: bool,
-    edhrec_ok: bool,
-    edhrec_enabled: bool,
+    sources: DataSources,
     response_format: Literal["detailed", "concise"],
 ) -> list[str]:
     """Format the precon upgrade output."""
@@ -830,7 +731,7 @@ def _format_precon_upgrade(
             lines.append(f"| {i} | {swap.cut} | {swap.add} | {imp_str} | ${swap.add_price:.2f} |")
     else:
         lines.append("No swap suggestions available.")
-        if not edhrec_enabled:
+        if not sources.edhrec_available:
             lines.append("")
             lines.append("EDHREC is disabled -- enable it for upgrade suggestions.")
 
@@ -858,13 +759,13 @@ def _format_precon_upgrade(
     lines.append("---")
     lines.append("**Data Sources:**")
     lines.append("- [Scryfall Bulk Data](https://scryfall.com): OK")
-    if spellbook_ok:
+    if sources.spellbook_ok:
         lines.append("- [Commander Spellbook](https://commanderspellbook.com): OK")
     else:
         lines.append("- [Commander Spellbook](https://commanderspellbook.com): Failed")
-    if not edhrec_enabled:
+    if not sources.edhrec_available:
         lines.append("- [EDHREC](https://edhrec.com): Disabled")
-    elif edhrec_ok:
+    elif sources.edhrec_ok:
         lines.append("- [EDHREC](https://edhrec.com): OK")
     else:
         lines.append("- [EDHREC](https://edhrec.com): Failed")
@@ -881,7 +782,6 @@ async def color_identity_staples(
     color_identity: str,
     *,
     bulk: ScryfallBulkClient,
-    edhrec: EDHRECClient | None = None,
     category: str | None = None,
     limit: int = 20,
     response_format: Literal["detailed", "concise"] = "detailed",
@@ -894,7 +794,6 @@ async def color_identity_staples(
     Args:
         color_identity: Color identity string (e.g. "sultai", "BUG", "mono-red").
         bulk: Initialized ScryfallBulkClient.
-        edhrec: Initialized EDHRECClient, or None if disabled.
         category: Optional card type filter (e.g. "creatures", "instants").
         limit: Maximum results to return.
         response_format: 'detailed' or 'concise'.

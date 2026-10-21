@@ -26,7 +26,7 @@ Given `/new-provider <name>`:
 
 ```python
 import structlog
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
+from mtg_mcp_server.services.base import BaseClient, ServiceError
 
 log = structlog.get_logger(service="<name>")
 
@@ -34,19 +34,9 @@ class <Name>Error(ServiceError): ...
 class <Name>NotFoundError(<Name>Error): ...
 
 class <Name>Client(BaseClient):
-    """<Name> API client."""
+    """<Name> API client. Construct with ``base_url`` from Settings."""
 
-    def __init__(
-        self,
-        base_url: str = "...",  # from Settings
-        rate_limit_rps: float = ...,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = ...  # override BaseClient default (10.0) if needed
 ```
 
 ### 2. Provider sub-server: `src/mtg_mcp_server/providers/<name>.py`

@@ -16,7 +16,6 @@ import respx
 
 from mtg_mcp_server.services.scryfall_bulk import (
     ScryfallBulkClient,
-    ScryfallBulkDownloadError,
     ScryfallBulkError,
 )
 
@@ -180,7 +179,7 @@ class TestRefreshFailure:
 
             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
             async with client:
-                with pytest.raises(ScryfallBulkDownloadError):
+                with pytest.raises(ScryfallBulkError):
                     await client.ensure_loaded()
 
     async def test_first_load_metadata_error_propagates(self):
@@ -190,7 +189,7 @@ class TestRefreshFailure:
 
             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
             async with client:
-                with pytest.raises(ScryfallBulkDownloadError):
+                with pytest.raises(ScryfallBulkError):
                     await client.ensure_loaded()
 
     async def test_refresh_failure_serves_stale_data(self):
@@ -665,13 +664,8 @@ class TestExceptionTypes:
         assert isinstance(err, ServiceError)
         assert err.status_code is None
 
-    async def test_download_error_is_bulk_error(self):
-        """ScryfallBulkDownloadError inherits from ScryfallBulkError."""
-        err = ScryfallBulkDownloadError("test")
-        assert isinstance(err, ScryfallBulkError)
-
-    async def test_network_error_raises_download_error(self):
-        """Network connection failure on metadata raises ScryfallBulkDownloadError."""
+    async def test_network_error_raises_scryfall_bulk_error(self):
+        """Network connection failure on metadata raises ScryfallBulkError."""
         with respx.mock:
             respx.get(f"{_BASE_URL}/bulk-data/oracle_cards").mock(
                 side_effect=httpx.ConnectError("Connection refused")
@@ -679,18 +673,18 @@ class TestExceptionTypes:
 
             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
             async with client:
-                with pytest.raises(ScryfallBulkDownloadError, match="Network error"):
+                with pytest.raises(ScryfallBulkError, match="Network error"):
                     await client.ensure_loaded()
 
     async def test_download_network_error_raises(self):
-        """Network failure during bulk data download raises ScryfallBulkDownloadError."""
+        """Network failure during bulk data download raises ScryfallBulkError."""
         with respx.mock:
             _mock_metadata_route(respx)
             respx.get(_DOWNLOAD_URL).mock(side_effect=httpx.ReadTimeout("Read timed out"))
 
             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
             async with client:
-                with pytest.raises(ScryfallBulkDownloadError, match="Network error"):
+                with pytest.raises(ScryfallBulkError, match="Network error"):
                     await client.ensure_loaded()
 
 
@@ -708,7 +702,7 @@ class TestMetadataValidation:
                     await client.ensure_loaded()
 
     async def test_non_json_metadata_raises(self):
-        """Non-JSON metadata response raises ScryfallBulkDownloadError."""
+        """Non-JSON metadata response raises ScryfallBulkError."""
         with respx.mock:
             respx.get(f"{_BASE_URL}/bulk-data/oracle_cards").mock(
                 return_value=httpx.Response(
@@ -718,7 +712,7 @@ class TestMetadataValidation:
 
             client = ScryfallBulkClient(base_url=_BASE_URL, refresh_hours=24)
             async with client:
-                with pytest.raises(ScryfallBulkDownloadError, match="not valid JSON"):
+                with pytest.raises(ScryfallBulkError, match="not valid JSON"):
                     await client.ensure_loaded()
 
 

@@ -39,8 +39,3 @@ def configure_logging(level: str = "INFO") -> None:
             logging.getLevelNamesMapping()[level_upper],
         ),
     )
-
-
-def get_logger(service: str) -> structlog.stdlib.BoundLogger:
-    """Return a structlog logger bound with the given service name."""
-    return structlog.get_logger(service=service)

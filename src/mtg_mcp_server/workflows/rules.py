@@ -34,32 +34,20 @@ _RULE_NUMBER_RE = re.compile(r"^\d+(\.\d+[a-z]*)*$")
 # Minimum word length to try as a keyword when extracting from scenario text
 _MIN_KEYWORD_LEN = 4
 
-# Common stop words to skip during scenario extraction
+# Common stop words to skip during scenario extraction (words shorter than
+# _MIN_KEYWORD_LEN are already dropped, so they are not listed)
 _STOP_WORDS = frozenset(
     {
-        "a",
-        "an",
-        "the",
-        "is",
-        "are",
-        "was",
         "were",
-        "be",
         "been",
         "being",
         "have",
-        "has",
-        "had",
-        "do",
         "does",
-        "did",
         "will",
         "would",
         "could",
         "should",
-        "may",
         "might",
-        "can",
         "shall",
         "with",
         "from",
@@ -68,8 +56,6 @@ _STOP_WORDS = frozenset(
         "this",
         "these",
         "those",
-        "it",
-        "its",
         "they",
         "them",
         "their",
@@ -77,27 +63,9 @@ _STOP_WORDS = frozenset(
         "when",
         "where",
         "which",
-        "who",
-        "how",
-        "not",
-        "and",
-        "but",
-        "or",
-        "if",
         "then",
         "than",
-        "for",
-        "to",
-        "of",
-        "in",
-        "on",
-        "at",
-        "by",
-        "as",
-        "all",
         "each",
-        "any",
-        "no",
         "some",
         "more",
         "other",
@@ -545,13 +513,7 @@ async def rules_scenario(
     # Extract candidate keywords from the scenario
     words = re.findall(r"[a-zA-Z]+", scenario.lower())
     candidates = [w for w in words if len(w) >= _MIN_KEYWORD_LEN and w not in _STOP_WORDS]
-    # Deduplicate while preserving order
-    seen: set[str] = set()
-    unique_candidates: list[str] = []
-    for w in candidates:
-        if w not in seen:
-            seen.add(w)
-            unique_candidates.append(w)
+    unique_candidates = list(dict.fromkeys(candidates))  # dedupe, keep order
 
     # Search rules for each candidate keyword
     all_rules: dict[str, list[Rule]] = {}

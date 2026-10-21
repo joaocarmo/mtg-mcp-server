@@ -9,8 +9,6 @@ from __future__ import annotations
 
 VALID_COLORS = frozenset({"W", "U", "B", "R", "G"})
 
-FIVE_COLOR = VALID_COLORS
-
 _NAMED_IDENTITIES: dict[str, frozenset[str]] = {
     # Guilds (two-color)
     "azorius": frozenset({"W", "U"}),
@@ -42,8 +40,8 @@ _NAMED_IDENTITIES: dict[str, frozenset[str]] = {
     "witch": frozenset({"W", "U", "B", "G"}),
     "yore": frozenset({"W", "U", "B", "R"}),
     # Five-color
-    "wubrg": FIVE_COLOR,
-    "5c": FIVE_COLOR,
+    "wubrg": VALID_COLORS,
+    "5c": VALID_COLORS,
     # Color words
     "white": frozenset({"W"}),
     "blue": frozenset({"U"}),

@@ -16,7 +16,7 @@ from cachetools import TTLCache
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _method_key, async_cached
+from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import (
     GoldfishArchetype,
     GoldfishArchetypeDetail,
@@ -76,10 +76,6 @@ class MTGGoldfishClient(BaseClient):
     Scrapes HTML pages for metagame breakdowns, archetype details,
     format staples, and deck prices. Uses selectolax for fast HTML
     parsing with defensive extraction patterns.
-
-    Args:
-        base_url: MTGGoldfish base URL.
-        rate_limit_rps: Max requests per second (0.5 = conservative for scraped sites).
     """
 
     # Cache TTLs match the data change frequency:
@@ -88,16 +84,8 @@ class MTGGoldfishClient(BaseClient):
     _staples_cache: TTLCache = TTLCache(maxsize=50, ttl=43200)  # 12h
     _price_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)  # 24h
 
-    def __init__(
-        self,
-        base_url: str = "https://www.mtggoldfish.com",
-        rate_limit_rps: float = 0.5,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=_BROWSER_UA,
-        )
+    rate_limit_rps = 0.5  # conservative for a scraped site
+    user_agent = _BROWSER_UA
 
     async def __aenter__(self) -> Self:
         """Override Accept header for HTML scraping.
@@ -113,7 +101,7 @@ class MTGGoldfishClient(BaseClient):
             )
         return self
 
-    @async_cached(_metagame_cache, key=_method_key)
+    @async_cached(_metagame_cache)
     async def get_metagame(self, format: str) -> GoldfishMetaSnapshot:
         """Get metagame breakdown for a format.
 
@@ -150,7 +138,7 @@ class MTGGoldfishClient(BaseClient):
             total_decks=total_decks,
         )
 
-    @async_cached(_archetype_cache, key=_method_key)
+    @async_cached(_archetype_cache)
     async def get_archetype(self, format: str, archetype: str) -> GoldfishArchetypeDetail:
         """Get archetype detail with decklist.
 
@@ -217,7 +205,7 @@ class MTGGoldfishClient(BaseClient):
         )
         return detail
 
-    @async_cached(_staples_cache, key=_method_key)
+    @async_cached(_staples_cache)
     async def get_format_staples(self, format: str, limit: int = 20) -> list[GoldfishFormatStaple]:
         """Get most-played cards in a format.
 
@@ -253,7 +241,7 @@ class MTGGoldfishClient(BaseClient):
         log.debug("get_format_staples.complete", format=format, count=len(staples))
         return staples
 
-    @async_cached(_price_cache, key=_method_key)
+    @async_cached(_price_cache)
     async def get_deck_price(self, format: str, archetype: str) -> GoldfishDeckPrice:
         """Get price metadata for an archetype.
 

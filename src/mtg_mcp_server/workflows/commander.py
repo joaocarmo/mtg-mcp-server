@@ -136,7 +136,6 @@ def _format_synergy_section(synergy: EDHRECCard | None, commander_name: str) -> 
 
 def _source_status(
     *,
-    scryfall_ok: bool,
     spellbook_ok: bool,
     spellbook_error: str | None,
     edhrec_ok: bool | None,
@@ -146,8 +145,7 @@ def _source_status(
     """Build the Data Sources footer section with attribution."""
     lines = ["", "---", "**Data Sources:**"]
 
-    scryfall_status = "OK" if scryfall_ok else "Failed"
-    lines.append(f"- [Scryfall](https://scryfall.com): {scryfall_status}")
+    lines.append("- [Scryfall](https://scryfall.com): OK")
 
     if spellbook_ok:
         lines.append("- [Commander Spellbook](https://commanderspellbook.com): OK")
@@ -314,7 +312,6 @@ async def commander_overview(
 
         lines.extend(
             _source_status(
-                scryfall_ok=True,
                 spellbook_ok=spellbook_ok,
                 spellbook_error=spellbook_error,
                 edhrec_ok=edhrec_ok,
@@ -491,7 +488,6 @@ async def evaluate_upgrade(
 
         lines.extend(
             _source_status(
-                scryfall_ok=True,
                 spellbook_ok=spellbook_ok,
                 spellbook_error=spellbook_error,
                 edhrec_ok=edhrec_ok,
@@ -660,7 +656,6 @@ async def card_comparison(
     if response_format != "concise":
         lines.extend(
             _source_status(
-                scryfall_ok=True,
                 spellbook_ok=spellbook_ok,
                 spellbook_error=spellbook_error_msg,
                 edhrec_ok=edhrec_ok,

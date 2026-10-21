@@ -9,7 +9,7 @@ import httpx
 import pytest
 import respx
 
-from mtg_mcp_server.services.rules import RulesService
+from mtg_mcp_server.services.rules import RulesError, RulesService
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "rules"
 
@@ -376,34 +376,6 @@ class TestListSections:
 
 
 # ---------------------------------------------------------------------------
-# section_rules
-# ---------------------------------------------------------------------------
-
-
-class TestSectionRules:
-    """Return all rules starting with a section prefix."""
-
-    async def test_returns_matching_rules(self, service: RulesService) -> None:
-        """Returns rules for a given section prefix."""
-        rules = await service.section_rules("704")
-        assert len(rules) > 0
-        for rule in rules:
-            assert rule.number.startswith("704")
-
-    async def test_single_digit_prefix(self, service: RulesService) -> None:
-        """Works with a single-digit section prefix."""
-        rules = await service.section_rules("100")
-        assert len(rules) > 0
-        for rule in rules:
-            assert rule.number.startswith("100")
-
-    async def test_empty_for_unknown_section(self, service: RulesService) -> None:
-        """Returns empty list for a non-existent section."""
-        rules = await service.section_rules("999")
-        assert rules == []
-
-
-# ---------------------------------------------------------------------------
 # Lazy loading
 # ---------------------------------------------------------------------------
 
@@ -417,10 +389,10 @@ class TestLazyLoading:
             route = _mock_rules_download(respx)
             svc = RulesService(rules_url=_RULES_URL, refresh_hours=168)
             # Not loaded yet
-            assert not svc._loaded
+            assert svc._loaded_at == 0.0
             # Access triggers load
             await svc.lookup_by_number("100.1")
-            assert svc._loaded
+            assert svc._loaded_at != 0.0
             assert route.called
 
     async def test_second_access_no_redownload(self) -> None:
@@ -467,8 +439,7 @@ class TestStaleData:
         # Now simulate a failed refresh by mocking a 500 error
         with respx.mock:
             _mock_rules_download(respx, status_code=500)
-            # Force stale by setting loaded_at to the past
-            svc._loaded_at = 0.0
+            # refresh_hours=0, so the loaded data is already stale
             # Should not raise — serves stale data
             await svc.ensure_loaded()
             # Data is still available
@@ -483,12 +454,12 @@ class TestStaleData:
             with pytest.raises(Exception, match="HTTP 500"):
                 await svc.ensure_loaded()
 
-    async def test_network_error_raises_download_error(self) -> None:
-        """Network-level failure (connection refused, DNS timeout) raises RulesDownloadError."""
+    async def test_network_error_raises_rules_error(self) -> None:
+        """Network-level failure (connection refused, DNS timeout) raises RulesError."""
         with respx.mock:
             respx.get(_RULES_URL).mock(side_effect=httpx.ConnectError("connection refused"))
             svc = RulesService(rules_url=_RULES_URL, refresh_hours=168)
-            with pytest.raises(Exception, match="Network error"):
+            with pytest.raises(RulesError, match="Network error"):
                 await svc.ensure_loaded()
 
     async def test_network_error_on_refresh_serves_stale(self) -> None:
@@ -502,7 +473,6 @@ class TestStaleData:
 
         with respx.mock:
             respx.get(_RULES_URL).mock(side_effect=httpx.ConnectError("connection refused"))
-            svc._loaded_at = 0.0
             await svc.ensure_loaded()
             rule = await svc.lookup_by_number("100.1")
             assert rule is not None

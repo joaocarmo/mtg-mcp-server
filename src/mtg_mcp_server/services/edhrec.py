@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 
 from cachetools import TTLCache
 
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _method_key, async_cached
+from mtg_mcp_server.services.base import BaseClient, ServiceError
+from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import EDHRECCard, EDHRECCardList, EDHRECCommanderData
 from mtg_mcp_server.utils.formatters import slugify
 
@@ -47,35 +47,15 @@ class EDHRECClient(BaseClient):
 
     These endpoints are undocumented and fragile. Use defensive parsing
     with ``.get()`` chains and default to empty values when fields are missing.
-
-    Args:
-        base_url: EDHREC JSON endpoint base URL.
-        rate_limit_rps: Max requests per second (0.5 = 1 req per 2 sec).
-        user_agent: User-Agent header value.
     """
 
     # Aggressive 24h cache — EDHREC data updates daily and endpoints are fragile.
     _commander_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)  # 24h
     _synergy_cache: TTLCache = TTLCache(maxsize=200, ttl=86400)  # 24h
 
-    def __init__(
-        self,
-        base_url: str = "https://json.edhrec.com",
-        rate_limit_rps: float = 0.5,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = 0.5  # 1 req per 2 sec
 
-    @staticmethod
-    def _slugify(name: str) -> str:
-        """Convert a card name to an EDHREC URL slug."""
-        return slugify(name)
-
-    @async_cached(_commander_cache, key=_method_key)
+    @async_cached(_commander_cache)
     async def commander_top_cards(
         self, commander_name: str, category: str | None = None
     ) -> EDHRECCommanderData:
@@ -93,7 +73,7 @@ class EDHRECClient(BaseClient):
             CommanderNotFoundError: If the commander page doesn't exist.
             EDHRECError: On other API errors.
         """
-        slug = self._slugify(commander_name)
+        slug = slugify(commander_name)
         try:
             response = await self._get(f"/pages/commanders/{slug}.json")
         except ServiceError as exc:
@@ -106,7 +86,7 @@ class EDHRECClient(BaseClient):
         data = response.json()
         return self._parse_commander_data(data, commander_name, category)
 
-    @async_cached(_synergy_cache, key=_method_key)
+    @async_cached(_synergy_cache)
     async def card_synergy(self, card_name: str, commander_name: str) -> EDHRECCard | None:
         """Get synergy data for a specific card with a commander.
 

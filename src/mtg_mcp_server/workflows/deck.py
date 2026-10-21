@@ -19,7 +19,7 @@ log = structlog.get_logger(service="workflow.deck")
 
 
 @dataclass
-class _CardScore:
+class CardScore:
     """Scoring data for a single card in the decklist."""
 
     name: str
@@ -32,7 +32,7 @@ class _CardScore:
 
 
 @dataclass
-class _DataSources:
+class DataSources:
     """Track which data sources succeeded or failed."""
 
     spellbook_ok: bool = False
@@ -67,21 +67,21 @@ async def suggest_cuts(
             data={"commander_name": commander_name, "cuts": []},
         )
 
-    sources = _DataSources(edhrec_available=edhrec is not None)
+    sources = DataSources(edhrec_available=edhrec is not None)
 
     # -- 1. Gather data concurrently ------------------------------------------
-    combo_data, edhrec_data = await _fetch_data(
+    combo_data, edhrec_data = await fetch_data(
         decklist, commander_name, spellbook=spellbook, edhrec=edhrec, sources=sources
     )
 
     # -- 2. Extract combo pieces -----------------------------------------------
-    combo_pieces = _extract_combo_pieces(combo_data)
+    combo_pieces = extract_combo_pieces(combo_data)
 
     # -- 3. Build synergy lookup -----------------------------------------------
     synergy_lookup = build_synergy_lookup(edhrec_data)
 
     # -- 4. Score each card ----------------------------------------------------
-    scored = _score_cards(decklist, combo_pieces, synergy_lookup, sources)
+    scored = score_cards(decklist, combo_pieces, synergy_lookup)
 
     # -- 5. Sort by cuttability descending and cap -----------------------------
     scored.sort(key=lambda c: c.cuttability, reverse=True)
@@ -112,46 +112,27 @@ async def suggest_cuts(
     return WorkflowResult(markdown=markdown, data=data)
 
 
-async def _fetch_spellbook(
-    spellbook: SpellbookClient,
-    commander_name: str,
-    decklist: list[str],
-) -> DecklistCombos | BaseException:
-    """Fetch Spellbook data, returning the exception on failure."""
-    try:
-        return await spellbook.find_decklist_combos([commander_name], decklist)
-    except Exception as exc:
-        return exc
-
-
-async def _fetch_edhrec(
-    edhrec: EDHRECClient,
-    commander_name: str,
-) -> EDHRECCommanderData | BaseException:
-    """Fetch EDHREC data, returning the exception on failure."""
-    try:
-        return await edhrec.commander_top_cards(commander_name)
-    except Exception as exc:
-        return exc
-
-
-async def _fetch_data(
+async def fetch_data(
     decklist: list[str],
     commander_name: str,
     *,
     spellbook: SpellbookClient,
     edhrec: EDHRECClient | None,
-    sources: _DataSources,
+    sources: DataSources,
 ) -> tuple[DecklistCombos | None, EDHRECCommanderData | None]:
     """Fetch Spellbook and EDHREC data concurrently, tolerating failures."""
-    spellbook_coro = _fetch_spellbook(spellbook, commander_name, decklist)
-
-    if edhrec is not None:
-        edhrec_coro = _fetch_edhrec(edhrec, commander_name)
-        spellbook_result, edhrec_result = await asyncio.gather(spellbook_coro, edhrec_coro)
+    spellbook_coro = spellbook.find_decklist_combos([commander_name], decklist)
+    edhrec_result: EDHRECCommanderData | BaseException | None = None
+    if edhrec is None:
+        (spellbook_result,) = await asyncio.gather(spellbook_coro, return_exceptions=True)
     else:
-        spellbook_result = await spellbook_coro
-        edhrec_result = None
+        spellbook_result, edhrec_result = await asyncio.gather(
+            spellbook_coro, edhrec.commander_top_cards(commander_name), return_exceptions=True
+        )
+    # Only Exceptions are tolerated; let cancellation and other BaseExceptions propagate.
+    for result in (spellbook_result, edhrec_result):
+        if isinstance(result, BaseException) and not isinstance(result, Exception):
+            raise result
 
     # Process spellbook result
     combo_data: DecklistCombos | None = None
@@ -183,7 +164,7 @@ async def _fetch_data(
     return combo_data, edhrec_data
 
 
-def _extract_combo_pieces(combo_data: DecklistCombos | None) -> set[str]:
+def extract_combo_pieces(combo_data: DecklistCombos | None) -> set[str]:
     """Extract lowercased card names from included combos."""
     pieces: set[str] = set()
     if combo_data is None:
@@ -207,17 +188,16 @@ def build_synergy_lookup(
     return lookup
 
 
-def _score_cards(
+def score_cards(
     decklist: list[str],
     combo_pieces: set[str],
     synergy_lookup: dict[str, EDHRECCard],
-    sources: _DataSources,
-) -> list[_CardScore]:
+) -> list[CardScore]:
     """Score each card in the decklist for cuttability."""
-    scored: list[_CardScore] = []
+    scored: list[CardScore] = []
 
     for card_name in decklist:
-        cs = _CardScore(name=card_name)
+        cs = CardScore(name=card_name)
         key = card_name.lower()
 
         # EDHREC data
@@ -258,8 +238,8 @@ def _score_cards(
 
 def _format_output(
     commander_name: str,
-    top_cuts: list[_CardScore],
-    sources: _DataSources,
+    top_cuts: list[CardScore],
+    sources: DataSources,
     *,
     response_format: Literal["detailed", "concise"] = "detailed",
 ) -> str:

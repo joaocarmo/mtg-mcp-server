@@ -125,24 +125,6 @@ class TestSearchCards:
                 await client.search_cards("xyzzy_nonexistent")
 
 
-class TestGetCardById:
-    """Card lookup by Scryfall UUID."""
-
-    @respx.mock
-    async def test_returns_card(self):
-        """ID lookup returns the correct Card model."""
-        fixture = _load_fixture("card_sol_ring.json")
-        card_id = fixture["id"]
-        respx.get(f"{BASE_URL}/cards/{card_id}").mock(
-            return_value=httpx.Response(200, json=fixture)
-        )
-        async with ScryfallClient(base_url=BASE_URL) as client:
-            card = await client.get_card_by_id(card_id)
-
-        assert isinstance(card, Card)
-        assert card.name == "Sol Ring"
-
-
 class TestGetRulings:
     """Official card rulings retrieval."""
 

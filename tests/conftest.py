@@ -23,7 +23,6 @@ def _clear_caches():
     a cached success from the happy-path test that ran first).
     """
     ScryfallClient._card_name_cache.clear()
-    ScryfallClient._card_id_cache.clear()
     ScryfallClient._search_cache.clear()
     ScryfallClient._rulings_cache.clear()
     ScryfallClient._sets_cache.clear()
