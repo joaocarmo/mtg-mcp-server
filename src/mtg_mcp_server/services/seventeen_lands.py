@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from cachetools import TTLCache
 
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
+from mtg_mcp_server.services.base import BaseClient, ServiceError
 from mtg_mcp_server.services.cache import _method_key, async_cached
 from mtg_mcp_server.types import ArchetypeRating, DraftCardRating
 
@@ -29,27 +29,12 @@ class SeventeenLandsClient(BaseClient):
 
     Rate limit is aggressive (1 req/sec max). All responses are cached with
     a 4-hour TTL to minimize API pressure.
-
-    Args:
-        base_url: 17Lands base URL.
-        rate_limit_rps: Max requests per second (default 1.0).
-        user_agent: User-Agent header value.
     """
 
     _card_ratings_cache: TTLCache = TTLCache(maxsize=20, ttl=14400)  # 4h
     _color_ratings_cache: TTLCache = TTLCache(maxsize=20, ttl=14400)  # 4h
 
-    def __init__(
-        self,
-        base_url: str = "https://www.17lands.com",
-        rate_limit_rps: float = 1.0,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = 1.0
 
     @async_cached(_card_ratings_cache, key=_method_key)
     async def card_ratings(

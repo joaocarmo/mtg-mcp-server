@@ -76,10 +76,6 @@ class MTGGoldfishClient(BaseClient):
     Scrapes HTML pages for metagame breakdowns, archetype details,
     format staples, and deck prices. Uses selectolax for fast HTML
     parsing with defensive extraction patterns.
-
-    Args:
-        base_url: MTGGoldfish base URL.
-        rate_limit_rps: Max requests per second (0.5 = conservative for scraped sites).
     """
 
     # Cache TTLs match the data change frequency:
@@ -88,16 +84,8 @@ class MTGGoldfishClient(BaseClient):
     _staples_cache: TTLCache = TTLCache(maxsize=50, ttl=43200)  # 12h
     _price_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)  # 24h
 
-    def __init__(
-        self,
-        base_url: str = "https://www.mtggoldfish.com",
-        rate_limit_rps: float = 0.5,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=_BROWSER_UA,
-        )
+    rate_limit_rps = 0.5  # conservative for a scraped site
+    user_agent = _BROWSER_UA
 
     async def __aenter__(self) -> Self:
         """Override Accept header for HTML scraping.

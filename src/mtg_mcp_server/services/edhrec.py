@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from cachetools import TTLCache
 
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
+from mtg_mcp_server.services.base import BaseClient, ServiceError
 from mtg_mcp_server.services.cache import _method_key, async_cached
 from mtg_mcp_server.types import EDHRECCard, EDHRECCardList, EDHRECCommanderData
 from mtg_mcp_server.utils.formatters import slugify
@@ -47,28 +47,13 @@ class EDHRECClient(BaseClient):
 
     These endpoints are undocumented and fragile. Use defensive parsing
     with ``.get()`` chains and default to empty values when fields are missing.
-
-    Args:
-        base_url: EDHREC JSON endpoint base URL.
-        rate_limit_rps: Max requests per second (0.5 = 1 req per 2 sec).
-        user_agent: User-Agent header value.
     """
 
     # Aggressive 24h cache — EDHREC data updates daily and endpoints are fragile.
     _commander_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)  # 24h
     _synergy_cache: TTLCache = TTLCache(maxsize=200, ttl=86400)  # 24h
 
-    def __init__(
-        self,
-        base_url: str = "https://json.edhrec.com",
-        rate_limit_rps: float = 0.5,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = 0.5  # 1 req per 2 sec
 
     @async_cached(_commander_cache, key=_method_key)
     async def commander_top_cards(

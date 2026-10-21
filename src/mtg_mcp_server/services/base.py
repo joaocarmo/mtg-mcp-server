@@ -92,28 +92,28 @@ class BaseClient:
 
     Use as an async context manager::
 
-        async with ScryfallClient() as client:
+        async with ScryfallClient(base_url="https://api.scryfall.com") as client:
             card = await client.get_card_by_name("Sol Ring")
+
+    Subclasses override the ``rate_limit_rps`` and ``user_agent`` class attributes.
 
     Args:
         base_url: API base URL (prepended to all request paths).
-        rate_limit_rps: Maximum requests per second.
-        user_agent: User-Agent header sent with every request.
+        rate_limit_rps: Maximum requests per second (overrides the class default).
         timeout: Request timeout in seconds.
     """
 
+    rate_limit_rps: float = 10.0
+    user_agent: str = DEFAULT_USER_AGENT
+
     def __init__(
-        self,
-        base_url: str,
-        rate_limit_rps: float = 10.0,
-        user_agent: str = DEFAULT_USER_AGENT,
-        timeout: float = 30.0,
+        self, base_url: str, rate_limit_rps: float | None = None, timeout: float = 30.0
     ) -> None:
-        if rate_limit_rps <= 0:
-            raise ValueError(f"rate_limit_rps must be positive, got {rate_limit_rps}")
+        if rate_limit_rps is not None:
+            self.rate_limit_rps = rate_limit_rps
+        if self.rate_limit_rps <= 0:
+            raise ValueError(f"rate_limit_rps must be positive, got {self.rate_limit_rps}")
         self._base_url = base_url
-        self._rate_limit_rps = rate_limit_rps
-        self._user_agent = user_agent
         self._timeout = timeout
         # Semaphore(1) serializes requests to enforce rate limiting
         self._semaphore = asyncio.Semaphore(1)
@@ -128,7 +128,7 @@ class BaseClient:
             base_url=self._base_url,
             timeout=self._timeout,
             headers={
-                "User-Agent": self._user_agent,
+                "User-Agent": self.user_agent,
                 "Accept": "application/json",
             },
         )
@@ -172,7 +172,7 @@ class BaseClient:
             )
 
         async with self._semaphore:
-            min_interval = 1.0 / self._rate_limit_rps
+            min_interval = 1.0 / self.rate_limit_rps
             start = time.monotonic()
             try:
                 response = await self._client.request(method, path, **kwargs)

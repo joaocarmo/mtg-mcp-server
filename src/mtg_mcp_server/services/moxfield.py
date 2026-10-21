@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import structlog
 from cachetools import TTLCache
 
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
+from mtg_mcp_server.services.base import BaseClient, ServiceError
 from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import (
     MoxfieldCard,
@@ -67,11 +67,6 @@ class MoxfieldClient(BaseClient):
     Endpoints are reverse-engineered and may break without notice.  Use
     defensive parsing with ``.get()`` chains and ``isinstance`` checks at
     every nesting level.
-
-    Args:
-        base_url: Moxfield API base URL.
-        rate_limit_rps: Max requests per second.
-        user_agent: User-Agent header value.
     """
 
     # 4h cache — decklists change infrequently during a session.
@@ -81,17 +76,7 @@ class MoxfieldClient(BaseClient):
     # 4h cache — user profiles rarely change.
     _user_search_cache: TTLCache = TTLCache(maxsize=100, ttl=14400)
 
-    def __init__(
-        self,
-        base_url: str = "https://api2.moxfield.com",
-        rate_limit_rps: float = 1.0,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = 1.0
 
     @staticmethod
     def extract_deck_id(deck_id_or_url: str) -> str:

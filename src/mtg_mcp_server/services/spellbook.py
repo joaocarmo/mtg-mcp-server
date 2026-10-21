@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from cachetools import TTLCache
 
-from mtg_mcp_server.services.base import DEFAULT_USER_AGENT, BaseClient, ServiceError
+from mtg_mcp_server.services.base import BaseClient, ServiceError
 from mtg_mcp_server.services.cache import _decklist_key, _method_key, async_cached
 from mtg_mcp_server.types import BracketEstimate, Combo, ComboCard, ComboResult, DecklistCombos
 
@@ -92,12 +92,7 @@ def _build_decklist_body(commanders: list[str], decklist: list[str]) -> dict:
 
 
 class SpellbookClient(BaseClient):
-    """Async client for the Commander Spellbook REST API.
-
-    Args:
-        base_url: Spellbook API base URL.
-        rate_limit_rps: Max requests per second.
-    """
+    """Async client for the Commander Spellbook REST API."""
 
     # Combo data changes infrequently (24h TTL).
     # Decklist analysis results are less cacheable (12h TTL) since users
@@ -107,17 +102,7 @@ class SpellbookClient(BaseClient):
     _decklist_combos_cache: TTLCache = TTLCache(maxsize=50, ttl=43200)  # 12h
     _bracket_cache: TTLCache = TTLCache(maxsize=50, ttl=43200)  # 12h
 
-    def __init__(
-        self,
-        base_url: str = "https://backend.commanderspellbook.com",
-        rate_limit_rps: float = 3.0,
-        user_agent: str = DEFAULT_USER_AGENT,
-    ) -> None:
-        super().__init__(
-            base_url=base_url,
-            rate_limit_rps=rate_limit_rps,
-            user_agent=user_agent,
-        )
+    rate_limit_rps = 3.0
 
     @async_cached(_combos_cache, key=_method_key)
     async def find_combos(
