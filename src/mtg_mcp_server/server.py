@@ -78,7 +78,7 @@ mcp = FastMCP(
         "- rules_interaction: How two mechanics interact under the rules\n"
         "- rules_scenario: Resolve a game scenario with rule citations\n"
         "- combat_calculator: Step-by-step combat with keyword interactions\n\n"
-        "Resources (mtg:// URIs) provide cached card, combo, and rating data.\n"
+        "Resources (mtg:// URIs) provide Comprehensive Rules text and theme mappings.\n"
         "Prompts guide multi-step analysis workflows.\n\n"
         "mtg-mcp-server is unofficial Fan Content permitted under the Fan Content Policy. "
         "Not approved/endorsed by Wizards. Portions of the materials used are "

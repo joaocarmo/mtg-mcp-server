@@ -394,31 +394,17 @@ class TestMiddlewareConfig:
 
 
 class TestResourcePropagation:
-    """Verify resource templates from mounted backends are visible on the orchestrator."""
+    """Verify resource templates are visible on the orchestrator."""
 
     async def test_all_resource_templates_listed(self, mcp_client: Client):
-        """All resource templates from backend providers are accessible."""
+        """All resource templates are accessible on the orchestrator."""
         templates = await mcp_client.list_resource_templates()
         uri_set = {t.uriTemplate for t in templates}
 
-        # When mounted with a namespace, FastMCP may transform URIs.
-        # Check that each backend's resource is represented.
         expected_fragments = [
-            "card/{name}",  # Scryfall card
-            "rulings",  # Scryfall rulings
-            "set/{code}",  # Scryfall set
-            "combo/{combo_id}",  # Spellbook combo
-            "ratings",  # 17Lands ratings
-            "staples",  # EDHREC staples
-            "card-data/{name}",  # Scryfall bulk card-data
-            "format/{format}",  # Bulk format resources
-            "similar",  # Bulk similar cards
             "rules/{number}",  # Rules by number
             "glossary/{term}",  # Rules glossary
             "theme/{theme}",  # Theme search
-            "tribe/{tribe}",  # Tribal staples
-            "signals",  # Draft signals
-            "moxfield/",  # Moxfield deck
             # rules/keywords and rules/sections are static (no URI params)
             # so they appear in list_resources(), not list_resource_templates()
         ]
@@ -429,10 +415,10 @@ class TestResourcePropagation:
             )
 
     async def test_resource_template_count(self, mcp_client: Client):
-        """At least 18 resource templates are registered (20 total minus 2 static)."""
+        """3 resource templates are registered (5 total minus 2 static)."""
         templates = await mcp_client.list_resource_templates()
-        assert len(templates) >= 18, (
-            f"Expected >= 18 resource templates, got {len(templates)}.\n"
+        assert len(templates) == 3, (
+            f"Expected 3 resource templates, got {len(templates)}.\n"
             f"Templates: {[t.uriTemplate for t in templates]}"
         )
 

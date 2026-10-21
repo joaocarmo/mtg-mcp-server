@@ -5,10 +5,8 @@ Uses undocumented EDHREC endpoints. Behind the MTG_MCP_ENABLE_EDHREC feature fla
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
-import structlog
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
@@ -38,8 +36,6 @@ async def edhrec_lifespan(server: FastMCP):
 
 
 edhrec_mcp = FastMCP("EDHREC", lifespan=edhrec_lifespan, mask_error_details=True)
-
-log = structlog.get_logger(provider="edhrec")
 
 
 def _get_client() -> EDHRECClient:
@@ -194,23 +190,3 @@ def _inclusion_pct(num_decks: int, total_decks: int) -> str:
     if total_decks == 0:
         return "0"
     return f"{num_decks / total_decks * 100:.1f}"
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@edhrec_mcp.resource("mtg://commander/{name}/staples")
-async def commander_staples_resource(name: str) -> str:
-    """Get commander staples data as JSON."""
-    client = _get_client()
-    try:
-        data = await client.commander_top_cards(name)
-        return data.model_dump_json()
-    except CommanderNotFoundError:
-        log.debug("resource.commander_not_found", name=name)
-        return json.dumps({"error": f"Commander not found: {name}"})
-    except EDHRECError as exc:
-        log.warning("resource.staples_error", name=name, error=str(exc))
-        return json.dumps({"error": f"EDHREC error: {exc}"})

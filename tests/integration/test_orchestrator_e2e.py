@@ -110,19 +110,6 @@ class TestNewWorkflowTools:
         assert "Sol Ring" in text
 
 
-class TestNewResourcesE2E:
-    """New resources are visible on the orchestrator."""
-
-    async def test_new_resources_listed(self, mcp_client: Client):
-        """New resource templates appear in the resource list."""
-        resources = await mcp_client.list_resource_templates()
-        uris = {r.uriTemplate for r in resources}
-        assert "mtg://bulk/format/{format}/legal-cards" in uris
-        assert "mtg://bulk/format/{format}/banned" in uris
-        assert "mtg://bulk/card/{name}/formats" in uris
-        assert "mtg://scryfall/set/{code}" in uris
-
-
 class TestNewPromptsE2E:
     """New prompts are visible on the orchestrator."""
 

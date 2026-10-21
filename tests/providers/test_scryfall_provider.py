@@ -54,7 +54,6 @@ class TestSearchCards:
         assert sc["total_cards"] == 9273
         assert isinstance(sc["cards"], list)
         assert sc["showing"] == len(sc["cards"])
-        assert sc["card_detail_uri_template"] == "mtg://card/{name}"
         # Cards use slim fields, not full model_dump
         card = sc["cards"][0]
         assert "name" in card

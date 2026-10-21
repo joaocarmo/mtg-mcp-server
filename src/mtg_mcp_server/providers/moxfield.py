@@ -6,10 +6,8 @@ feature flag. These endpoints may break without notice.
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
-import structlog
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
@@ -38,8 +36,6 @@ async def moxfield_lifespan(server: FastMCP):
 
 
 moxfield_mcp = FastMCP("Moxfield", lifespan=moxfield_lifespan, mask_error_details=True)
-
-log = structlog.get_logger(provider="moxfield")
 
 
 def _get_client() -> MoxfieldClient:
@@ -280,23 +276,3 @@ async def user_decks(
         content="\n".join(lines) + ATTRIBUTION_MOXFIELD,
         structured_content=structured,
     )
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@moxfield_mcp.resource("mtg://moxfield/{deck_id}")
-async def moxfield_deck_resource(deck_id: str) -> str:
-    """Get Moxfield deck data as JSON."""
-    client = _get_client()
-    try:
-        result = await client.get_deck(deck_id)
-        return result.model_dump_json()
-    except DeckNotFoundError:
-        log.debug("resource.deck_not_found", deck_id=deck_id)
-        return json.dumps({"error": f"Deck not found: {deck_id}"})
-    except MoxfieldError as exc:
-        log.warning("resource.deck_error", deck_id=deck_id, error=str(exc))
-        return json.dumps({"error": f"Moxfield error: {exc}"})

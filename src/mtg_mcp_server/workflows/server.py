@@ -1924,15 +1924,3 @@ async def get_theme_mappings(theme: str) -> dict[str, object]:
         mapping = building_wf.THEME_MAPPINGS[theme_lower]
         return {"theme": theme, "patterns": {k: v for k, v in mapping.items()}}
     return {"theme": theme, "available_themes": sorted(building_wf.THEME_MAPPINGS.keys())}
-
-
-@workflow_mcp.resource("mtg://tribe/{tribe}/staples")
-async def get_tribe_staples(tribe: str) -> dict[str, object]:
-    """Top cards for a creature type — requires bulk data at runtime."""
-    return {"tribe": tribe, "note": "Use the tribal_staples tool for full results"}
-
-
-@workflow_mcp.resource("mtg://draft/{set_code}/signals")
-async def get_draft_signals(set_code: str) -> dict[str, object]:
-    """Color openness heuristics — requires 17Lands data at runtime."""
-    return {"set_code": set_code, "note": "Use the draft_signal_read tool for full results"}

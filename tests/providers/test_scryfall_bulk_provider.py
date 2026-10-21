@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -326,27 +325,6 @@ class TestCardSearch:
         assert isinstance(sc, dict)
         assert sc["query"] == "Sol"
         assert isinstance(sc["cards"], list)
-
-
-class TestResourceErrors:
-    """Test card_data_resource error and not-found paths."""
-
-    async def test_resource_card_not_found(self, client_with_data: Client):
-        """Resource returns error JSON when card is not found."""
-        import json as _json
-
-        result = await client_with_data.read_resource("mtg://card-data/nonexistent")
-        data = _json.loads(result[0].text)
-        assert "error" in data
-        assert "not found" in data["error"].lower()
-
-    async def test_resource_returns_card_json(self, client_with_data: Client):
-        """Resource returns valid card JSON for a known card."""
-        import json as _json
-
-        result = await client_with_data.read_resource("mtg://card-data/Sol Ring")
-        data = _json.loads(result[0].text)
-        assert data["name"] == "Sol Ring"
 
 
 class TestLegalitiesFormatting:
@@ -1338,75 +1316,6 @@ class TestCardLookupLegalities:
         assert "Legalities: commander" in text
         assert "Banned: modern" in text
         assert "Restricted: vintage" in text
-
-
-# ---------------------------------------------------------------------------
-# Resource tests
-# ---------------------------------------------------------------------------
-
-
-class TestNewResources:
-    """Tests for the 4 new resources."""
-
-    async def test_format_legal_cards_resource(self):
-        """format legal cards resource returns JSON with count."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.read_resource("mtg://format/commander/legal-cards")
-        data = json.loads(result[0].text)
-        assert data["format"] == "commander"
-        assert isinstance(data["legal_card_count"], int)
-        assert data["legal_card_count"] > 0
-
-    async def test_format_banned_resource(self):
-        """format banned resource returns JSON list of banned cards."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.read_resource("mtg://format/modern/banned")
-        data = json.loads(result[0].text)
-        assert isinstance(data, list)
-        assert any(c["name"] == "Sol Ring" for c in data)
-
-    async def test_card_formats_resource(self):
-        """card formats resource returns legalities dict."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.read_resource("mtg://card/Sol Ring/formats")
-        data = json.loads(result[0].text)
-        assert data["commander"] == "legal"
-
-    async def test_card_formats_resource_not_found(self):
-        """card formats resource returns error for unknown card."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.read_resource("mtg://card/nonexistent/formats")
-        data = json.loads(result[0].text)
-        assert "error" in data
-
-    async def test_card_similar_resource(self):
-        """card similar resource returns JSON list with scores."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.read_resource("mtg://card/Lightning Bolt/similar")
-        data = json.loads(result[0].text)
-        assert isinstance(data, list)
-        if data:
-            assert "name" in data[0]
-            assert "score" in data[0]
-
-    async def test_card_similar_resource_not_found(self):
-        """card similar resource returns error for unknown card."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.read_resource("mtg://card/nonexistent/similar")
-        data = json.loads(result[0].text)
-        assert "error" in data
 
 
 # ---------------------------------------------------------------------------

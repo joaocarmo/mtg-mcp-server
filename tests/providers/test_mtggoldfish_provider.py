@@ -459,44 +459,6 @@ class TestToolRegistration:
 
 
 # ---------------------------------------------------------------------------
-# Resource
-# ---------------------------------------------------------------------------
-
-
-class TestResource:
-    """MTGGoldfish resource template behavior."""
-
-    async def test_resource_template_registered(self, client: Client):
-        """Metagame resource template is registered on the provider."""
-        templates = await client.list_resource_templates()
-        template_uris = {t.uriTemplate for t in templates}
-        assert "mtg://metagame/{format}" in template_uris
-
-    async def test_resource_returns_valid_json(self, client: Client):
-        """Metagame resource returns parseable JSON with archetypes."""
-        import json
-
-        result = await client.read_resource("mtg://metagame/Modern")
-        data = json.loads(result[0].text)
-        assert "format" in data
-        assert "archetypes" in data
-        assert len(data["archetypes"]) == 3
-
-    async def test_resource_format_not_found(self):
-        """Resource returns error JSON for unknown format."""
-        import json
-
-        from mtg_mcp_server.services.mtggoldfish import FormatNotFoundError
-
-        mock = AsyncMock()
-        mock.get_metagame = AsyncMock(side_effect=FormatNotFoundError("BadFormat"))
-        async with _mcp_client(mock) as c:
-            result = await c.read_resource("mtg://metagame/BadFormat")
-            data = json.loads(result[0].text)
-            assert "error" in data
-
-
-# ---------------------------------------------------------------------------
 # Error handling
 # ---------------------------------------------------------------------------
 

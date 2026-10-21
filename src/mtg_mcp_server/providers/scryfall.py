@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
-import structlog
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
@@ -50,8 +48,6 @@ async def scryfall_lifespan(server: FastMCP):
 
 
 scryfall_mcp = FastMCP("Scryfall", lifespan=scryfall_lifespan, mask_error_details=True)
-
-log = structlog.get_logger(provider="scryfall")
 
 
 def _get_client() -> ScryfallClient:
@@ -111,7 +107,6 @@ async def search_cards(
             "page": page,
             "has_more": result.has_more,
             "showing": showing,
-            "card_detail_uri_template": "mtg://card/{name}",
             "cards": [slim_card(card) for card in cards],
         },
     )
@@ -215,54 +210,3 @@ async def set_info(
         content="\n".join(lines) + ATTRIBUTION_SCRYFALL,
         structured_content=info.model_dump(mode="json"),
     )
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@scryfall_mcp.resource("mtg://set/{code}")
-async def set_resource(code: str) -> str:
-    """Set metadata as JSON."""
-    client = _get_client()
-    try:
-        info = await client.get_set(code)
-        return info.model_dump_json()
-    except CardNotFoundError:
-        log.debug("resource.set_not_found", code=code)
-        return json.dumps({"error": f"Set not found: {code}"})
-    except ScryfallError as exc:
-        log.warning("resource.set_error", code=code, error=str(exc))
-        return json.dumps({"error": f"Scryfall error: {exc}"})
-
-
-@scryfall_mcp.resource("mtg://card/{name}")
-async def card_resource(name: str) -> str:
-    """Get card data as JSON by exact name."""
-    client = _get_client()
-    try:
-        card = await client.get_card_by_name(name)
-        return card.model_dump_json()
-    except CardNotFoundError:
-        log.debug("resource.card_not_found", name=name)
-        return json.dumps({"error": f"Card not found: {name}"})
-    except ScryfallError as exc:
-        log.warning("resource.card_error", name=name, error=str(exc))
-        return json.dumps({"error": f"Scryfall error: {exc}"})
-
-
-@scryfall_mcp.resource("mtg://card/{name}/rulings")
-async def card_rulings_resource(name: str) -> str:
-    """Get card rulings as JSON by card name."""
-    client = _get_client()
-    try:
-        card = await client.get_card_by_name(name)
-        rulings = await client.get_rulings(card.id)
-        return json.dumps([r.model_dump() for r in rulings])
-    except CardNotFoundError:
-        log.debug("resource.rulings_not_found", name=name)
-        return json.dumps({"error": f"Card not found: {name}"})
-    except ScryfallError as exc:
-        log.warning("resource.rulings_error", name=name, error=str(exc))
-        return json.dumps({"error": f"Scryfall error: {exc}"})

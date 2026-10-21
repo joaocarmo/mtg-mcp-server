@@ -5,10 +5,8 @@ Scrapes MTGGoldfish HTML pages. Behind the MTG_MCP_ENABLE_MTGGOLDFISH feature fl
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
-import structlog
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
@@ -43,8 +41,6 @@ async def mtggoldfish_lifespan(server: FastMCP):
 
 
 mtggoldfish_mcp = FastMCP("MTGGoldfish", lifespan=mtggoldfish_lifespan, mask_error_details=True)
-
-log = structlog.get_logger(provider="mtggoldfish")
 
 
 def _get_client() -> MTGGoldfishClient:
@@ -269,23 +265,3 @@ async def deck_price(
         content="\n".join(lines) + ATTRIBUTION_MTGGOLDFISH,
         structured_content=price_data.model_dump(),
     )
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@mtggoldfish_mcp.resource("mtg://metagame/{format}")
-async def metagame_resource(format: str) -> str:
-    """Metagame data as JSON for a format."""
-    client = _get_client()
-    try:
-        snapshot = await client.get_metagame(format)
-        return snapshot.model_dump_json()
-    except FormatNotFoundError:
-        log.warning("resource.format_not_found", format=format)
-        return json.dumps({"error": f"Format not found: {format}"})
-    except MTGGoldfishError as exc:
-        log.warning("resource.metagame_error", format=format, error=str(exc))
-        return json.dumps({"error": f"MTGGoldfish error: {exc}"})

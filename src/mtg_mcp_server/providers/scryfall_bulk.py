@@ -7,7 +7,6 @@ including prices, legalities, and EDHREC rank.
 from __future__ import annotations
 
 import contextlib
-import json
 import sys
 from typing import TYPE_CHECKING, Annotated, Literal
 
@@ -884,97 +883,3 @@ async def ban_list(
             "restricted": [{"name": c.name, "type_line": c.type_line} for c in restricted],
         },
     )
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@scryfall_bulk_mcp.resource("mtg://format/{format}/legal-cards")
-async def format_legal_cards_resource(format: str) -> str:
-    """Count of legal cards in a format as JSON."""
-    client = _get_client()
-    fmt = normalize_format(format, strict=False)
-    try:
-        legal = await client.cards_by_legality(fmt, "legal")
-    except ScryfallBulkError as exc:
-        log.warning("resource.format_legal_cards_error", format=fmt, error=str(exc))
-        return json.dumps({"error": f"Scryfall bulk data error: {exc}"})
-
-    return json.dumps({"format": fmt, "legal_card_count": len(legal)})
-
-
-@scryfall_bulk_mcp.resource("mtg://format/{format}/banned")
-async def format_banned_resource(format: str) -> str:
-    """Banned card list for a format as JSON."""
-    client = _get_client()
-    fmt = normalize_format(format, strict=False)
-    try:
-        banned_cards = await client.cards_by_legality(fmt, "banned")
-    except ScryfallBulkError as exc:
-        log.warning("resource.format_banned_error", format=fmt, error=str(exc))
-        return json.dumps({"error": f"Scryfall bulk data error: {exc}"})
-
-    banned = [{"name": c.name, "type_line": c.type_line} for c in banned_cards]
-    banned.sort(key=lambda c: c["name"])
-    return json.dumps(banned)
-
-
-@scryfall_bulk_mcp.resource("mtg://card/{name}/formats")
-async def card_formats_resource(name: str) -> str:
-    """Card legality map as JSON."""
-    client = _get_client()
-    try:
-        card = await client.get_card(name)
-    except ScryfallBulkError as exc:
-        log.warning("resource.card_formats_error", name=name, error=str(exc))
-        return json.dumps({"error": f"Scryfall bulk data error: {exc}"})
-    if card is None:
-        return json.dumps({"error": f"Card not found: {name}"})
-    return json.dumps(card.legalities)
-
-
-@scryfall_bulk_mcp.resource("mtg://card/{name}/similar")
-async def card_similar_resource(name: str) -> str:
-    """Similar cards as JSON (top 10 by similarity score)."""
-    client = _get_client()
-    try:
-        source = await client.get_card(name)
-        all_cards = await client.all_cards()
-    except ScryfallBulkError as exc:
-        log.warning("resource.card_similar_error", name=name, error=str(exc))
-        return json.dumps({"error": f"Scryfall bulk data error: {exc}"})
-    if source is None:
-        return json.dumps({"error": f"Card not found: {name}"})
-
-    scored: list[tuple[float, Card]] = []
-    source_name_lower = source.name.lower()
-
-    for card in all_cards:
-        if card.name.lower() == source_name_lower:
-            continue
-        score = _score_similarity(source, card)
-        if score > 0:
-            scored.append((score, card))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top = scored[:10]
-
-    result = [{"name": c.name, "score": round(s, 1)} for s, c in top]
-    return json.dumps(result)
-
-
-@scryfall_bulk_mcp.resource("mtg://card-data/{name}")
-async def card_data_resource(name: str) -> str:
-    """Get card data from Scryfall bulk data as JSON."""
-    client = _get_client()
-    try:
-        card = await client.get_card(name)
-    except ScryfallBulkError as exc:
-        log.warning("resource.card_data_error", name=name, error=str(exc))
-        return json.dumps({"error": f"Scryfall bulk data error: {exc}"})
-    if card is None:
-        log.debug("resource.card_data_not_found", name=name)
-        return json.dumps({"error": f"Card not found: {name}"})
-    return card.model_dump_json()

@@ -174,27 +174,12 @@ Each prompt returns step-by-step instructions that chain the tools listed.
 
 ---
 
-## Resources (21 `mtg://` templates, JSON)
+## Resources (5 `mtg://` URIs, JSON)
 
 | URI | Source | Returns |
 |-----|--------|---------|
-| `mtg://card/{name}` | Scryfall | Card by exact name |
-| `mtg://card/{name}/rulings` | Scryfall | Rulings |
-| `mtg://set/{code}` | Scryfall | Set metadata |
-| `mtg://combo/{combo_id}` | Spellbook | Combo details |
-| `mtg://draft/{set_code}/ratings` | 17Lands | Card ratings |
-| `mtg://commander/{name}/staples` | EDHREC | Commander staples |
-| `mtg://moxfield/{deck_id}` | Moxfield | Deck data |
-| `mtg://metagame/{format}` | MTGGoldfish | Metagame breakdown |
-| `mtg://card-data/{name}` | Bulk | Card data |
-| `mtg://format/{format}/legal-cards` | Bulk | Legal cards |
-| `mtg://format/{format}/banned` | Bulk | Banned cards |
-| `mtg://card/{name}/formats` | Bulk | Legality per format |
-| `mtg://card/{name}/similar` | Bulk | Similar cards |
 | `mtg://rules/{number}` | Rules | Rule text (e.g. "702.2") |
 | `mtg://rules/glossary/{term}` | Rules | Glossary definition |
 | `mtg://rules/keywords` | Rules | All keywords with rule refs |
 | `mtg://rules/sections` | Rules | Section index |
 | `mtg://theme/{theme}` | Workflow | Cards matching a theme |
-| `mtg://tribe/{tribe}/staples` | Workflow | Tribe staples |
-| `mtg://draft/{set_code}/signals` | Workflow | Colour openness signals |

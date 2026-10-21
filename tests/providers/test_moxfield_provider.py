@@ -200,54 +200,6 @@ class TestToolRegistration:
             assert tool.annotations.openWorldHint is True
 
 
-class TestMoxfieldResource:
-    """Moxfield mtg://moxfield/{deck_id} resource behavior."""
-
-    @respx.mock
-    async def test_deck_resource_returns_json(self, client: Client):
-        """Resource returns parseable JSON with deck data."""
-        fixture = _load_fixture("deck_commander.json")
-        respx.get(f"{BASE_URL}/v3/decks/all/abc123").mock(
-            return_value=httpx.Response(200, json=fixture)
-        )
-
-        result = await client.read_resource("mtg://moxfield/abc123")
-        data = json.loads(result[0].text)
-        assert data["deck"]["name"] == "Muldrotha Self-Mill"
-        assert "commanders" in data
-        assert "mainboard" in data
-
-    @respx.mock
-    async def test_deck_resource_not_found_returns_error_json(self, client: Client):
-        """Resource returns error JSON for nonexistent decks."""
-        respx.get(f"{BASE_URL}/v3/decks/all/nonexistent").mock(
-            return_value=httpx.Response(404, text="Not Found")
-        )
-
-        result = await client.read_resource("mtg://moxfield/nonexistent")
-        data = json.loads(result[0].text)
-        assert "error" in data
-        assert "Deck not found" in data["error"]
-
-    @respx.mock
-    async def test_deck_resource_server_error_returns_error_json(self, client: Client):
-        """Resource returns error JSON for server errors."""
-        respx.get(f"{BASE_URL}/v3/decks/all/abc123").mock(
-            return_value=httpx.Response(500, text="Internal Server Error")
-        )
-
-        result = await client.read_resource("mtg://moxfield/abc123")
-        data = json.loads(result[0].text)
-        assert "error" in data
-        assert "Moxfield error" in data["error"]
-
-    async def test_resource_template_registered(self, client: Client):
-        """Moxfield deck resource template is registered on the provider."""
-        templates = await client.list_resource_templates()
-        template_uris = {t.uriTemplate for t in templates}
-        assert "mtg://moxfield/{deck_id}" in template_uris
-
-
 class TestMoxfieldSearchDecks:
     """Moxfield search_decks tool behavior."""
 
