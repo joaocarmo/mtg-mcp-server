@@ -103,23 +103,7 @@ async def decklist(
                 total_cards += card.quantity
 
     # Build structured content
-    structured = {
-        "deck": {
-            "id": result.deck.id,
-            "name": result.deck.name,
-            "format": result.deck.format,
-            "description": result.deck.description,
-            "author": result.deck.author,
-            "public_url": result.deck.public_url,
-            "created_at": result.deck.created_at,
-            "updated_at": result.deck.updated_at,
-        },
-        "commanders": [{"name": c.name, "quantity": c.quantity} for c in result.commanders],
-        "mainboard": [{"name": c.name, "quantity": c.quantity} for c in result.mainboard],
-        "sideboard": [{"name": c.name, "quantity": c.quantity} for c in result.sideboard],
-        "companions": [{"name": c.name, "quantity": c.quantity} for c in result.companions],
-        "total_cards": total_cards,
-    }
+    structured = {**result.model_dump(mode="json"), "total_cards": total_cards}
 
     return ToolResult(
         content="\n".join(lines) + ATTRIBUTION_MOXFIELD,
@@ -211,15 +195,11 @@ async def deck_info(
 async def search_decks(
     query: Annotated[
         str | None,
-        Field(
-            default=None,
-            description="Optional search text to filter decks by name or description",
-        ),
+        Field(description="Optional search text to filter decks by name or description"),
     ] = None,
     format: Annotated[
         str | None,
         Field(
-            default=None,
             description=(
                 "Format filter (e.g. 'pauper', 'commander', 'modern'). Leave empty for all formats."
             ),
@@ -227,18 +207,15 @@ async def search_decks(
     ] = None,
     sort: Annotated[
         str,
-        Field(
-            default="Updated",
-            description="Sort order: 'Updated', 'Created', or 'Views'",
-        ),
+        Field(description="Sort order: 'Updated', 'Created', or 'Views'"),
     ] = "Updated",
     page: Annotated[
         int,
-        Field(default=1, ge=1, description="Page number (1-indexed)"),
+        Field(ge=1, description="Page number (1-indexed)"),
     ] = 1,
     page_size: Annotated[
         int,
-        Field(default=20, ge=1, le=100, description="Results per page (max 100)"),
+        Field(ge=1, le=100, description="Results per page (max 100)"),
     ] = 20,
 ) -> ToolResult:
     """Search public Moxfield decks by format, keyword, or sort order.
@@ -283,21 +260,7 @@ async def search_decks(
         "total_results": result.total_results,
         "page": result.page,
         "page_size": result.page_size,
-        "decks": [
-            {
-                "id": d.id,
-                "name": d.name,
-                "format": d.format,
-                "author": d.author,
-                "public_url": d.public_url,
-                "colors": d.colors,
-                "mainboard_count": d.mainboard_count,
-                "sideboard_count": d.sideboard_count,
-                "created_at": d.created_at,
-                "updated_at": d.updated_at,
-            }
-            for d in result.decks
-        ],
+        "decks": [d.model_dump(mode="json") for d in result.decks],
     }
 
     return ToolResult(
@@ -314,10 +277,7 @@ async def user_decks(
     ],
     format: Annotated[
         str | None,
-        Field(
-            default=None,
-            description="Optional format filter (e.g. 'commander', 'modern')",
-        ),
+        Field(description="Optional format filter (e.g. 'commander', 'modern')"),
     ] = None,
 ) -> ToolResult:
     """List a user's public decks on Moxfield.
@@ -385,20 +345,7 @@ async def user_decks(
         "display_name": matched_user.display_name,
         "badges": matched_user.badges,
         "total_results": result.total_results,
-        "decks": [
-            {
-                "id": d.id,
-                "name": d.name,
-                "format": d.format,
-                "public_url": d.public_url,
-                "colors": d.colors,
-                "mainboard_count": d.mainboard_count,
-                "sideboard_count": d.sideboard_count,
-                "created_at": d.created_at,
-                "updated_at": d.updated_at,
-            }
-            for d in user_deck_list
-        ],
+        "decks": [d.model_dump(mode="json", exclude={"author"}) for d in user_deck_list],
     }
 
     return ToolResult(
