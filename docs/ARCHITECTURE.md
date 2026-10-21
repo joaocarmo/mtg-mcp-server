@@ -11,7 +11,7 @@ A unified MCP server that exposes Magic: The Gathering data to AI assistants. Ea
 ```
 MCP client (Claude Code / Desktop / any) ── stdio
                      │
-        MTG Orchestrator — FastMCP("MTG"): 66 tools, 19 prompts, 20 resource templates
+        MTG Orchestrator — FastMCP("MTG"): 61 tools, 18 prompts, 5 resources
                      │
    ├── Workflows (no namespace) — commander, draft/limited, deck building,
    │     constructed/metagame, sideboard, rules engine (see TOOL_DESIGN.md)
@@ -70,7 +70,7 @@ tests/               # Mirrors src/: services/, providers/, workflows/, utils/,
 
 **Tools** return `ToolResult(content=markdown, structured_content=data)`. All share `TOOL_ANNOTATIONS` (readOnly, idempotent, openWorld) plus domain `tags`. Long-running workflows report progress through an `on_progress` callback, which `server.py` bridges to `ctx.report_progress()`.
 
-**Resources** use `mtg://` URI templates on the providers and the workflow server. **Prompts** are registered on the workflow server.
+**Resources** (`mtg://` URIs) live on the workflow server: Comprehensive Rules lookups and theme mappings. Provider data is exposed through tools only. **Prompts** are registered on the workflow server.
 
 **Response size:** heavy tools get `ResponseLimitingMiddleware(max_size=30_000)`, with a global `100_000` safety net. The main control is slim field sets plus `limit` parameters.
 
@@ -119,11 +119,10 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 | Bulk data | Scryfall Oracle Cards, file-based service, replaced MTGJSON | Same `Card` shape as the API, plus prices, legalities, images and EDHREC rank that MTGJSON lacked |
 | Bulk integration | Workflow layer (bulk-first, API fallback in `analysis.py`), not inside `ScryfallClient` | Keeps services independent |
 | Rules engine | Local file-based `RulesService` in the workflow lifespan | Rules tools compose with bulk data for card examples |
-| Structured output | `ToolResult` with `structured_content`; slim dicts in `utils/slim.py` | Programmatic consumption at bounded size; full data via resource URIs |
+| Structured output | `ToolResult` with `structured_content`; slim dicts in `utils/slim.py` | Programmatic consumption at bounded size |
 | Response format | `response_format: "detailed" \| "concise"` | Controls verbosity without duplicate tools |
 | Response limiting | Per-tool 30k middleware + global 100k | Safety net behind slim fields and limits |
 | Attribution | `ATTRIBUTION_*` constants appended to output | Data-source compliance |
 | Fragile sources | EDHREC, Moxfield, MTGGoldfish behind flags, tagged beta, cached aggressively | Undocumented/scraped; can break without notice |
 | HTML parsing | selectolax | Fast, tiny; used only by `services/mtggoldfish.py` |
-| CodeMode | Experimental, `enable_code_mode` flag | FastMCP transform replacing tools with discovery/execute meta-tools at 40+ tools |
 | Parallel development | Worktree agents on exclusive files; shared files scaffolded first | Agents rewrite whole files; see CLAUDE.md Git Workflow |

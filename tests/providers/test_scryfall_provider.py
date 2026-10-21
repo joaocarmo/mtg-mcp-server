@@ -54,7 +54,6 @@ class TestSearchCards:
         assert sc["total_cards"] == 9273
         assert isinstance(sc["cards"], list)
         assert sc["showing"] == len(sc["cards"])
-        assert sc["card_detail_uri_template"] == "mtg://card/{name}"
         # Cards use slim fields, not full model_dump
         card = sc["cards"][0]
         assert "name" in card
@@ -205,26 +204,22 @@ class TestCardDetailsConcise:
         assert "type_line" in sc
 
 
-class TestCardPrice:
-    """Scryfall card_price tool behavior."""
+class TestCardDetailsPrices:
+    """card_details prints every price Scryfall provides."""
 
     @respx.mock
-    async def test_returns_prices(self, client: Client):
-        """card_price returns pricing data with USD formatting."""
+    async def test_includes_usd_foil_and_eur(self, client: Client):
+        """card_details lists USD, USD foil and EUR prices."""
         fixture = _load_fixture("card_sol_ring.json")
         respx.get(f"{BASE_URL}/cards/named", params={"exact": "Sol Ring"}).mock(
             return_value=httpx.Response(200, json=fixture)
         )
 
-        result = await client.call_tool("card_price", {"name": "Sol Ring"})
+        result = await client.call_tool("card_details", {"name": "Sol Ring"})
         text = result.content[0].text
-        assert "Sol Ring" in text
-        assert "$" in text
-
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["name"] == "Sol Ring"
-        assert "prices" in sc
+        assert "$1.38" in text
+        assert "$1.32" in text
+        assert "\u20ac0.94" in text
 
 
 class TestCardRulings:
@@ -293,36 +288,8 @@ class TestSetInfo:
         assert "not found" in result.content[0].text.lower()
 
 
-class TestWhatsNew:
-    """Scryfall whats_new tool behavior."""
-
-    @respx.mock
-    async def test_returns_recent_cards(self, client: Client):
-        """whats_new returns a formatted list of recently released cards."""
-        fixture = _load_fixture("search_sultai_commander.json")
-        respx.get(f"{BASE_URL}/cards/search").mock(return_value=httpx.Response(200, json=fixture))
-
-        result = await client.call_tool("whats_new", {"days": 30})
-        text = result.content[0].text
-        assert "Found" in text
-        assert "card" in text.lower()
-        assert "Data provided by [Scryfall]" in text
-
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["total_cards"] == 9273
-        assert isinstance(sc["cards"], list)
-        assert len(sc["cards"]) > 0
-        # Slim card fields
-        card = sc["cards"][0]
-        assert "name" in card
-        assert "mana_cost" in card
-        assert "type_line" in card
-        assert "rarity" in card
-        # Bloat fields excluded
-        assert "oracle_text" not in card
-        assert "legalities" not in card
-        assert "image_uris" not in card
+class TestSearchCardsLimit:
+    """Scryfall search_cards limit validation."""
 
     @respx.mock
     async def test_negative_limit_raises_error(self, client: Client):
@@ -336,83 +303,17 @@ class TestWhatsNew:
         assert result.is_error
         assert "limit must be >= 0" in result.content[0].text
 
-    @respx.mock
-    async def test_with_set_and_format_filters(self, client: Client):
-        """whats_new accepts optional set_code and format filters."""
-        fixture = _load_fixture("search_sultai_commander.json")
-        respx.get(f"{BASE_URL}/cards/search").mock(return_value=httpx.Response(200, json=fixture))
-
-        result = await client.call_tool(
-            "whats_new", {"days": 7, "set_code": "dom", "format": "standard"}
-        )
-        text = result.content[0].text
-        assert "Found" in text
-
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["days"] == 7
-        assert sc["set_code"] == "dom"
-
-    async def test_invalid_days_zero(self, client: Client):
-        """whats_new rejects days < 1."""
-        result = await client.call_tool("whats_new", {"days": 0}, raise_on_error=False)
-        assert result.is_error
-        assert "days must be at least 1" in result.content[0].text.lower()
-
-    @respx.mock
-    async def test_no_results(self, client: Client):
-        """whats_new returns an error when no cards match the date range."""
-        respx.get(f"{BASE_URL}/cards/search").mock(
-            return_value=httpx.Response(
-                404, json={"object": "error", "code": "not_found", "details": ""}
-            )
-        )
-
-        result = await client.call_tool("whats_new", {"days": 1}, raise_on_error=False)
-        assert result.is_error
-        assert "no new cards found" in result.content[0].text.lower()
-
-
-class TestWhatsNewConcise:
-    """Scryfall whats_new tool concise mode."""
-
-    @respx.mock
-    async def test_concise_is_shorter(self, client: Client):
-        """Concise output omits type line, producing shorter text."""
-        fixture = _load_fixture("search_sultai_commander.json")
-        respx.get(f"{BASE_URL}/cards/search").mock(return_value=httpx.Response(200, json=fixture))
-
-        result_detailed = await client.call_tool(
-            "whats_new", {"days": 30, "response_format": "detailed"}
-        )
-        respx.get(f"{BASE_URL}/cards/search").mock(return_value=httpx.Response(200, json=fixture))
-
-        result_concise = await client.call_tool(
-            "whats_new", {"days": 30, "response_format": "concise"}
-        )
-        detailed_text = result_detailed.content[0].text
-        concise_text = result_concise.content[0].text
-        assert len(concise_text) < len(detailed_text)
-        assert "Found" in concise_text
-
-        sc = result_concise.structured_content
-        assert isinstance(sc, dict)
-        assert sc["total_cards"] == 9273
-        assert isinstance(sc["cards"], list)
-
 
 class TestToolRegistration:
     """Scryfall provider tool registration."""
 
     async def test_all_tools_registered(self, client: Client):
-        """All six Scryfall tools are registered on the provider."""
+        """All four Scryfall tools are registered on the provider."""
         tools = await client.list_tools()
         tool_names = {t.name for t in tools}
         assert tool_names == {
             "search_cards",
             "card_details",
-            "card_price",
             "card_rulings",
             "set_info",
-            "whats_new",
         }

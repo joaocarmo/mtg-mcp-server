@@ -106,7 +106,7 @@ Handling review comments:
 
 ## Status
 
-All backends are implemented; none are stubbed. 66 tools (incl. `ping`), 19 prompts, 20 resource templates. History: `CHANGELOG.md`.
+All backends are implemented; none are stubbed. 61 tools (incl. `ping`), 18 prompts, 5 resources (3 templates, 2 static). History: `CHANGELOG.md`.
 
 ## Environment
 

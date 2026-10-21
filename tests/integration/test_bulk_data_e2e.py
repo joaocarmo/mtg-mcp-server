@@ -1,12 +1,11 @@
 """Integration tests for Scryfall bulk data through the full MCP pipeline.
 
-Tests exercise bulk_card_lookup, bulk_card_search, and bulk card-data resources
+Tests exercise bulk_card_lookup and bulk_card_search
 via the orchestrator with fixture-mocked HTTP backends.
 """
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -91,21 +90,3 @@ class TestBulkCardSearch:
         )
         text = result.content[0].text
         assert "Sol Ring" in text
-
-
-class TestBulkResource:
-    """Bulk card-data resource through the orchestrator."""
-
-    async def test_resource_returns_correct_card(self, mcp_client: Client):
-        """mtg://bulk/card-data/Sol Ring returns valid JSON with correct card data."""
-        result = await mcp_client.read_resource("mtg://bulk/card-data/Sol Ring")
-        data = json.loads(result[0].text)
-        assert data["name"] == "Sol Ring"
-        assert data["layout"] == "normal"
-
-    async def test_resource_card_not_found(self, mcp_client: Client):
-        """mtg://bulk/card-data/nonexistent returns error JSON."""
-        result = await mcp_client.read_resource("mtg://bulk/card-data/nonexistent")
-        data = json.loads(result[0].text)
-        assert "error" in data
-        assert "not found" in data["error"].lower()

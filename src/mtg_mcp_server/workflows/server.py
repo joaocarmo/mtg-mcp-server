@@ -1346,7 +1346,7 @@ def evaluate_collection(
     return f"""Evaluate this card collection for format playability and value:
 Cards: {cards}
 
-Step 1: Use bulk_card_in_formats for each card to see where it's legal.
+Step 1: Use bulk_card_lookup for each card to see where it's legal, banned or restricted.
 
 Step 2: Use price_comparison to see the current value of all cards.
 
@@ -1740,32 +1740,6 @@ Present: prioritized upgrade list with total cost, explaining each swap."""
 
 
 @workflow_mcp.prompt()
-def sealed_session(
-    set_code: Annotated[str, Field(description="Set code for the sealed format (e.g. 'LCI')")],
-) -> str:
-    """Guide a sealed deck building session."""
-    return f"""Sealed deck building session for {set_code}.
-
-The user should provide their sealed pool (84-90 card names from 6 packs).
-If they haven't, ask them to list their pool.
-
-Step 1: Use sealed_pool_build with the pool and set_code="{set_code}".
-  This will suggest 1-3 builds with color pairs, decklists, and mana curves.
-
-Step 2: For the recommended build:
-  - Explain why this color pair is strongest (card quality, curve, bombs)
-  - Highlight key cards and synergies
-  - Note sideboard options for tough matchups
-
-Step 3: If 17Lands data is available:
-  - Note which of the suggested cards have the best GIH WR
-  - Flag any cards that look good on paper but underperform statistically
-  - Check the archetype win rate for the suggested colors
-
-Help the user finalize their 40-card deck and plan sideboard adjustments."""
-
-
-@workflow_mcp.prompt()
 def draft_review(
     set_code: Annotated[str, Field(description="Set code for the draft format (e.g. 'LCI')")],
 ) -> str:
@@ -1924,15 +1898,3 @@ async def get_theme_mappings(theme: str) -> dict[str, object]:
         mapping = building_wf.THEME_MAPPINGS[theme_lower]
         return {"theme": theme, "patterns": {k: v for k, v in mapping.items()}}
     return {"theme": theme, "available_themes": sorted(building_wf.THEME_MAPPINGS.keys())}
-
-
-@workflow_mcp.resource("mtg://tribe/{tribe}/staples")
-async def get_tribe_staples(tribe: str) -> dict[str, object]:
-    """Top cards for a creature type — requires bulk data at runtime."""
-    return {"tribe": tribe, "note": "Use the tribal_staples tool for full results"}
-
-
-@workflow_mcp.resource("mtg://draft/{set_code}/signals")
-async def get_draft_signals(set_code: str) -> dict[str, object]:
-    """Color openness heuristics — requires 17Lands data at runtime."""
-    return {"set_code": set_code, "note": "Use the draft_signal_read tool for full results"}

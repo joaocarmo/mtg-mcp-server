@@ -40,7 +40,6 @@ def _clear_caches():
     MTGGoldfishClient._metagame_cache.clear()
     MTGGoldfishClient._archetype_cache.clear()
     MTGGoldfishClient._staples_cache.clear()
-    MTGGoldfishClient._price_cache.clear()
 
 
 @pytest.fixture

@@ -323,8 +323,6 @@ You opened your sealed pool and need help building the best 40-card deck.
 
 **What you get:** Up to 3 two-color build suggestions ranked by total card quality score, with each build showing the full card list grouped by type, mana curve, and counts of bombs and removal. Scoring uses 17Lands GIH Win Rate data when available, with a heuristic fallback.
 
-**Tips:** The `sealed_session` prompt guides you through the full session including sideboard planning.
-
 ---
 
 ### Review Your Draft Afterward

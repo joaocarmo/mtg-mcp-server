@@ -6,10 +6,8 @@ feature flag. These endpoints may break without notice.
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
-import structlog
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
@@ -38,8 +36,6 @@ async def moxfield_lifespan(server: FastMCP):
 
 
 moxfield_mcp = FastMCP("Moxfield", lifespan=moxfield_lifespan, mask_error_details=True)
-
-log = structlog.get_logger(provider="moxfield")
 
 
 def _get_client() -> MoxfieldClient:
@@ -83,10 +79,18 @@ async def decklist(
         raise ToolError(f"Moxfield API error: {exc}") from exc
 
     # Build markdown output
-    lines: list[str] = []
-    lines.append(f"**{result.deck.name}** ({result.deck.format})")
-    if result.deck.author:
-        lines.append(f"Author: {result.deck.author}")
+    deck = result.deck
+    lines: list[str] = [f"**{deck.name}** ({deck.format})"]
+    if deck.author:
+        lines.append(f"Author: {deck.author}")
+    if deck.description:
+        lines.append(f"Description: {deck.description}")
+    if deck.created_at:
+        lines.append(f"Created: {deck.created_at}")
+    if deck.updated_at:
+        lines.append(f"Last updated: {deck.updated_at}")
+    if deck.public_url:
+        lines.append(f"URL: {deck.public_url}")
 
     boards = [
         ("Commanders", result.commanders),
@@ -104,86 +108,6 @@ async def decklist(
 
     # Build structured content
     structured = {**result.model_dump(mode="json"), "total_cards": total_cards}
-
-    return ToolResult(
-        content="\n".join(lines) + ATTRIBUTION_MOXFIELD,
-        structured_content=structured,
-    )
-
-
-@moxfield_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_BETA)
-async def deck_info(
-    deck_id: Annotated[
-        str,
-        Field(
-            description=(
-                "Moxfield deck ID or full URL "
-                "(e.g. 'abc123' or 'https://www.moxfield.com/decks/abc123')"
-            )
-        ),
-    ],
-) -> ToolResult:
-    """Get metadata for a Moxfield deck (name, format, author, dates).
-
-    Returns deck metadata without the full card list. Use ``decklist``
-    for the complete card list.
-    """
-    client = _get_client()
-    try:
-        result = await client.get_deck(deck_id)
-    except DeckNotFoundError as exc:
-        raise ToolError(
-            f"Deck not found on Moxfield: '{deck_id}'. "
-            "Check the deck ID or URL — the deck may be private or deleted."
-        ) from exc
-    except MoxfieldError as exc:
-        raise ToolError(f"Moxfield API error: {exc}") from exc
-
-    deck = result.deck
-    lines: list[str] = [
-        f"**{deck.name}**",
-        f"Format: {deck.format}" if deck.format else "",
-        f"Author: {deck.author}" if deck.author else "",
-    ]
-    if deck.description:
-        lines.append(f"Description: {deck.description}")
-    if deck.created_at:
-        lines.append(f"Created: {deck.created_at}")
-    if deck.updated_at:
-        lines.append(f"Last updated: {deck.updated_at}")
-    if deck.public_url:
-        lines.append(f"URL: {deck.public_url}")
-
-    # Card counts per board
-    board_counts: dict[str, int] = {}
-    for board_name, cards in [
-        ("commanders", result.commanders),
-        ("mainboard", result.mainboard),
-        ("sideboard", result.sideboard),
-        ("companions", result.companions),
-    ]:
-        if cards:
-            board_counts[board_name] = sum(c.quantity for c in cards)
-
-    if board_counts:
-        lines.append("\nCard counts:")
-        for board_name, count in board_counts.items():
-            lines.append(f"  {board_name}: {count}")
-
-    # Filter empty strings from conditional lines
-    lines = [line for line in lines if line]
-
-    structured = {
-        "id": deck.id,
-        "name": deck.name,
-        "format": deck.format,
-        "description": deck.description,
-        "author": deck.author,
-        "public_url": deck.public_url,
-        "created_at": deck.created_at,
-        "updated_at": deck.updated_at,
-        "board_counts": board_counts,
-    }
 
     return ToolResult(
         content="\n".join(lines) + ATTRIBUTION_MOXFIELD,
@@ -352,23 +276,3 @@ async def user_decks(
         content="\n".join(lines) + ATTRIBUTION_MOXFIELD,
         structured_content=structured,
     )
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@moxfield_mcp.resource("mtg://moxfield/{deck_id}")
-async def moxfield_deck_resource(deck_id: str) -> str:
-    """Get Moxfield deck data as JSON."""
-    client = _get_client()
-    try:
-        result = await client.get_deck(deck_id)
-        return result.model_dump_json()
-    except DeckNotFoundError:
-        log.debug("resource.deck_not_found", deck_id=deck_id)
-        return json.dumps({"error": f"Deck not found: {deck_id}"})
-    except MoxfieldError as exc:
-        log.warning("resource.deck_error", deck_id=deck_id, error=str(exc))
-        return json.dumps({"error": f"Moxfield error: {exc}"})

@@ -4,7 +4,6 @@
       "mcp__mtg__bulk_card_lookup",
       "mcp__mtg__scryfall_card_details",
       "mcp__mtg__edhrec_card_synergy",
-      "mcp__mtg__scryfall_card_price",
       "mcp__mtg__scryfall_search_cards",
       "mcp__mtg__rules_lookup",
       "mcp__mtg__deck_validate",

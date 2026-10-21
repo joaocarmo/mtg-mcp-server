@@ -7,7 +7,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 - Every tool returns markdown (`content`) plus a structured `data` dict (`structured_content`).
 - `fmt` below means `response_format: "detailed" | "concise" = "detailed"`. All workflow tools accept it.
 - `limit: 0` means "all" where noted.
-- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 66 tools.
+- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 61 tools.
 
 ---
 
@@ -16,11 +16,9 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
 | `scryfall_search_cards` | `query` (Scryfall syntax, e.g. `f:commander id:sultai t:creature cmc<=3`), `page=1`, `limit=30` (0=all), `fmt` | Matching cards (name, type, mana, price) + pagination; slim card fields | `search_cards()` |
-| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colors, identity, legalities, prices, set, rarity, EDHREC rank | `get_card_by_name()` |
-| `scryfall_card_price` | `name` | USD, USD foil, EUR (updated daily) | `get_card_by_name()` |
+| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colors, identity, legalities (legal, banned, restricted), prices (USD, USD foil, EUR), set, rarity, EDHREC rank | `get_card_by_name()` |
 | `scryfall_card_rulings` | `name` | Rulings with dates and sources | `get_card_by_name()` → `get_rulings()` |
 | `scryfall_set_info` | `set_code` (e.g. "dom") | Name, code, release date, type, card count, icon URI | `get_set()` |
-| `scryfall_whats_new` | `days=30` | Recently released cards with set and rarity | `search_cards()` (date filter) |
 
 ## Commander Spellbook (`spellbook_`)
 
@@ -49,8 +47,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
-| `moxfield_decklist` | `deck_id` (ID or full URL) | Decklist by board (commanders, main, side, companions); structured metadata + per-board lists | `get_deck()` |
-| `moxfield_deck_info` | `deck_id` | Name, format, author, description, dates, URL, per-board counts | `get_deck()` (metadata) |
+| `moxfield_decklist` | `deck_id` (ID or full URL) | Author, description, dates, URL, then decklist by board (commanders, main, side, companions); structured metadata + per-board lists | `get_deck()` |
 | `moxfield_search_decks` | `query=None`, `format=None`, `sort="Updated"` (also "Created", "Views"), `page=1`, `page_size=20` | Paginated summaries: name, format, author, colors, counts, URL | `search_decks()` |
 | `moxfield_user_decks` | `username`, `format=None` | User's public decks; verifies the user exists first | `search_users()` + `search_decks()` |
 
@@ -61,7 +58,6 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | `goldfish_metagame` | `format`, `fmt` | Archetypes: rank, name, meta %, decks, paper price | `get_metagame()` |
 | `goldfish_archetype_list` | `format`, `archetype` ("Boros Energy"), `fmt` | Deck metadata (author, event, result, date) + main and sideboard | `get_archetype()` |
 | `goldfish_format_staples` | `format`, `limit=20`, `fmt` | Rank, name, % of decks, avg copies | `get_format_staples()` |
-| `goldfish_deck_price` | `format`, `archetype`, `fmt` | Estimated total price, card count | `get_deck_price()` |
 
 ## Scryfall bulk data (`bulk_`)
 
@@ -69,13 +65,12 @@ Rate-limit-free; backed by `ScryfallBulkClient`.
 
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
-| `bulk_card_lookup` | `name` | Full card incl. P/T, keywords, prices, legalities, EDHREC rank, images | `get_card()` |
+| `bulk_card_lookup` | `name` | Full card incl. P/T, keywords, prices (USD, foil, EUR), legalities (legal, banned, restricted), EDHREC rank, images | `get_card()` |
 | `bulk_card_search` | `query`, `search_field="name"` (or "type", "text"), `limit=20` | Name, mana, type line | `search_cards()` / `search_by_type()` / `search_by_text()` |
 | `bulk_format_legality` | `card_name`, `format` | legal / not_legal / banned / restricted | `get_card()` |
 | `bulk_format_search` | `format`, `query`, `limit=20` | Format-legal matches | `filter_cards()` |
-| `bulk_format_staples` | `format`, `color=None` (identity), `card_type=None`, `limit=20`, `ranking_mode="auto"` (or `edhrec`, `competitive`, `tournament`), `fmt` | Ranked staples. Auto mode: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; competitive formats use MTGGoldfish frequency (% Decks) when available, otherwise a mana-efficiency score | `filter_cards()`, optionally `MTGGoldfishClient.get_format_staples()` |
+| `bulk_format_staples` | `format`, `color=None` (identity), `card_type=None`, `limit=20`, `ranking_mode="auto"` (or `edhrec`, `competitive`), `fmt` | Ranked staples. Auto mode: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; other formats use a mana-efficiency score | `filter_cards()` |
 | `bulk_ban_list` | `format` | Banned and restricted cards | `filter_cards()` |
-| `bulk_card_in_formats` | `card_name` | Legality per format | `get_card()` |
 | `bulk_random_card` | `format=None`, `card_type=None` | Random card, full details | `filter_cards()` |
 | `bulk_similar_cards` | `card_name`, `limit=10` | Similar by type, keywords or mana cost; shared attributes highlighted | `get_card()` + `filter_cards()` |
 
@@ -150,7 +145,7 @@ Backed by the local `RulesService`; bulk data, when enabled, supplies card examp
 
 ---
 
-## Prompts (19, workflow server)
+## Prompts (18, workflow server)
 
 Each prompt returns step-by-step instructions that chain the tools listed.
 
@@ -169,7 +164,6 @@ Each prompt returns step-by-step instructions that chain the tools listed.
 | `build_tribal_deck` | `tribe`, `format`, `commander=None`, `budget=None` | `tribal_staples` → `build_around` → `suggest_mana_base` → `deck_validate` |
 | `build_theme_deck` | `theme`, `format`, `color_identity=None`, `budget=None` | `theme_search` → `build_around` → `complete_deck` → `deck_validate` → `suggest_mana_base` |
 | `upgrade_precon` | `commander`, `budget` | `commander_overview` → `deck_analysis` → `suggest_cuts` → `precon_upgrade` → `deck_validate` |
-| `sealed_session` | `set_code` | `sealed_pool_build` → 17Lands evaluation → sideboard planning |
 | `draft_review` | `set_code` | `draft_log_review` → `draft_signal_read` |
 | `compare_commanders` | `commanders` | `commander_comparison` → combos → staples |
 | `rotation_plan` | — | `rotation_check` → `bulk_similar_cards` → `price_comparison` |
@@ -178,27 +172,12 @@ Each prompt returns step-by-step instructions that chain the tools listed.
 
 ---
 
-## Resources (21 `mtg://` templates, JSON)
+## Resources (5 `mtg://` URIs, JSON)
 
 | URI | Source | Returns |
 |-----|--------|---------|
-| `mtg://card/{name}` | Scryfall | Card by exact name |
-| `mtg://card/{name}/rulings` | Scryfall | Rulings |
-| `mtg://set/{code}` | Scryfall | Set metadata |
-| `mtg://combo/{combo_id}` | Spellbook | Combo details |
-| `mtg://draft/{set_code}/ratings` | 17Lands | Card ratings |
-| `mtg://commander/{name}/staples` | EDHREC | Commander staples |
-| `mtg://moxfield/{deck_id}` | Moxfield | Deck data |
-| `mtg://metagame/{format}` | MTGGoldfish | Metagame breakdown |
-| `mtg://card-data/{name}` | Bulk | Card data |
-| `mtg://format/{format}/legal-cards` | Bulk | Legal cards |
-| `mtg://format/{format}/banned` | Bulk | Banned cards |
-| `mtg://card/{name}/formats` | Bulk | Legality per format |
-| `mtg://card/{name}/similar` | Bulk | Similar cards |
 | `mtg://rules/{number}` | Rules | Rule text (e.g. "702.2") |
 | `mtg://rules/glossary/{term}` | Rules | Glossary definition |
 | `mtg://rules/keywords` | Rules | All keywords with rule refs |
 | `mtg://rules/sections` | Rules | Section index |
 | `mtg://theme/{theme}` | Workflow | Cards matching a theme |
-| `mtg://tribe/{tribe}/staples` | Workflow | Tribe staples |
-| `mtg://draft/{set_code}/signals` | Workflow | Colour openness signals |

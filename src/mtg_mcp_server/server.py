@@ -78,7 +78,7 @@ mcp = FastMCP(
         "- rules_interaction: How two mechanics interact under the rules\n"
         "- rules_scenario: Resolve a game scenario with rule citations\n"
         "- combat_calculator: Step-by-step combat with keyword interactions\n\n"
-        "Resources (mtg:// URIs) provide cached card, combo, and rating data.\n"
+        "Resources (mtg:// URIs) provide Comprehensive Rules text and theme mappings.\n"
         "Prompts guide multi-step analysis workflows.\n\n"
         "mtg-mcp-server is unofficial Fan Content permitted under the Fan Content Policy. "
         "Not approved/endorsed by Wizards. Portions of the materials used are "
@@ -135,21 +135,6 @@ mcp.add_middleware(
 # Global safety net — lowered from 500KB to 100KB. Most tool outputs are well
 # under 10KB after slim field sets; this catches regressions.
 mcp.add_middleware(ResponseLimitingMiddleware(max_size=100_000))
-
-# CodeMode: experimental transform that replaces individual tools with meta-tools
-# for discovery and code execution. Useful at 40+ tools to reduce LLM context.
-if _settings.enable_code_mode:
-    try:
-        from fastmcp.experimental.transforms.code_mode import CodeMode
-
-        mcp.add_transform(CodeMode())
-        structlog.get_logger(service="startup").info("code_mode.enabled")
-    except ImportError:
-        structlog.get_logger(service="startup").error(
-            "code_mode.unavailable",
-            hint='Install with: pip install "mtg-mcp-server[code-mode]"',
-        )
-
 
 # Ping is a local health check — no network access, so openWorldHint=False.
 _PING_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False)

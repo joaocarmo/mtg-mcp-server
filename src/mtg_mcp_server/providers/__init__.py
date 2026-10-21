@@ -54,8 +54,11 @@ ATTRIBUTION_MOXFIELD = "\n\n*Data provided by [Moxfield](https://www.moxfield.co
 
 
 def format_legalities(legalities: dict[str, str]) -> str:
-    """Format a legalities dict as a comma-separated list of legal format names."""
+    """Format a legalities dict as legal formats, then any banned/restricted ones."""
     legal = [fmt for fmt, status in legalities.items() if status == "legal"]
-    if not legal:
-        return "Not legal in any format"
-    return ", ".join(legal)
+    parts = [", ".join(legal) or "Not legal in any format"]
+    for status in ("banned", "restricted"):
+        formats = [fmt for fmt, s in legalities.items() if s == status]
+        if formats:
+            parts.append(f"{status.title()}: {', '.join(formats)}")
+    return " | ".join(parts)

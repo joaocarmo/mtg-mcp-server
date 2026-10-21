@@ -43,7 +43,6 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 | MTGGoldfish | `get_metagame` | 6h | 50 | Shares shift slowly; limits scraping load |
 | MTGGoldfish | `get_archetype` | 12h | 100 | Sample lists stable once posted |
 | MTGGoldfish | `get_format_staples` | 12h | 50 | Rankings shift slowly |
-| MTGGoldfish | `get_deck_price` | 24h | 100 | Prices update daily |
 
 TTLs are hardcoded class constants because they reflect upstream data staleness, not deployment config. Maxsize values are conservative working-set estimates. Adaptive TTLs (e.g. 1h for 17Lands in a set's first week) were considered and rejected as not worth the complexity.
 

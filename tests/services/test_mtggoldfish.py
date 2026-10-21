@@ -18,7 +18,6 @@ from mtg_mcp_server.services.mtggoldfish import (
 from mtg_mcp_server.types import (
     GoldfishArchetype,
     GoldfishArchetypeDetail,
-    GoldfishDeckPrice,
     GoldfishFormatStaple,
     GoldfishMetaSnapshot,
 )
@@ -33,7 +32,6 @@ def _clear_goldfish_cache():
     MTGGoldfishClient._metagame_cache.clear()
     MTGGoldfishClient._archetype_cache.clear()
     MTGGoldfishClient._staples_cache.clear()
-    MTGGoldfishClient._price_cache.clear()
 
 
 def _load_fixture(name: str) -> str:
@@ -461,53 +459,6 @@ class TestGetFormatStaples:
                 await client.get_format_staples("invalid")
 
 
-class TestGetDeckPrice:
-    """Tests for deck price retrieval."""
-
-    @respx.mock
-    async def test_returns_deck_price_model(self):
-        """get_deck_price returns GoldfishDeckPrice from metagame + archetype."""
-        meta_html = _load_fixture("metagame_modern.html")
-        arch_html = _load_fixture("archetype_boros_energy.html")
-        deck_txt = _load_fixture("deck_download.txt")
-        respx.get(f"{BASE_URL}/metagame/modern/full").mock(
-            return_value=httpx.Response(
-                200, content=meta_html.encode(), headers={"Content-Type": "text/html"}
-            )
-        )
-        respx.get(f"{BASE_URL}/archetype/modern-boros-energy").mock(
-            return_value=httpx.Response(
-                200, content=arch_html.encode(), headers={"Content-Type": "text/html"}
-            )
-        )
-        respx.get(f"{BASE_URL}/deck/download/7708470").mock(
-            return_value=httpx.Response(
-                200, content=deck_txt.encode(), headers={"Content-Type": "text/plain"}
-            )
-        )
-        async with MTGGoldfishClient(base_url=BASE_URL) as client:
-            result = await client.get_deck_price("modern", "Boros Energy")
-
-        assert isinstance(result, GoldfishDeckPrice)
-        assert result.archetype == "Boros Energy"
-        assert result.price_paper == 860
-        assert result.mainboard_count > 0
-        assert result.sideboard_count > 0
-
-    @respx.mock
-    async def test_archetype_not_in_metagame(self):
-        """ArchetypeNotFoundError when archetype name not in metagame snapshot."""
-        meta_html = _load_fixture("metagame_modern.html")
-        respx.get(f"{BASE_URL}/metagame/modern/full").mock(
-            return_value=httpx.Response(
-                200, content=meta_html.encode(), headers={"Content-Type": "text/html"}
-            )
-        )
-        async with MTGGoldfishClient(base_url=BASE_URL) as client:
-            with pytest.raises(ArchetypeNotFoundError, match="Unknown Deck"):
-                await client.get_deck_price("modern", "Unknown Deck")
-
-
 class TestCaching:
     """Tests for TTL cache behavior."""
 
@@ -574,8 +525,6 @@ class TestCaching:
         assert isinstance(MTGGoldfishClient.get_archetype.cache, TTLCache)
         assert hasattr(MTGGoldfishClient.get_format_staples, "cache")
         assert isinstance(MTGGoldfishClient.get_format_staples.cache, TTLCache)
-        assert hasattr(MTGGoldfishClient.get_deck_price, "cache")
-        assert isinstance(MTGGoldfishClient.get_deck_price.cache, TTLCache)
 
 
 class TestErrorHandling:
@@ -665,37 +614,6 @@ class TestDeckDownloadFailure:
         assert result.sideboard == []
         # Only the archetype page was requested, no deck download
         assert len(respx.calls) == 1
-
-
-class TestCaseInsensitiveMatching:
-    """Tests for case-insensitive archetype matching in get_deck_price."""
-
-    @respx.mock
-    async def test_lowercase_archetype_matches(self):
-        """Lowercase archetype name matches title-case in metagame snapshot."""
-        meta_html = _load_fixture("metagame_modern.html")
-        arch_html = _load_fixture("archetype_boros_energy.html")
-        deck_txt = _load_fixture("deck_download.txt")
-        respx.get(f"{BASE_URL}/metagame/modern/full").mock(
-            return_value=httpx.Response(
-                200, content=meta_html.encode(), headers={"Content-Type": "text/html"}
-            )
-        )
-        respx.get(f"{BASE_URL}/archetype/modern-boros-energy").mock(
-            return_value=httpx.Response(
-                200, content=arch_html.encode(), headers={"Content-Type": "text/html"}
-            )
-        )
-        respx.get(f"{BASE_URL}/deck/download/7708470").mock(
-            return_value=httpx.Response(
-                200, content=deck_txt.encode(), headers={"Content-Type": "text/plain"}
-            )
-        )
-        async with MTGGoldfishClient(base_url=BASE_URL) as client:
-            result = await client.get_deck_price("modern", "boros energy")
-
-        assert isinstance(result, GoldfishDeckPrice)
-        assert result.price_paper == 860
 
 
 class TestLimitZero:

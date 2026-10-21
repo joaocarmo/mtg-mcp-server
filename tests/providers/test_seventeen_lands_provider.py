@@ -57,7 +57,6 @@ class TestCardRatings:
         assert isinstance(sc["cards"], list)
         assert len(sc["cards"]) == 5
         assert sc["showing"] == 5
-        assert sc["full_data_uri"] == "mtg://draft/LCI/ratings"
         # Slim fields only
         card = sc["cards"][0]
         assert "name" in card

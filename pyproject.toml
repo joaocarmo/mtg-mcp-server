@@ -1,6 +1,6 @@
 [project]
 name = "mtg-mcp-server"
-version = "3.0.0"
+version = "4.0.0"
 description = "Magic: The Gathering card search, combo lookup, draft analytics, and Commander tools."
 readme = "README.md"
 license = "MIT"
@@ -44,9 +44,6 @@ dependencies = [
     "structlog>=24.0",
     "selectolax>=0.4.7",
 ]
-
-[project.optional-dependencies]
-code-mode = ["fastmcp[code-mode]>=3.2.0"]
 
 [project.urls]
 Homepage = "https://github.com/joaocarmo/mtg-mcp-server"

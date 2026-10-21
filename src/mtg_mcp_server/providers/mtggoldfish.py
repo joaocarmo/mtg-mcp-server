@@ -5,10 +5,8 @@ Scrapes MTGGoldfish HTML pages. Behind the MTG_MCP_ENABLE_MTGGOLDFISH feature fl
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
-import structlog
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
@@ -43,8 +41,6 @@ async def mtggoldfish_lifespan(server: FastMCP):
 
 
 mtggoldfish_mcp = FastMCP("MTGGoldfish", lifespan=mtggoldfish_lifespan, mask_error_details=True)
-
-log = structlog.get_logger(provider="mtggoldfish")
 
 
 def _get_client() -> MTGGoldfishClient:
@@ -222,70 +218,3 @@ async def format_staples(
             "staples": [slim_format_staple(s) for s in staples],
         },
     )
-
-
-@mtggoldfish_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_BETA)
-async def deck_price(
-    format: Annotated[
-        str,
-        Field(description="MTG format name (e.g. 'Modern', 'Legacy', 'Pioneer')"),
-    ],
-    archetype: Annotated[
-        str,
-        Field(description="Archetype name (e.g. 'Boros Energy', 'Azorius Control')"),
-    ],
-    response_format: ResponseFormatParam = "detailed",
-) -> ToolResult:
-    """Get the estimated paper price for an archetype deck.
-
-    Returns the total estimated cost of the deck based on current card
-    prices from MTGGoldfish.
-    """
-    client = _get_client()
-    try:
-        price_data = await client.get_deck_price(format, archetype)
-    except ArchetypeNotFoundError as exc:
-        raise ToolError(
-            f"Archetype not found: '{archetype}' in {format}. Check the archetype name."
-        ) from exc
-    except FormatNotFoundError as exc:
-        raise ToolError(f"Format not found: '{format}'. Check the format name.") from exc
-    except MTGGoldfishError as exc:
-        raise ToolError(f"MTGGoldfish error: {exc}") from exc
-
-    card_count = price_data.mainboard_count + price_data.sideboard_count
-
-    lines: list[str] = [f"## {price_data.archetype} — Price Estimate\n"]
-
-    if response_format == "concise":
-        lines.append(f"**${price_data.price_paper:,}** ({card_count} cards)")
-    else:
-        lines.append(f"**Archetype:** {price_data.archetype}")
-        lines.append(f"**Estimated Price:** ${price_data.price_paper:,}")
-        if card_count > 0:
-            lines.append(f"**Card Count:** {card_count}")
-
-    return ToolResult(
-        content="\n".join(lines) + ATTRIBUTION_MTGGOLDFISH,
-        structured_content=price_data.model_dump(),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-@mtggoldfish_mcp.resource("mtg://metagame/{format}")
-async def metagame_resource(format: str) -> str:
-    """Metagame data as JSON for a format."""
-    client = _get_client()
-    try:
-        snapshot = await client.get_metagame(format)
-        return snapshot.model_dump_json()
-    except FormatNotFoundError:
-        log.warning("resource.format_not_found", format=format)
-        return json.dumps({"error": f"Format not found: {format}"})
-    except MTGGoldfishError as exc:
-        log.warning("resource.metagame_error", format=format, error=str(exc))
-        return json.dumps({"error": f"MTGGoldfish error: {exc}"})

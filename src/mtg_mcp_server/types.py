@@ -11,7 +11,7 @@ Backends:
     17Lands — DraftCardRating, ArchetypeRating
     EDHREC — EDHRECCard, EDHRECCardList, EDHRECCommanderData
     MTGGoldfish — GoldfishArchetype, GoldfishMetaSnapshot, GoldfishFormatStaple,
-                  GoldfishArchetypeDetail, GoldfishDeckPrice
+                  GoldfishArchetypeDetail
     Moxfield — MoxfieldDeckSummary, MoxfieldUser, MoxfieldSearchResult
 """
 
@@ -37,7 +37,6 @@ __all__ = [
     "GlossaryEntry",
     "GoldfishArchetype",
     "GoldfishArchetypeDetail",
-    "GoldfishDeckPrice",
     "GoldfishFormatStaple",
     "GoldfishMetaSnapshot",
     "MoxfieldCard",
@@ -411,15 +410,6 @@ class GoldfishArchetypeDetail(BaseModel):
     date: str = ""
     mainboard: list[str] = Field(default_factory=list)
     sideboard: list[str] = Field(default_factory=list)
-
-
-class GoldfishDeckPrice(BaseModel):
-    """Price metadata for an archetype deck from MTGGoldfish."""
-
-    archetype: str
-    price_paper: int = 0
-    mainboard_count: int = 0
-    sideboard_count: int = 0
 
 
 # ---------------------------------------------------------------------------

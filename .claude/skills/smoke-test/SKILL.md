@@ -45,10 +45,10 @@ If bulk tools unavailable (older server), try `bulk_card_lookup` / `bulk_card_se
 | Call | Validate |
 |------|----------|
 | `bulk_format_staples(format="commander", limit=5)` | EDHREC mode: header contains "Rank", Sol Ring likely in top 5 |
-| `bulk_format_staples(format="modern", limit=5)` | Tournament or competitive mode: header contains "% Decks" or "Score" (NOT "Rank #") |
-| `bulk_format_staples(format="pauper", limit=5)` | Tournament or competitive mode: header contains "% Decks" or "Score", results should be commons (Lightning Bolt, Counterspell typical) |
+| `bulk_format_staples(format="modern", limit=5)` | Competitive mode: header contains "Score" (NOT "Rank #") |
+| `bulk_format_staples(format="pauper", limit=5)` | Competitive mode: header contains "Score", results should be commons (Lightning Bolt, Counterspell typical) |
 
-Commander uses EDHREC rank (singleton format). Modern and Pauper auto-select tournament mode (MTGGoldfish data) or competitive heuristic (fallback). Verify no Commander staples like Sol Ring appear in Modern/Pauper results.
+Commander uses EDHREC rank (singleton format). Modern and Pauper auto-select the competitive heuristic. Verify no Commander staples like Sol Ring appear in Modern/Pauper results.
 
 ### 4. Spellbook (sequential — need combo ID from search)
 
@@ -96,7 +96,6 @@ Commander uses EDHREC rank (singleton format). Modern and Pauper auto-select tou
 1. `goldfish_metagame(format="Modern")` — expect archetypes with meta share %, deck count, prices
 2. `goldfish_format_staples(format="Modern", limit=5)` — expect card names with % of decks and avg copies
 3. `goldfish_archetype_list(format="Modern", archetype=<first archetype name from step 1>)` — expect mainboard card list
-4. `goldfish_deck_price(format="Modern", archetype=<same archetype>)` — expect price estimate
 
 MTGGoldfish scrapes HTML — SKIP on error, don't fail the overall test.
 
@@ -158,13 +157,13 @@ Compare results from step 1 (`scryfall_card_details("Sol Ring")`) and step 2 (`b
 | Rules | 5 | | | |
 | Core Workflows | 4 | | | |
 | Deck Building | 4 | | | |
-| MTGGoldfish | 4 | | | |
+| MTGGoldfish | 3 | | | |
 | Moxfield | 3 | | | |
 | Metagame | 3 | | | |
 | Sideboard | 3 | | | |
 | Commander Depth | 2 | | | |
 | Consistency | 1 | | | |
-| **Total** | **44** | | | |
+| **Total** | **43** | | | |
 
 ### Failures
 [Details for each FAIL — what was expected vs actual]

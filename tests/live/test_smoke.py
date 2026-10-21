@@ -26,9 +26,9 @@ class TestServerHealth:
     async def test_all_tools_registered(self, live_client):
         tools = await live_client.list_tools()
         tool_names = {t.name for t in tools}
-        # 1 ping + 6 scryfall + 4 spellbook + 2 draft + 2 edhrec + 4 moxfield + 4 goldfish + 9 bulk + 29 workflows + 5 rules = 66
-        assert len(tool_names) == 66, (
-            f"Expected 66 tools, got {len(tool_names)}: {sorted(tool_names)}"
+        # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 3 goldfish + 8 bulk + 29 workflows + 5 rules = 61
+        assert len(tool_names) == 61, (
+            f"Expected 61 tools, got {len(tool_names)}: {sorted(tool_names)}"
         )
 
     async def test_no_mtgjson_tools(self, live_client):
@@ -305,22 +305,14 @@ class TestCrossFormatLive:
         assert "Sol Ring" in text or "Commander" in text.lower()
 
     async def test_format_staples_modern_nonsingleton(self, live_client):
-        """Non-singleton format should use tournament or competitive mode, not EDHREC."""
+        """Non-singleton format should use competitive mode, not EDHREC."""
         result = await live_client.call_tool(
             "bulk_format_staples", {"format": "modern", "limit": 5}
         )
         text = result.content[0].text
         assert "Modern" in text
-        # Should use tournament (% Decks) or competitive (Score), NOT edhrec (Rank #)
-        assert "% Decks" in text or "Score" in text
-
-    async def test_card_in_formats(self, live_client):
-        result = await live_client.call_tool(
-            "bulk_card_in_formats", {"card_name": "Lightning Bolt"}
-        )
-        text = result.content[0].text
-        assert "Lightning Bolt" in text
-        assert "modern" in text.lower()
+        # Should use competitive (Score), NOT edhrec (Rank #)
+        assert "Score" in text
 
 
 class TestRulesDiscoveryLive:
