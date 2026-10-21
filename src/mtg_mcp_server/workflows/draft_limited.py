@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import statistics
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from itertools import combinations
 from typing import TYPE_CHECKING, Literal
 
@@ -48,14 +48,7 @@ class _SealedBuild:
 
     def to_dict(self) -> dict[str, object]:
         """Convert to a plain dict for WorkflowResult.data."""
-        return {
-            "colors": self.colors,
-            "score": round(self.score, 3),
-            "deck": self.deck,
-            "land_split": self.land_split,
-            "playable_count": self.playable_count,
-            "curve": self.curve,
-        }
+        return {**asdict(self), "score": round(self.score, 3)}
 
 
 @dataclass
@@ -68,16 +61,6 @@ class _PickData:
     alsa: float | None
     gih_wr: float | None
 
-    def to_dict(self) -> dict[str, object]:
-        """Convert to a plain dict for WorkflowResult.data."""
-        return {
-            "name": self.name,
-            "pick_position": self.pick_position,
-            "colors": self.colors,
-            "alsa": self.alsa,
-            "gih_wr": self.gih_wr,
-        }
-
 
 @dataclass
 class _PickAnalysis:
@@ -88,16 +71,6 @@ class _PickAnalysis:
     color: str
     rarity: str
     gih_wr: float | None
-
-    def to_dict(self) -> dict[str, object]:
-        """Convert to a plain dict for WorkflowResult.data."""
-        return {
-            "pick_label": self.pick_label,
-            "name": self.name,
-            "color": self.color,
-            "rarity": self.rarity,
-            "gih_wr": self.gih_wr,
-        }
 
 
 # All five MTG colors for pair enumeration.
@@ -646,7 +619,7 @@ async def draft_signal_read(
             "signals": color_signals,
             "color_counts": dict(color_counts),
             "recommendation": recommendation,
-            "picks": [p.to_dict() for p in pick_data],
+            "picks": [asdict(p) for p in pick_data],
         },
     )
 
@@ -841,7 +814,7 @@ async def draft_log_review(
 
     data: dict[str, object] = {
         "set_code": set_code,
-        "picks": [pa.to_dict() for pa in pick_analysis],
+        "picks": [asdict(pa) for pa in pick_analysis],
         "avg_gih_wr": avg_gih_wr,
         "color_counts": dict(color_counts),
         "grade": grade,

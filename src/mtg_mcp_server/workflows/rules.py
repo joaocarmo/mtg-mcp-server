@@ -545,13 +545,7 @@ async def rules_scenario(
     # Extract candidate keywords from the scenario
     words = re.findall(r"[a-zA-Z]+", scenario.lower())
     candidates = [w for w in words if len(w) >= _MIN_KEYWORD_LEN and w not in _STOP_WORDS]
-    # Deduplicate while preserving order
-    seen: set[str] = set()
-    unique_candidates: list[str] = []
-    for w in candidates:
-        if w not in seen:
-            seen.add(w)
-            unique_candidates.append(w)
+    unique_candidates = list(dict.fromkeys(candidates))  # dedupe, keep order
 
     # Search rules for each candidate keyword
     all_rules: dict[str, list[Rule]] = {}

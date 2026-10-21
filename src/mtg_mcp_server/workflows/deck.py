@@ -112,29 +112,6 @@ async def suggest_cuts(
     return WorkflowResult(markdown=markdown, data=data)
 
 
-async def _fetch_spellbook(
-    spellbook: SpellbookClient,
-    commander_name: str,
-    decklist: list[str],
-) -> DecklistCombos | BaseException:
-    """Fetch Spellbook data, returning the exception on failure."""
-    try:
-        return await spellbook.find_decklist_combos([commander_name], decklist)
-    except Exception as exc:
-        return exc
-
-
-async def _fetch_edhrec(
-    edhrec: EDHRECClient,
-    commander_name: str,
-) -> EDHRECCommanderData | BaseException:
-    """Fetch EDHREC data, returning the exception on failure."""
-    try:
-        return await edhrec.commander_top_cards(commander_name)
-    except Exception as exc:
-        return exc
-
-
 async def fetch_data(
     decklist: list[str],
     commander_name: str,
@@ -144,14 +121,18 @@ async def fetch_data(
     sources: DataSources,
 ) -> tuple[DecklistCombos | None, EDHRECCommanderData | None]:
     """Fetch Spellbook and EDHREC data concurrently, tolerating failures."""
-    spellbook_coro = _fetch_spellbook(spellbook, commander_name, decklist)
-
-    if edhrec is not None:
-        edhrec_coro = _fetch_edhrec(edhrec, commander_name)
-        spellbook_result, edhrec_result = await asyncio.gather(spellbook_coro, edhrec_coro)
+    spellbook_coro = spellbook.find_decklist_combos([commander_name], decklist)
+    edhrec_result: EDHRECCommanderData | BaseException | None = None
+    if edhrec is None:
+        (spellbook_result,) = await asyncio.gather(spellbook_coro, return_exceptions=True)
     else:
-        spellbook_result = await spellbook_coro
-        edhrec_result = None
+        spellbook_result, edhrec_result = await asyncio.gather(
+            spellbook_coro, edhrec.commander_top_cards(commander_name), return_exceptions=True
+        )
+    # Only Exceptions are tolerated; let cancellation and other BaseExceptions propagate.
+    for result in (spellbook_result, edhrec_result):
+        if isinstance(result, BaseException) and not isinstance(result, Exception):
+            raise result
 
     # Process spellbook result
     combo_data: DecklistCombos | None = None
