@@ -9,7 +9,7 @@ import httpx
 import pytest
 import respx
 
-from mtg_mcp_server.services.rules import RulesService
+from mtg_mcp_server.services.rules import RulesError, RulesService
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "rules"
 
@@ -454,12 +454,12 @@ class TestStaleData:
             with pytest.raises(Exception, match="HTTP 500"):
                 await svc.ensure_loaded()
 
-    async def test_network_error_raises_download_error(self) -> None:
+    async def test_network_error_raises_rules_error(self) -> None:
         """Network-level failure (connection refused, DNS timeout) raises RulesError."""
         with respx.mock:
             respx.get(_RULES_URL).mock(side_effect=httpx.ConnectError("connection refused"))
             svc = RulesService(rules_url=_RULES_URL, refresh_hours=168)
-            with pytest.raises(Exception, match="Network error"):
+            with pytest.raises(RulesError, match="Network error"):
                 await svc.ensure_loaded()
 
     async def test_network_error_on_refresh_serves_stale(self) -> None:

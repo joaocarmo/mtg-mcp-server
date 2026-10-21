@@ -664,7 +664,7 @@ class TestExceptionTypes:
         assert isinstance(err, ServiceError)
         assert err.status_code is None
 
-    async def test_network_error_raises_download_error(self):
+    async def test_network_error_raises_scryfall_bulk_error(self):
         """Network connection failure on metadata raises ScryfallBulkError."""
         with respx.mock:
             respx.get(f"{_BASE_URL}/bulk-data/oracle_cards").mock(
