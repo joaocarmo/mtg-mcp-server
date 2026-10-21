@@ -53,7 +53,7 @@ src/mtg_mcp_server/
 ├── utils/           # Pure helpers: color identity, decklist parsing, format rules, formatters,
 │                    #   mana, fuzzy matching, query parser, slim.py (slim structured_content dicts)
 └── workflows/       # Pure async functions per domain + server.py (wraps them as tools, prompts,
-                     #   resources). card_resolver.py: bulk-data-first lookup, Scryfall fallback
+                     #   resources). analysis.py resolves cards bulk-data-first, Scryfall fallback
 tests/               # Mirrors src/: services/, providers/, workflows/, utils/,
                      #   integration/ (fixture-mocked E2E), live/ (real APIs), fixtures/ (captured responses)
 ```
@@ -117,7 +117,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 | Multi-client lifespan | `AsyncExitStack` | Cleaner than nested `async with` with feature flags |
 | Service caching | cachetools `TTLCache` per method | Caches parsed models; per-method TTL (see [CACHING_DESIGN.md](CACHING_DESIGN.md)) |
 | Bulk data | Scryfall Oracle Cards, file-based service, replaced MTGJSON | Same `Card` shape as the API, plus prices, legalities, images and EDHREC rank that MTGJSON lacked |
-| Bulk integration | Workflow layer via `card_resolver.py`, not inside `ScryfallClient` | Keeps services independent; one shared bulk-first/API-fallback path |
+| Bulk integration | Workflow layer (bulk-first, API fallback in `analysis.py`), not inside `ScryfallClient` | Keeps services independent |
 | Rules engine | Local file-based `RulesService` in the workflow lifespan | Rules tools compose with bulk data for card examples |
 | Structured output | `ToolResult` with `structured_content`; slim dicts in `utils/slim.py` | Programmatic consumption at bounded size; full data via resource URIs |
 | Response format | `response_format: "detailed" \| "concise"` | Controls verbosity without duplicate tools |

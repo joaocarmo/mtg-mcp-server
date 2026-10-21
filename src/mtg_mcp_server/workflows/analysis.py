@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 from mtg_mcp_server.services.base import ServiceError
+from mtg_mcp_server.types import Card
 from mtg_mcp_server.utils.decklist import parse_decklist
 from mtg_mcp_server.utils.mana import count_pips
 from mtg_mcp_server.workflows import WorkflowResult
@@ -23,7 +24,6 @@ if TYPE_CHECKING:
     from mtg_mcp_server.services.spellbook import SpellbookClient
     from mtg_mcp_server.types import (
         BracketEstimate,
-        Card,
         DecklistCombos,
         EDHRECCard,
         EDHRECCommanderData,
@@ -53,16 +53,6 @@ class _DataSources:
 
 
 @dataclass
-class _ResolvedCard:
-    """A card resolved from bulk data or Scryfall."""
-
-    name: str
-    mana_cost: str | None = None
-    cmc: float = 0.0
-    price_usd: str | None = None
-
-
-@dataclass
 class _ManaCurve:
     """Mana curve distribution."""
 
@@ -84,22 +74,7 @@ class _ColorPips:
 # ---------------------------------------------------------------------------
 
 
-def _get_cmc(card: Card) -> float:
-    """Extract CMC from a resolved card."""
-    return card.cmc
-
-
-def _get_mana_cost(card: Card) -> str | None:
-    """Extract mana cost from a resolved card."""
-    return card.mana_cost if card.mana_cost else None
-
-
-def _get_price_usd(card: Card) -> str | None:
-    """Extract USD price from a card."""
-    return card.prices.usd
-
-
-def _compute_mana_curve(cards: list[_ResolvedCard]) -> _ManaCurve:
+def _compute_mana_curve(cards: list[Card]) -> _ManaCurve:
     """Compute mana curve from resolved cards."""
     curve = _ManaCurve()
     for card in cards:
@@ -110,7 +85,7 @@ def _compute_mana_curve(cards: list[_ResolvedCard]) -> _ManaCurve:
     return curve
 
 
-def _compute_color_pips(cards: list[_ResolvedCard]) -> _ColorPips:
+def _compute_color_pips(cards: list[Card]) -> _ColorPips:
     """Compute color pip totals from resolved cards."""
     color_pips = _ColorPips()
     for card in cards:
@@ -253,27 +228,33 @@ async def _resolve_cards(
     *,
     bulk: ScryfallBulkClient | None,
     scryfall: ScryfallClient,
-) -> tuple[list[_ResolvedCard], list[str]]:
+) -> tuple[list[Card], list[str]]:
     """Resolve all cards in the decklist using bulk-data-first fallback.
 
     Each distinct name is resolved once and then repeated to match its
     quantity, so the curve, pips and budget count every copy.
     """
-    from mtg_mcp_server.workflows.card_resolver import resolve_card
-
     # Cap concurrent Scryfall lookups to avoid overwhelming the connection pool.
     sem = asyncio.Semaphore(10)
 
     async def _bounded_resolve(name: str) -> Card:
-        """Resolve a single card with concurrency limiting."""
+        """Resolve one card from bulk data, falling back to Scryfall on miss or error."""
         async with sem:
-            return await resolve_card(name, bulk=bulk, scryfall=scryfall)
+            if bulk is not None:
+                try:
+                    card = await bulk.get_card(name)
+                except Exception:
+                    log.warning("resolve_card.bulk_error", name=name, exc_info=True)
+                    card = None
+                if card is not None:
+                    return card
+            return await scryfall.get_card_by_name(name)
 
     unique_names = list(dict.fromkeys(name for _, name in parsed))
     tasks = [_bounded_resolve(name) for name in unique_names]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    by_name: dict[str, _ResolvedCard] = {}
+    by_name: dict[str, Card] = {}
     failures: list[str] = []
 
     for name, result in zip(unique_names, results, strict=True):
@@ -286,14 +267,9 @@ async def _resolve_cards(
             )
             failures.append(name)
             # Add with defaults so curve still counts it
-            by_name[name] = _ResolvedCard(name=name)
+            by_name[name] = Card(id="", name=name)
         else:
-            by_name[name] = _ResolvedCard(
-                name=result.name,
-                mana_cost=_get_mana_cost(result),
-                cmc=_get_cmc(result),
-                price_usd=_get_price_usd(result),
-            )
+            by_name[name] = result
 
     resolved = [by_name[name] for qty, name in parsed for _ in range(qty)]
     return resolved, failures
@@ -386,7 +362,7 @@ def _find_low_synergy(
 
 
 def _compute_budget(
-    resolved_cards: list[_ResolvedCard],
+    resolved_cards: list[Card],
 ) -> tuple[float, float, int]:
     """Compute total and average price from resolved cards.
 
@@ -395,12 +371,12 @@ def _compute_budget(
     total = 0.0
     priced = 0
     for card in resolved_cards:
-        if card.price_usd is not None:
+        if card.prices.usd is not None:
             try:
-                total += float(card.price_usd)
+                total += float(card.prices.usd)
                 priced += 1
             except ValueError:
-                log.warning("compute_budget.bad_price", card=card.name, price=card.price_usd)
+                log.warning("compute_budget.bad_price", card=card.name, price=card.prices.usd)
 
     avg = total / priced if priced > 0 else 0.0
     return total, avg, priced

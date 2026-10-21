@@ -62,6 +62,6 @@ Service details (lazy download, layout filtering, 12h background refresh, stale-
 It's used in three ways:
 1. The `bulk_` provider: rate-limit-free lookup, search, legality, staples, ban lists, similar and random cards.
 2. A separate `ScryfallBulkClient` instance in the workflow lifespan.
-3. `workflows/card_resolver.py`: workflows check bulk data first and fall back to the Scryfall API, which then populates the TTL cache.
+3. `workflows/analysis.py` (`deck_analysis`): checks bulk data first and falls back to the Scryfall API, which then populates the TTL cache.
 
 Provider-level `scryfall_` tools always hit the API (TTL-cached). When the flag is off, the provider isn't mounted and workflows go straight to the API.

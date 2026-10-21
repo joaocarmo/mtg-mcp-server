@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 from mtg_mcp_server.services.base import ServiceError
+from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkError
 from mtg_mcp_server.types import (
     BracketEstimate,
     Card,
@@ -350,6 +351,38 @@ class TestDeckAnalysisBulkDisabled:
             edhrec=_make_edhrec(),
         )
         assert "## Mana Curve" in result.markdown
+
+    async def test_bulk_miss_falls_back_to_scryfall(self) -> None:
+        """Cards missing from bulk data are resolved via Scryfall; bulk hits are not."""
+        scryfall = _make_scryfall()
+        bulk = _make_bulk({"sol ring": _make_card("Sol Ring", mana_cost="{1}", cmc=1.0)})
+        result = await deck_analysis(
+            ["Sol Ring", "Spore Frog"],
+            COMMANDER,
+            bulk=bulk,
+            scryfall=scryfall,
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["unresolved"] == []
+        scryfall.get_card_by_name.assert_awaited_once_with("Spore Frog")
+
+    async def test_bulk_error_falls_back_to_scryfall(self) -> None:
+        """A bulk data error falls back to Scryfall instead of failing the card."""
+        bulk = AsyncMock()
+        bulk.get_card = AsyncMock(side_effect=ScryfallBulkError("Download failed"))
+        result = await deck_analysis(
+            ["Sol Ring"],
+            COMMANDER,
+            bulk=bulk,
+            scryfall=_make_scryfall(),
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["unresolved"] == []
+        assert result.data["total_mana_value"] == 1.0
 
 
 class TestDeckAnalysisEdhrecDisabled:
