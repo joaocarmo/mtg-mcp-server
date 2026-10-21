@@ -114,7 +114,7 @@ class TestNewPromptsE2E:
     """New prompts are visible on the orchestrator."""
 
     async def test_new_prompts_listed(self, mcp_client: Client):
-        """All 17 prompts registered on the orchestrator."""
+        """All prompts registered on the orchestrator."""
         prompts = await mcp_client.list_prompts()
         names = {p.name for p in prompts}
         # 4 original + 4 cross-format + 1 rules + 8 format workflow prompts = 17
@@ -128,7 +128,7 @@ class TestNewPromptsE2E:
         assert "upgrade_precon" in names
         assert "explore_format" in names
         assert "build_constructed_deck" in names
-        assert len(prompts) == 19
+        assert len(prompts) == 18
 
 
 class TestPing:

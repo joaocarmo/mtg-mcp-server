@@ -1740,32 +1740,6 @@ Present: prioritized upgrade list with total cost, explaining each swap."""
 
 
 @workflow_mcp.prompt()
-def sealed_session(
-    set_code: Annotated[str, Field(description="Set code for the sealed format (e.g. 'LCI')")],
-) -> str:
-    """Guide a sealed deck building session."""
-    return f"""Sealed deck building session for {set_code}.
-
-The user should provide their sealed pool (84-90 card names from 6 packs).
-If they haven't, ask them to list their pool.
-
-Step 1: Use sealed_pool_build with the pool and set_code="{set_code}".
-  This will suggest 1-3 builds with color pairs, decklists, and mana curves.
-
-Step 2: For the recommended build:
-  - Explain why this color pair is strongest (card quality, curve, bombs)
-  - Highlight key cards and synergies
-  - Note sideboard options for tough matchups
-
-Step 3: If 17Lands data is available:
-  - Note which of the suggested cards have the best GIH WR
-  - Flag any cards that look good on paper but underperform statistically
-  - Check the archetype win rate for the suggested colors
-
-Help the user finalize their 40-card deck and plan sideboard adjustments."""
-
-
-@workflow_mcp.prompt()
 def draft_review(
     set_code: Annotated[str, Field(description="Set code for the draft format (e.g. 'LCI')")],
 ) -> str:

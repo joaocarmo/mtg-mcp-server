@@ -164,7 +164,6 @@ Each prompt returns step-by-step instructions that chain the tools listed.
 | `build_tribal_deck` | `tribe`, `format`, `commander=None`, `budget=None` | `tribal_staples` → `build_around` → `suggest_mana_base` → `deck_validate` |
 | `build_theme_deck` | `theme`, `format`, `color_identity=None`, `budget=None` | `theme_search` → `build_around` → `complete_deck` → `deck_validate` → `suggest_mana_base` |
 | `upgrade_precon` | `commander`, `budget` | `commander_overview` → `deck_analysis` → `suggest_cuts` → `precon_upgrade` → `deck_validate` |
-| `sealed_session` | `set_code` | `sealed_pool_build` → 17Lands evaluation → sideboard planning |
 | `draft_review` | `set_code` | `draft_log_review` → `draft_signal_read` |
 | `compare_commanders` | `commanders` | `commander_comparison` → combos → staples |
 | `rotation_plan` | — | `rotation_check` → `bulk_similar_cards` → `price_comparison` |

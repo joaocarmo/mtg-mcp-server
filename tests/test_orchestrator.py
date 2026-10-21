@@ -449,7 +449,6 @@ class TestPromptCompleteness:
             "build_tribal_deck",
             "build_theme_deck",
             "upgrade_precon",
-            "sealed_session",
             "draft_review",
             "compare_commanders",
             "rotation_plan",
