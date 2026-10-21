@@ -24,6 +24,7 @@ import contextlib
 import gzip
 import json
 import random
+import sys
 import time
 from typing import Self
 
@@ -221,15 +222,7 @@ class ScryfallBulkClient:
         Returns:
             Matching cards, up to ``limit``.
         """
-        await self.ensure_loaded()
-        query_lower = query.lower()
-        results: list[Card] = []
-        for card in self._unique_cards:
-            if query_lower in card.name.lower():
-                results.append(card)
-                if len(results) >= limit:
-                    break
-        return results
+        return await self.filter_cards(name_contains=query, limit=limit)
 
     async def search_by_type(self, type_query: str, limit: int = 20) -> list[Card]:
         """Search cards by type line substring (case-insensitive).
@@ -241,15 +234,7 @@ class ScryfallBulkClient:
         Returns:
             Matching cards, up to ``limit``.
         """
-        await self.ensure_loaded()
-        query_lower = type_query.lower()
-        results: list[Card] = []
-        for card in self._unique_cards:
-            if query_lower in card.type_line.lower():
-                results.append(card)
-                if len(results) >= limit:
-                    break
-        return results
+        return await self.filter_cards(type_contains=[type_query], limit=limit)
 
     async def search_by_text(self, text_query: str, limit: int = 20) -> list[Card]:
         """Search cards by oracle text substring (case-insensitive).
@@ -261,16 +246,7 @@ class ScryfallBulkClient:
         Returns:
             Matching cards, up to ``limit``.
         """
-        await self.ensure_loaded()
-        query_lower = text_query.lower()
-        results: list[Card] = []
-        for card in self._unique_cards:
-            oracle = card.oracle_text or ""
-            if query_lower in oracle.lower():
-                results.append(card)
-                if len(results) >= limit:
-                    break
-        return results
+        return await self.filter_cards(text_contains=[text_query], limit=limit)
 
     async def filter_cards(
         self,
@@ -427,24 +403,13 @@ class ScryfallBulkClient:
         Returns:
             A random matching card, or None if no cards match.
         """
-        await self.ensure_loaded()
-
-        pool: list[Card] = []
-        type_lower = type_contains.lower() if type_contains else None
-
-        for card in self._unique_cards:
-            if format is not None and card.legalities.get(format) != "legal":
-                continue
-            if color_identity is not None and not frozenset(card.color_identity).issubset(
-                color_identity
-            ):
-                continue
-            if type_lower is not None and type_lower not in card.type_line.lower():
-                continue
-            if rarity is not None and card.rarity != rarity:
-                continue
-            pool.append(card)
-
+        pool = await self.filter_cards(
+            format=format,
+            color_identity=color_identity,
+            type_contains=[type_contains] if type_contains else None,
+            rarity=rarity,
+            limit=sys.maxsize,
+        )
         if not pool:
             return None
         return random.choice(pool)
