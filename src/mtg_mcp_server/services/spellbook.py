@@ -10,7 +10,7 @@ from __future__ import annotations
 from cachetools import TTLCache
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _decklist_key, _method_key, async_cached
+from mtg_mcp_server.services.cache import _decklist_key, async_cached
 from mtg_mcp_server.types import BracketEstimate, Combo, ComboCard, ComboResult, DecklistCombos
 
 
@@ -104,7 +104,7 @@ class SpellbookClient(BaseClient):
 
     rate_limit_rps = 3.0
 
-    @async_cached(_combos_cache, key=_method_key)
+    @async_cached(_combos_cache)
     async def find_combos(
         self,
         card_name: str,
@@ -141,7 +141,7 @@ class SpellbookClient(BaseClient):
         data = response.json()
         return [_parse_combo(r) for r in data.get("results", [])]
 
-    @async_cached(_combo_cache, key=_method_key)
+    @async_cached(_combo_cache)
     async def get_combo(self, combo_id: str) -> Combo:
         """Get detailed information about a specific combo by ID.
 

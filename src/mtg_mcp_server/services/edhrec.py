@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from cachetools import TTLCache
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _method_key, async_cached
+from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import EDHRECCard, EDHRECCardList, EDHRECCommanderData
 from mtg_mcp_server.utils.formatters import slugify
 
@@ -55,7 +55,7 @@ class EDHRECClient(BaseClient):
 
     rate_limit_rps = 0.5  # 1 req per 2 sec
 
-    @async_cached(_commander_cache, key=_method_key)
+    @async_cached(_commander_cache)
     async def commander_top_cards(
         self, commander_name: str, category: str | None = None
     ) -> EDHRECCommanderData:
@@ -86,7 +86,7 @@ class EDHRECClient(BaseClient):
         data = response.json()
         return self._parse_commander_data(data, commander_name, category)
 
-    @async_cached(_synergy_cache, key=_method_key)
+    @async_cached(_synergy_cache)
     async def card_synergy(self, card_name: str, commander_name: str) -> EDHRECCard | None:
         """Get synergy data for a specific card with a commander.
 

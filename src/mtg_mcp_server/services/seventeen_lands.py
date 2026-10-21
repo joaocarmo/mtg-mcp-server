@@ -9,7 +9,7 @@ from __future__ import annotations
 from cachetools import TTLCache
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _method_key, async_cached
+from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import ArchetypeRating, DraftCardRating
 
 
@@ -36,7 +36,7 @@ class SeventeenLandsClient(BaseClient):
 
     rate_limit_rps = 1.0
 
-    @async_cached(_card_ratings_cache, key=_method_key)
+    @async_cached(_card_ratings_cache)
     async def card_ratings(
         self,
         set_code: str,
@@ -72,7 +72,7 @@ class SeventeenLandsClient(BaseClient):
             raise SeventeenLandsError(exc.message, status_code=exc.status_code) from exc
         return [DraftCardRating.model_validate(item) for item in response.json()]
 
-    @async_cached(_color_ratings_cache, key=_method_key)
+    @async_cached(_color_ratings_cache)
     async def color_ratings(
         self,
         set_code: str,

@@ -16,7 +16,7 @@ from cachetools import TTLCache
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _method_key, async_cached
+from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import (
     GoldfishArchetype,
     GoldfishArchetypeDetail,
@@ -101,7 +101,7 @@ class MTGGoldfishClient(BaseClient):
             )
         return self
 
-    @async_cached(_metagame_cache, key=_method_key)
+    @async_cached(_metagame_cache)
     async def get_metagame(self, format: str) -> GoldfishMetaSnapshot:
         """Get metagame breakdown for a format.
 
@@ -138,7 +138,7 @@ class MTGGoldfishClient(BaseClient):
             total_decks=total_decks,
         )
 
-    @async_cached(_archetype_cache, key=_method_key)
+    @async_cached(_archetype_cache)
     async def get_archetype(self, format: str, archetype: str) -> GoldfishArchetypeDetail:
         """Get archetype detail with decklist.
 
@@ -205,7 +205,7 @@ class MTGGoldfishClient(BaseClient):
         )
         return detail
 
-    @async_cached(_staples_cache, key=_method_key)
+    @async_cached(_staples_cache)
     async def get_format_staples(self, format: str, limit: int = 20) -> list[GoldfishFormatStaple]:
         """Get most-played cards in a format.
 
@@ -241,7 +241,7 @@ class MTGGoldfishClient(BaseClient):
         log.debug("get_format_staples.complete", format=format, count=len(staples))
         return staples
 
-    @async_cached(_price_cache, key=_method_key)
+    @async_cached(_price_cache)
     async def get_deck_price(self, format: str, archetype: str) -> GoldfishDeckPrice:
         """Get price metadata for an archetype.
 

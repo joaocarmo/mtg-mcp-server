@@ -35,15 +35,6 @@ def disable_all_caches() -> None:
     _disabled = True
 
 
-def _method_key(*args: object, **kwargs: object) -> object:
-    """Build a cache key that skips ``self`` (first positional arg).
-
-    Used as the default key function for ``@async_cached`` on instance methods.
-    Without skipping ``self``, cache hits would require the same object identity.
-    """
-    return keys.hashkey(*args[1:], **kwargs)
-
-
 def _decklist_key(*args: object, **kwargs: object) -> object:
     """Build a cache key for methods whose args contain lists.
 
@@ -57,7 +48,7 @@ def _decklist_key(*args: object, **kwargs: object) -> object:
     return keys.hashkey(*converted, **converted_kw)
 
 
-def async_cached(cache: TTLCache, key: _KeyFunc = _method_key):
+def async_cached(cache: TTLCache, key: _KeyFunc = keys.methodkey):
     """Decorate an async method to cache its results in a TTLCache.
 
     Caches are class-level (shared across instances) since service clients
@@ -66,7 +57,7 @@ def async_cached(cache: TTLCache, key: _KeyFunc = _method_key):
 
     Args:
         cache: TTLCache instance (typically a class attribute).
-        key: Key function; defaults to ``_method_key`` (skips ``self``).
+        key: Key function; defaults to ``cachetools.keys.methodkey`` (skips ``self``).
 
     The wrapped function exposes a ``.cache`` attribute for test introspection.
     Respects the module-level ``_disabled`` flag set by ``disable_all_caches()``.

@@ -2,7 +2,7 @@
 
 Tests cover:
 - Core ``async_cached`` decorator mechanics
-- Cache key functions (``_method_key``, ``_decklist_key``)
+- Cache key function ``_decklist_key``
 - Per-service cache behavior (cache hit skips HTTP, clear works)
 """
 
@@ -16,7 +16,7 @@ import respx
 from cachetools import TTLCache
 
 import mtg_mcp_server.services.cache as cache_mod
-from mtg_mcp_server.services.cache import _decklist_key, _method_key, async_cached
+from mtg_mcp_server.services.cache import _decklist_key, async_cached
 from mtg_mcp_server.services.edhrec import EDHRECClient
 from mtg_mcp_server.services.scryfall import ScryfallClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
@@ -132,47 +132,6 @@ class TestAsyncCachedDecorator:
             assert len(cache) == 0  # nothing stored in cache
         finally:
             cache_mod._disabled = old
-
-
-class TestMethodKey:
-    """Tests for ``_method_key`` — skips self, hashes the rest."""
-
-    def test_skips_self_argument(self):
-        """Different self objects produce the same cache key."""
-        sentinel = object()
-        key1 = _method_key(sentinel, "card_name", fuzzy=True)
-        key2 = _method_key(object(), "card_name", fuzzy=True)
-
-        # Different self objects should produce the same key
-        assert key1 == key2
-
-    def test_different_args_produce_different_keys(self):
-        """Different positional arguments produce distinct cache keys."""
-        s = object()
-        key1 = _method_key(s, "card_a")
-        key2 = _method_key(s, "card_b")
-        assert key1 != key2
-
-    def test_keyword_args_affect_key(self):
-        """Different keyword argument values produce distinct cache keys."""
-        s = object()
-        key1 = _method_key(s, "name", fuzzy=True)
-        key2 = _method_key(s, "name", fuzzy=False)
-        assert key1 != key2
-
-    def test_cache_key_isolation_fuzzy_vs_exact(self):
-        """(name, fuzzy=True) and (name, fuzzy=False) must be separate entries."""
-        cache: TTLCache = TTLCache(maxsize=10, ttl=300)
-
-        # Simulate two cache entries
-        k1 = _method_key(None, "Sol Ring", fuzzy=True)
-        k2 = _method_key(None, "Sol Ring", fuzzy=False)
-        cache[k1] = "fuzzy_result"
-        cache[k2] = "exact_result"
-
-        assert cache[k1] == "fuzzy_result"
-        assert cache[k2] == "exact_result"
-        assert len(cache) == 2
 
 
 class TestDecklistKey:

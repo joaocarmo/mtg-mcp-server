@@ -9,7 +9,7 @@ from __future__ import annotations
 from cachetools import TTLCache
 
 from mtg_mcp_server.services.base import BaseClient, ServiceError
-from mtg_mcp_server.services.cache import _method_key, async_cached
+from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import Card, CardSearchResult, Ruling, SetInfo
 
 
@@ -35,7 +35,7 @@ class ScryfallClient(BaseClient):
     _rulings_cache: TTLCache = TTLCache(maxsize=200, ttl=86400)  # 24h
     _sets_cache: TTLCache = TTLCache(maxsize=50, ttl=86400)  # 24h
 
-    @async_cached(_card_name_cache, key=_method_key)
+    @async_cached(_card_name_cache)
     async def get_card_by_name(self, name: str, *, fuzzy: bool = False) -> Card:
         """Look up a card by exact or fuzzy name.
 
@@ -59,7 +59,7 @@ class ScryfallClient(BaseClient):
             raise ScryfallError(exc.message, status_code=exc.status_code) from exc
         return Card.model_validate(response.json())
 
-    @async_cached(_search_cache, key=_method_key)
+    @async_cached(_search_cache)
     async def search_cards(self, query: str, page: int = 1) -> CardSearchResult:
         """Search for cards using Scryfall syntax.
 
@@ -84,7 +84,7 @@ class ScryfallClient(BaseClient):
             raise ScryfallError(exc.message, status_code=exc.status_code) from exc
         return CardSearchResult.model_validate(response.json())
 
-    @async_cached(_rulings_cache, key=_method_key)
+    @async_cached(_rulings_cache)
     async def get_rulings(self, scryfall_id: str) -> list[Ruling]:
         """Get official rulings for a card by Scryfall UUID.
 
@@ -104,7 +104,7 @@ class ScryfallClient(BaseClient):
         data = response.json()
         return [Ruling.model_validate(r) for r in data["data"]]
 
-    @async_cached(_sets_cache, key=_method_key)
+    @async_cached(_sets_cache)
     async def get_sets(self) -> list[SetInfo]:
         """List all Magic sets.
 
@@ -120,7 +120,7 @@ class ScryfallClient(BaseClient):
             raise ScryfallError(exc.message, status_code=exc.status_code) from exc
         return [SetInfo.model_validate(s) for s in response.json()["data"]]
 
-    @async_cached(_sets_cache, key=_method_key)
+    @async_cached(_sets_cache)
     async def get_set(self, set_code: str) -> SetInfo:
         """Get set metadata by code.
 
