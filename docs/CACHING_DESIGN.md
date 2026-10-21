@@ -14,7 +14,7 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 **Why no locks:** everything runs on a single asyncio loop, and the per-service rate limiter already serialises cold-cache stampedes.
 
 **Key functions:**
-- `_method_key` (default) skips `self`, so entries are keyed on arguments, not instance identity.
+- `cachetools.keys.methodkey` (default) skips `self`, so entries are keyed on arguments, not instance identity.
 - `_decklist_key` converts positional and keyword `list` args to tuples (lists are unhashable). Spellbook's POST methods use it: they are read-only queries, so caching them is correct.
 
 **Lifecycle:**
