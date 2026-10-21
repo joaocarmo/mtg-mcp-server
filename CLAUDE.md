@@ -1,8 +1,8 @@
 # MTG MCP Server
 
-Unified MCP server providing Magic: The Gathering data to AI assistants. Composes Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield and MTGGoldfish into one server using FastMCP 3.x's provider/mount architecture.
+Unified MCP server providing Magic: The Gathering data to AI assistants. Composes Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield and MTGGoldfish into one server using FastMCP's provider/mount architecture.
 
-Stack: Python 3.12+ · FastMCP 3.2.x · httpx · Pydantic v2 · structlog. Tooling: mise · uv · ruff · ty · pytest · respx. Prerequisite: [mise](https://mise.jdx.dev); `mise install` gets everything else.
+Prerequisite: [mise](https://mise.jdx.dev); `mise install` gets everything else.
 
 ## Commands
 
@@ -50,10 +50,9 @@ Architecture and patterns: @docs/ARCHITECTURE.md (layers, client lifecycle, erro
 
 ## Gotchas
 
-- Import `from fastmcp import FastMCP`, not `from mcp.server.fastmcp`.
 - The CLI needs the subcommand: `fastmcp dev inspector <file>`, not `fastmcp dev <file>`.
 - Use the shared `TOOL_ANNOTATIONS` from `mtg_mcp_server.providers`, never inline `ToolAnnotations()`.
-- Service clients: lifespan + module-level `_client`, constructed with `Settings()` so `MTG_MCP_*_BASE_URL` is honoured. Not `Depends()`/`ctx.lifespan_context`, which don't propagate through `mount()`.
+- Service clients: lifespan + module-level `_client`, constructed with `Settings()` so `MTG_MCP_*_BASE_URL` is honoured.
 - The workflow lifespan uses `AsyncExitStack`; provider lifespans use `async with client:`. `BaseClient.__aenter__` returns `Self` so the subclass type is inferred.
 - Scryfall requires `User-Agent` and `Accept` headers on every request.
 - 17Lands rate-limits aggressively (1 req/s max); cache everything.

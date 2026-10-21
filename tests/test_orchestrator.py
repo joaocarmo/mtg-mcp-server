@@ -307,7 +307,7 @@ class TestServerMetadata:
         assert icons, "Server must have at least one icon"
         icon = icons[0]
         assert icon.src, "Icon must have a src attribute"
-        assert icon.mimeType, "Icon must have a mimeType attribute"
+        assert icon.mime_type, "Icon must have a mimeType attribute"
 
 
 # ---------------------------------------------------------------------------
@@ -329,7 +329,7 @@ class TestToolSchemaCompleteness:
         tools = await mcp_client.list_tools()
         missing = []
         for tool in tools:
-            schema = tool.inputSchema
+            schema = tool.input_schema
             properties = schema.get("properties", {})
             for param_name, param_schema in properties.items():
                 if "description" not in param_schema:
@@ -348,9 +348,9 @@ class TestToolSchemaCompleteness:
             if tool.annotations is None:
                 missing.append(f"{tool.name} (no annotations)")
             else:
-                if not tool.annotations.readOnlyHint:
+                if not tool.annotations.read_only_hint:
                     missing.append(f"{tool.name} (readOnlyHint not True)")
-                if not tool.annotations.idempotentHint:
+                if not tool.annotations.idempotent_hint:
                     missing.append(f"{tool.name} (idempotentHint not True)")
         assert not missing, f"Tools with missing/wrong annotations: {missing}"
 
@@ -365,7 +365,7 @@ class TestToolSchemaCompleteness:
         tools = await mcp_client.list_tools()
         exposed = []
         for tool in tools:
-            properties = tool.inputSchema.get("properties", {})
+            properties = tool.input_schema.get("properties", {})
             if "ctx" in properties:
                 exposed.append(tool.name)
         assert not exposed, f"Tools exposing 'ctx' parameter: {exposed}"
@@ -399,7 +399,7 @@ class TestResourcePropagation:
     async def test_all_resource_templates_listed(self, mcp_client: Client):
         """All resource templates are accessible on the orchestrator."""
         templates = await mcp_client.list_resource_templates()
-        uri_set = {t.uriTemplate for t in templates}
+        uri_set = {t.uri_template for t in templates}
 
         expected_fragments = [
             "rules/{number}",  # Rules by number
@@ -419,7 +419,7 @@ class TestResourcePropagation:
         templates = await mcp_client.list_resource_templates()
         assert len(templates) == 3, (
             f"Expected 3 resource templates, got {len(templates)}.\n"
-            f"Templates: {[t.uriTemplate for t in templates]}"
+            f"Templates: {[t.uri_template for t in templates]}"
         )
 
 

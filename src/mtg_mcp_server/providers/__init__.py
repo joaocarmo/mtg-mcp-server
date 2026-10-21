@@ -20,7 +20,7 @@ from mcp.types import ToolAnnotations
 # All tools are read-only (query external APIs, never mutate) and idempotent
 # (same inputs always produce same outputs). openWorldHint signals that tools
 # access external networks.
-TOOL_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True)
+TOOL_ANNOTATIONS = ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=True)
 
 # Tag sets for MCP tool categorization. Clients can filter by tag to discover
 # relevant tools. "stable" indicates well-tested, public-API-backed tools;

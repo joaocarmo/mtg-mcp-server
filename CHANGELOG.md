@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Upgraded to FastMCP 4 (MCP Python SDK v2). The server negotiates the 2026-07-28 protocol with new clients; older clients keep working. Tool input schemas are unchanged; `ping` no longer advertises an output schema.
+- Refreshed all dependencies to their latest releases. Python 3.14 and 3.15 are now tested and supported.
+
 ## [4.0.0] - 2026-10-21
 
 v4.0.0 trims the client-visible surface to one way of getting each piece of data.

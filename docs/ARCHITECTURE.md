@@ -32,7 +32,7 @@ Per-backend endpoints, rate limits and feature flags: [SERVICE_CONTRACTS.md](SER
 |-------|------|-------|
 | Task runner | mise | Installs Python, uv, ruff, ty; runs all dev tasks (`mise.toml`) |
 | Language / packages | Python 3.12+, uv | |
-| MCP framework | fastmcp 3.2.x | Provider/mount architecture |
+| MCP framework | fastmcp 4.x | Provider/mount architecture |
 | Type check / lint | ty (beta), ruff | |
 | HTTP / models / settings | httpx, Pydantic v2, pydantic-settings | |
 | Retries / logging / caching | tenacity, structlog, cachetools | |
@@ -64,7 +64,7 @@ tests/               # Mirrors src/: services/, providers/, workflows/, utils/,
 
 **Mounting** (`server.py`): `mcp.mount(scryfall_mcp, namespace="scryfall")` prefixes tools (`search_cards` → `scryfall_search_cards`). Feature-flagged backends mount conditionally. `mcp.mount(workflow_mcp)` mounts without a namespace. Each mounted server's lifespan runs when the parent starts.
 
-**Client lifecycle:** each provider creates its client in a `@lifespan`, constructed from `Settings()` so `MTG_MCP_*_BASE_URL` overrides apply. The client is stored in a module-level `_client` and read through `_get_client()`, which raises `RuntimeError` if the lifespan isn't running. `Depends()`/`ctx.lifespan_context` do **not** propagate through `mount()` in FastMCP 3.2.x, so the module-level variable is the workaround. See `providers/scryfall.py` for the template.
+**Client lifecycle:** each provider creates its client in a `@lifespan`, constructed from `Settings()` so `MTG_MCP_*_BASE_URL` overrides apply. The client is stored in a module-level `_client` and read through `_get_client()`, which raises `RuntimeError` if the lifespan isn't running. See `providers/scryfall.py` for the template.
 
 **Workflow lifespan** uses `AsyncExitStack` to enter several clients, skipping disabled backends (those stay `None` and workflows degrade). `BaseClient.__aenter__` returns `Self` so `enter_async_context()` infers the subclass. The bulk client starts `start_background_refresh()`, and the rules service calls `ensure_loaded()`.
 
@@ -103,13 +103,12 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Framework | FastMCP 3.2.x | Native composition, provider architecture, OTEL, annotations |
+| Framework | FastMCP | Native composition, provider architecture, OTEL, annotations |
 | Architecture | Single server, mounted sub-servers | Independent testability + single deployment |
 | Transport | stdio only, run locally | Claude Code/Desktop launch it as a subprocess; no hosted deployment to maintain |
 | Type checker | ty (beta) | Astral stack, speed |
 | HTTP mocking | respx | Clean async httpx mocking |
 | Namespaces | `scryfall_`, `bulk_`, `spellbook_`, `draft_`, `edhrec_`, `moxfield_`, `goldfish_`; workflows unprefixed | Avoid collisions; clean workflow names |
-| Client lifecycle | Lifespan + module-level `_client` | `Depends()`/`lifespan_context` break through `mount()` |
 | Settings wiring | `Settings()` in each lifespan | Base URLs overridable via env |
 | Errors | `ToolError` from `fastmcp.exceptions` | FastMCP handles `is_error` conversion |
 | Tool metadata | Shared `TOOL_ANNOTATIONS` + tag constants | All tools read-only/idempotent; tags group by domain (commander, draft, pricing, beta, …) |
