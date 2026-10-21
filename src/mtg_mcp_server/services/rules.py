@@ -71,8 +71,7 @@ class RulesService:
         self._glossary: dict[str, GlossaryEntry] = {}
         self._sections: dict[str, str] = {}  # section number -> name
 
-        self._loaded = False
-        self._loaded_at: float = 0.0
+        self._loaded_at: float = 0.0  # monotonic timestamp; 0 = never loaded
         self._load_lock = asyncio.Lock()
 
     async def ensure_loaded(self) -> None:
@@ -88,13 +87,12 @@ class RulesService:
             if not self._is_stale():
                 return
 
-            is_refresh = self._loaded
+            is_refresh = self._loaded_at != 0.0
             log.info("rules.loading", is_refresh=is_refresh)
 
             try:
                 raw_text = await self._download()
                 self._parse(raw_text)
-                self._loaded = True
                 self._loaded_at = time.monotonic()
                 log.info(
                     "rules.loaded",
@@ -102,18 +100,6 @@ class RulesService:
                     glossary_count=len(self._glossary),
                     section_count=len(self._sections),
                 )
-            except RulesError:
-                if is_refresh:
-                    log.warning(
-                        "rules.refresh_failed",
-                        exc_info=True,
-                        retry_in_seconds=_REFRESH_RETRY_SECONDS,
-                    )
-                    self._loaded_at = (
-                        time.monotonic() - self._refresh_seconds + _REFRESH_RETRY_SECONDS
-                    )
-                    return
-                raise
             except Exception as exc:
                 if is_refresh:
                     log.warning(
@@ -125,6 +111,8 @@ class RulesService:
                         time.monotonic() - self._refresh_seconds + _REFRESH_RETRY_SECONDS
                     )
                     return
+                if isinstance(exc, RulesError):
+                    raise
                 raise RulesError(f"Unexpected error loading rules: {exc}") from exc
 
     # -------------------------------------------------------------------
@@ -222,7 +210,7 @@ class RulesService:
 
     def _is_stale(self) -> bool:
         """Check if the loaded data has exceeded the refresh interval."""
-        if not self._loaded:
+        if self._loaded_at == 0.0:
             return True
         return (time.monotonic() - self._loaded_at) >= self._refresh_seconds
 
@@ -408,15 +396,7 @@ def _parent_rule_number(number: str) -> str | None:
     """
     if "." not in number:
         return None
-    parts = number.split(".", 1)
-    rest = parts[1]
-    # If rest ends with letter(s), parent is the numeric portion
-    if rest and rest[-1].isalpha():
-        parent_rest = rest.rstrip("abcdefghijklmnopqrstuvwxyz")
-        if parent_rest:
-            return f"{parts[0]}.{parent_rest}"
-        return parts[0]
-    return parts[0]
+    return number[:-1] if number[-1].isalpha() else number.split(".")[0]
 
 
 _KEYWORD_RULE_RE = re.compile(r"\brule 702\.")

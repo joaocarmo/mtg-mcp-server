@@ -389,10 +389,10 @@ class TestLazyLoading:
             route = _mock_rules_download(respx)
             svc = RulesService(rules_url=_RULES_URL, refresh_hours=168)
             # Not loaded yet
-            assert not svc._loaded
+            assert svc._loaded_at == 0.0
             # Access triggers load
             await svc.lookup_by_number("100.1")
-            assert svc._loaded
+            assert svc._loaded_at != 0.0
             assert route.called
 
     async def test_second_access_no_redownload(self) -> None:
@@ -439,8 +439,7 @@ class TestStaleData:
         # Now simulate a failed refresh by mocking a 500 error
         with respx.mock:
             _mock_rules_download(respx, status_code=500)
-            # Force stale by setting loaded_at to the past
-            svc._loaded_at = 0.0
+            # refresh_hours=0, so the loaded data is already stale
             # Should not raise — serves stale data
             await svc.ensure_loaded()
             # Data is still available
@@ -474,7 +473,6 @@ class TestStaleData:
 
         with respx.mock:
             respx.get(_RULES_URL).mock(side_effect=httpx.ConnectError("connection refused"))
-            svc._loaded_at = 0.0
             await svc.ensure_loaded()
             rule = await svc.lookup_by_number("100.1")
             assert rule is not None
