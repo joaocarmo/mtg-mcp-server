@@ -58,7 +58,6 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | `goldfish_metagame` | `format`, `fmt` | Archetypes: rank, name, meta %, decks, paper price | `get_metagame()` |
 | `goldfish_archetype_list` | `format`, `archetype` ("Boros Energy"), `fmt` | Deck metadata (author, event, result, date) + main and sideboard | `get_archetype()` |
 | `goldfish_format_staples` | `format`, `limit=20`, `fmt` | Rank, name, % of decks, avg copies | `get_format_staples()` |
-| `goldfish_deck_price` | `format`, `archetype`, `fmt` | Estimated total price, card count | `get_deck_price()` |
 
 ## Scryfall bulk data (`bulk_`)
 

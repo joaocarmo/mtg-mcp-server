@@ -24,8 +24,8 @@ class TestToolRegistration:
         """The orchestrator exposes the expected number of tools."""
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
-        # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 4 goldfish + 8 bulk + 29 workflows + 5 rules = 62
-        assert len(tools) == 62, f"Expected 62 tools, got {len(tools)}.\nTools: {tool_names}"
+        # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 3 goldfish + 8 bulk + 29 workflows + 5 rules = 61
+        assert len(tools) == 61, f"Expected 61 tools, got {len(tools)}.\nTools: {tool_names}"
 
     async def test_no_mtgjson_tools(self, mcp_client: Client):
         """No tool names contain 'mtgjson' (replaced by Scryfall bulk data)."""

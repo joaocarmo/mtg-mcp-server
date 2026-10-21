@@ -20,7 +20,6 @@ from mtg_mcp_server.services.cache import async_cached
 from mtg_mcp_server.types import (
     GoldfishArchetype,
     GoldfishArchetypeDetail,
-    GoldfishDeckPrice,
     GoldfishFormatStaple,
     GoldfishMetaSnapshot,
 )
@@ -82,7 +81,6 @@ class MTGGoldfishClient(BaseClient):
     _metagame_cache: TTLCache = TTLCache(maxsize=50, ttl=21600)  # 6h
     _archetype_cache: TTLCache = TTLCache(maxsize=100, ttl=43200)  # 12h
     _staples_cache: TTLCache = TTLCache(maxsize=50, ttl=43200)  # 12h
-    _price_cache: TTLCache = TTLCache(maxsize=100, ttl=86400)  # 24h
 
     rate_limit_rps = 0.5  # conservative for a scraped site
     user_agent = _BROWSER_UA
@@ -240,49 +238,6 @@ class MTGGoldfishClient(BaseClient):
 
         log.debug("get_format_staples.complete", format=format, count=len(staples))
         return staples
-
-    @async_cached(_price_cache)
-    async def get_deck_price(self, format: str, archetype: str) -> GoldfishDeckPrice:
-        """Get price metadata for an archetype.
-
-        Uses get_metagame() to find the archetype's price from the metagame
-        page, and get_archetype() for the decklist card count.
-
-        Args:
-            format: Format name (e.g. "modern").
-            archetype: Archetype name (e.g. "Boros Energy").
-
-        Returns:
-            GoldfishDeckPrice with archetype name, paper price, and card counts.
-
-        Raises:
-            ArchetypeNotFoundError: If the archetype is not found in the metagame.
-            MTGGoldfishError: On other HTTP errors.
-        """
-        format = format.lower()
-        log.debug("get_deck_price", format=format, archetype=archetype)
-
-        # Find archetype in metagame snapshot for price
-        meta = await self.get_metagame(format)
-        needle = archetype.lower()
-        matching = [a for a in meta.archetypes if a.name.lower() == needle]
-        if not matching:
-            raise ArchetypeNotFoundError(
-                f"Archetype not found in metagame: '{archetype}'",
-                status_code=None,
-            )
-
-        price_paper = matching[0].price_paper
-
-        # Get the decklist for card counts
-        detail = await self.get_archetype(format, archetype)
-
-        return GoldfishDeckPrice(
-            archetype=archetype,
-            price_paper=price_paper,
-            mainboard_count=len(detail.mainboard),
-            sideboard_count=len(detail.sideboard),
-        )
 
     # -----------------------------------------------------------------------
     # HTML parsing helpers (all defensive — wrap in try/except, log warnings)

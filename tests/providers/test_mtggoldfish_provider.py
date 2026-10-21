@@ -14,7 +14,6 @@ from mtg_mcp_server.providers.mtggoldfish import mtggoldfish_mcp
 from mtg_mcp_server.types import (
     GoldfishArchetype,
     GoldfishArchetypeDetail,
-    GoldfishDeckPrice,
     GoldfishFormatStaple,
     GoldfishMetaSnapshot,
 )
@@ -148,14 +147,6 @@ def mock_client():
     client.get_metagame = AsyncMock(return_value=_make_metagame())
     client.get_archetype = AsyncMock(return_value=_make_archetype_detail())
     client.get_format_staples = AsyncMock(return_value=_make_format_staples())
-    client.get_deck_price = AsyncMock(
-        return_value=GoldfishDeckPrice(
-            archetype="Boros Energy",
-            price_paper=450,
-            mainboard_count=60,
-            sideboard_count=15,
-        )
-    )
     return client
 
 
@@ -374,67 +365,6 @@ class TestFormatStaples:
 
 
 # ---------------------------------------------------------------------------
-# Deck price tool
-# ---------------------------------------------------------------------------
-
-
-class TestDeckPrice:
-    """deck_price tool behavior."""
-
-    async def test_returns_markdown_with_price_summary(self, client: Client):
-        """deck_price returns markdown with price information."""
-        result = await client.call_tool(
-            "deck_price", {"format": "Modern", "archetype": "Boros Energy"}
-        )
-        text = result.content[0].text
-
-        assert "Boros Energy" in text
-        assert "$450" in text or "450" in text
-        assert "Data provided by [MTGGoldfish]" in text
-
-    async def test_structured_content_has_price_data(self, client: Client):
-        """Structured content contains price data dict."""
-        result = await client.call_tool(
-            "deck_price", {"format": "Modern", "archetype": "Boros Energy"}
-        )
-        sc = result.structured_content
-
-        assert sc is not None
-        assert sc["archetype"] == "Boros Energy"
-        assert sc["price_paper"] == 450
-        assert sc["mainboard_count"] == 60
-        assert sc["sideboard_count"] == 15
-
-    async def test_not_found_returns_error(self):
-        """deck_price returns ToolError for unknown archetype."""
-        from mtg_mcp_server.services.mtggoldfish import ArchetypeNotFoundError
-
-        mock = AsyncMock()
-        mock.get_deck_price = AsyncMock(
-            side_effect=ArchetypeNotFoundError("Archetype not found: Nonexistent")
-        )
-        async with _mcp_client(mock) as c:
-            result = await c.call_tool(
-                "deck_price",
-                {"format": "Modern", "archetype": "Nonexistent"},
-                raise_on_error=False,
-            )
-            assert result.is_error
-            assert "not found" in result.content[0].text.lower()
-
-    async def test_concise_response_format(self, client: Client):
-        """Concise format shows abbreviated price info."""
-        result = await client.call_tool(
-            "deck_price",
-            {"format": "Modern", "archetype": "Boros Energy", "response_format": "concise"},
-        )
-        text = result.content[0].text
-
-        assert "Boros Energy" in text
-        assert "450" in text
-
-
-# ---------------------------------------------------------------------------
 # Tool registration
 # ---------------------------------------------------------------------------
 
@@ -442,11 +372,11 @@ class TestDeckPrice:
 class TestToolRegistration:
     """MTGGoldfish provider tool registration."""
 
-    async def test_four_tools_registered(self, client: Client):
-        """All four MTGGoldfish tools are registered on the provider."""
+    async def test_three_tools_registered(self, client: Client):
+        """All three MTGGoldfish tools are registered on the provider."""
         tools = await client.list_tools()
         tool_names = {t.name for t in tools}
-        assert tool_names == {"metagame", "archetype_list", "format_staples", "deck_price"}
+        assert tool_names == {"metagame", "archetype_list", "format_staples"}
 
     async def test_tools_have_correct_annotations(self, client: Client):
         """Tools have readOnly, idempotent, and openWorld annotations."""
@@ -540,18 +470,3 @@ class TestErrorHandling:
             )
             assert result.is_error
             assert "not found" in result.content[0].text.lower()
-
-    async def test_deck_price_mtggoldfish_error(self):
-        """deck_price handles MTGGoldfishError."""
-        from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
-
-        mock = AsyncMock()
-        mock.get_deck_price = AsyncMock(side_effect=MTGGoldfishError("Connection timeout"))
-        async with _mcp_client(mock) as c:
-            result = await c.call_tool(
-                "deck_price",
-                {"format": "Modern", "archetype": "Boros Energy"},
-                raise_on_error=False,
-            )
-            assert result.is_error
-            assert "MTGGoldfish" in result.content[0].text

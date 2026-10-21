@@ -96,7 +96,6 @@ Commander uses EDHREC rank (singleton format). Modern and Pauper auto-select the
 1. `goldfish_metagame(format="Modern")` — expect archetypes with meta share %, deck count, prices
 2. `goldfish_format_staples(format="Modern", limit=5)` — expect card names with % of decks and avg copies
 3. `goldfish_archetype_list(format="Modern", archetype=<first archetype name from step 1>)` — expect mainboard card list
-4. `goldfish_deck_price(format="Modern", archetype=<same archetype>)` — expect price estimate
 
 MTGGoldfish scrapes HTML — SKIP on error, don't fail the overall test.
 
