@@ -157,13 +157,13 @@ Compare results from step 1 (`scryfall_card_details("Sol Ring")`) and step 2 (`b
 | Rules | 5 | | | |
 | Core Workflows | 4 | | | |
 | Deck Building | 4 | | | |
-| MTGGoldfish | 4 | | | |
+| MTGGoldfish | 3 | | | |
 | Moxfield | 3 | | | |
 | Metagame | 3 | | | |
 | Sideboard | 3 | | | |
 | Commander Depth | 2 | | | |
 | Consistency | 1 | | | |
-| **Total** | **44** | | | |
+| **Total** | **43** | | | |
 
 ### Failures
 [Details for each FAIL — what was expected vs actual]

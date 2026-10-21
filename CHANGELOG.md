@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-21
+
+v4.0.0 trims the client-visible surface to one way of getting each piece of data.
+This is a breaking change: the tools, resources, prompts and settings below are gone.
+The server now exposes 61 tools (incl. `ping`), 18 prompts and 5 resources
+(3 templates, 2 static).
+
 ### Removed
+
+#### Tools (and what to use instead)
+- `scryfall_card_price` → `scryfall_card_details` (now prints USD, USD foil and EUR)
+- `scryfall_whats_new` → `scryfall_search_cards` with a date query, e.g. `date>=2026-10-01 s:fdn f:standard`
+- `bulk_card_in_formats` → `bulk_card_lookup` (legalities line now also lists banned and restricted formats)
+- `moxfield_deck_info` → `moxfield_decklist` (now prints description, created/updated dates and URL)
+- `goldfish_deck_price` → `goldfish_metagame` (paper price per archetype) and `goldfish_archetype_list` (decklist)
+- `bulk_format_staples(ranking_mode="tournament")` → `goldfish_format_staples`; `ranking_mode` now accepts `auto`, `edhrec` or `competitive`
+
+#### Resources (and what to use instead)
+- `mtg://scryfall/card/{name}` → `scryfall_card_details`
+- `mtg://scryfall/card/{name}/rulings` → `scryfall_card_rulings`
+- `mtg://scryfall/set/{code}` → `scryfall_set_info`
+- `mtg://bulk/card-data/{name}` and `mtg://bulk/card/{name}/formats` → `bulk_card_lookup`
+- `mtg://bulk/card/{name}/similar` → `bulk_similar_cards`
+- `mtg://bulk/format/{format}/banned` → `bulk_ban_list`
+- `mtg://bulk/format/{format}/legal-cards` (a count only) → no replacement
+- `mtg://spellbook/combo/{combo_id}` → `spellbook_combo_details`
+- `mtg://edhrec/commander/{name}/staples` → `edhrec_commander_staples`
+- `mtg://moxfield/moxfield/{deck_id}` → `moxfield_decklist`
+- `mtg://goldfish/metagame/{format}` → `goldfish_metagame`
+- `mtg://draft/draft/{set_code}/ratings` → `draft_card_ratings` (`limit=0` for all)
+- `mtg://tribe/{tribe}/staples` → `tribal_staples`
+- `mtg://draft/{set_code}/signals` → `draft_signal_read`
+- Structured-content keys that pointed at removed resources: `card_detail_uri_template` (`scryfall_search_cards`) and `full_data_uri` (`draft_card_ratings`)
+
+#### Prompts
+- `sealed_session` → call `sealed_pool_build` directly
+
+#### Configuration
+- `MTG_MCP_ENABLE_CODE_MODE` and the `code-mode` optional extra (experimental FastMCP CodeMode transform)
+
+#### Other
 - Claude Code GitHub workflows and Codecov upload (no secrets configured)
 - Spicerack backend (`spicerack_*` tools, `mtg://tournament/{event_format}/recent`, `MTG_MCP_ENABLE_SPICERACK`): the service shut down on 2026-05-27
 - Hosted/remote option: Smithery adapter, `smithery.yaml`, FastMCP Horizon and Smithery publish jobs
@@ -15,12 +55,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PyPI and MCP Registry publishing (`publish.yml`, `server.json`); install from git instead (see README)
 
 ### Changed
+- `scryfall_card_details`, `bulk_card_lookup` and `bulk_random_card` print EUR prices (and the foil price when there is no USD price)
+- The legalities line of `scryfall_card_details`, `bulk_card_lookup` and `bulk_random_card` lists banned and restricted formats after the legal ones
+- `moxfield_decklist` prints the deck description, created/updated dates and URL
+- `bulk_format_staples` `auto` mode always uses the competitive heuristic for non-singleton formats (no MTGGoldfish lookup)
 - Live tests drive the server over stdio instead of HTTP
 - Project URLs point at `joaocarmo/mtg-mcp-server`
 
 ### Fixed
 - Server crashed on import with selectolax 1.0+ (which `uvx` installs); MTGGoldfish parsing now uses the lexbor backend
 - Comprehensive Rules were served from the April 2025 file; the current URL is now discovered from the official rules page on each load, falling back to `MTG_MCP_RULES_URL` (default bumped to 2026-09-25)
+
+### Security
+- Upgraded certifi to 2026.10.19 to resolve PYSEC-2026-4320
+
+[4.0.0]: https://github.com/joaocarmo/mtg-mcp-server/compare/v3.0.0...v4.0.0
 
 ## [3.0.0] - 2026-04-03
 

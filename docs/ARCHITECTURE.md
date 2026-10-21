@@ -11,7 +11,7 @@ A unified MCP server that exposes Magic: The Gathering data to AI assistants. Ea
 ```
 MCP client (Claude Code / Desktop / any) ── stdio
                      │
-        MTG Orchestrator — FastMCP("MTG"): 66 tools, 19 prompts, 20 resource templates
+        MTG Orchestrator — FastMCP("MTG"): 61 tools, 18 prompts, 5 resources
                      │
    ├── Workflows (no namespace) — commander, draft/limited, deck building,
    │     constructed/metagame, sideboard, rules engine (see TOOL_DESIGN.md)
