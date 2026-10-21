@@ -45,9 +45,6 @@ dependencies = [
     "selectolax>=0.4.7",
 ]
 
-[project.optional-dependencies]
-code-mode = ["fastmcp[code-mode]>=3.2.0"]
-
 [project.urls]
 Homepage = "https://github.com/joaocarmo/mtg-mcp-server"
 Repository = "https://github.com/joaocarmo/mtg-mcp-server"

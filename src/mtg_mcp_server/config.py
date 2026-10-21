@@ -54,7 +54,4 @@ class Settings(BaseSettings):
     rules_refresh_hours: int = 168  # Weekly check (rules update ~4x/year)
     enable_rules: bool = True
 
-    # --- Code Mode ---
-    enable_code_mode: bool = False  # FastMCP CodeMode transform (Phase 3)
-
     model_config = {"env_prefix": "MTG_MCP_", "env_file": ".env", "extra": "ignore"}

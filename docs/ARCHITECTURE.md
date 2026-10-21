@@ -125,5 +125,4 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 | Attribution | `ATTRIBUTION_*` constants appended to output | Data-source compliance |
 | Fragile sources | EDHREC, Moxfield, MTGGoldfish behind flags, tagged beta, cached aggressively | Undocumented/scraped; can break without notice |
 | HTML parsing | selectolax | Fast, tiny; used only by `services/mtggoldfish.py` |
-| CodeMode | Experimental, `enable_code_mode` flag | FastMCP transform replacing tools with discovery/execute meta-tools at 40+ tools |
 | Parallel development | Worktree agents on exclusive files; shared files scaffolded first | Agents rewrite whole files; see CLAUDE.md Git Workflow |
