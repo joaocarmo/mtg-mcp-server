@@ -34,7 +34,7 @@ async def test_all_tool_params_have_descriptions(server, server_name):
         tools = await client.list_tools()
         missing = []
         for tool in tools:
-            props = tool.inputSchema.get("properties", {})
+            props = tool.input_schema.get("properties", {})
             for param_name, param_schema in props.items():
                 if "description" not in param_schema:
                     missing.append(f"{tool.name}.{param_name}")

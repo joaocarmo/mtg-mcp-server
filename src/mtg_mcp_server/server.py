@@ -39,7 +39,7 @@ mcp = FastMCP(
     icons=[
         Icon(
             src="https://raw.githubusercontent.com/joaocarmo/mtg-mcp-server/main/icon.svg",
-            mimeType="image/svg+xml",
+            mime_type="image/svg+xml",
             sizes=["512x512"],
         )
     ],
@@ -136,8 +136,10 @@ mcp.add_middleware(
 # under 10KB after slim field sets; this catches regressions.
 mcp.add_middleware(ResponseLimitingMiddleware(max_size=100_000))
 
-# Ping is a local health check — no network access, so openWorldHint=False.
-_PING_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False)
+# Ping is a local health check — no network access, so open_world_hint=False.
+_PING_ANNOTATIONS = ToolAnnotations(
+    read_only_hint=True, idempotent_hint=True, open_world_hint=False
+)
 
 
 @mcp.tool(annotations=_PING_ANNOTATIONS)

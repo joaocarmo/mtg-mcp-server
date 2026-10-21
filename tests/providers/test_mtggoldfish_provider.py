@@ -383,9 +383,9 @@ class TestToolRegistration:
         tools = await client.list_tools()
         for tool in tools:
             assert tool.annotations is not None
-            assert tool.annotations.readOnlyHint is True
-            assert tool.annotations.idempotentHint is True
-            assert tool.annotations.openWorldHint is True
+            assert tool.annotations.read_only_hint is True
+            assert tool.annotations.idempotent_hint is True
+            assert tool.annotations.open_world_hint is True
 
 
 # ---------------------------------------------------------------------------

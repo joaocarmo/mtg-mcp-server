@@ -40,9 +40,9 @@ class TestServer:
         """ping is local-only: readOnly + idempotent but NOT openWorld."""
         tools = await mcp_client.list_tools()
         ping_tool = next(t for t in tools if t.name == "ping")
-        assert ping_tool.annotations.readOnlyHint is True
-        assert ping_tool.annotations.idempotentHint is True
-        assert ping_tool.annotations.openWorldHint is False
+        assert ping_tool.annotations.read_only_hint is True
+        assert ping_tool.annotations.idempotent_hint is True
+        assert ping_tool.annotations.open_world_hint is False
 
     def test_mask_error_details_enabled(self):
         """Unhandled exceptions are masked — only ToolError messages reach clients."""

@@ -14,14 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12", "3.13"]
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          version: 2026.10.17
 
       - name: Override Python version
         run: mise use python@${{ matrix.python-version }}
@@ -38,6 +40,15 @@ jobs:
       - name: Test
         run: mise run test
 
+  # Single required status check for the ruleset, independent of the matrix.
+  check-gate:
+    name: check
+    if: always()
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.check.result }}" = success
+
   live-tests:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
@@ -48,7 +59,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          version: 2026.10.17
 
       - name: Install dependencies
         run: mise run setup
@@ -63,7 +76,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          version: 2026.10.17
 
       - name: Build package
         run: uv build
@@ -98,7 +113,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
+      - uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          version: 2026.10.17
 
       - name: Install dependencies
         run: mise run setup
