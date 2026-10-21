@@ -23,7 +23,7 @@ from mtg_mcp_server.services.mtggoldfish import (
     MTGGoldfishClient,
     MTGGoldfishError,
 )
-from mtg_mcp_server.utils.formatters import ResponseFormat  # noqa: TC001 — runtime for FastMCP
+from mtg_mcp_server.utils.formatters import ResponseFormatParam  # noqa: TC001 (FastMCP)
 from mtg_mcp_server.utils.slim import slim_archetype, slim_format_staple
 
 # Module-level client set by the lifespan. See edhrec.py for pattern rationale.
@@ -65,10 +65,7 @@ async def metagame(
         str,
         Field(description="MTG format name (e.g. 'Modern', 'Legacy', 'Pioneer', 'Pauper')"),
     ],
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get the current metagame breakdown for a competitive format.
 
@@ -121,10 +118,7 @@ async def archetype_list(
         str,
         Field(description="Archetype name (e.g. 'Boros Energy', 'Azorius Control')"),
     ],
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get a sample decklist for an archetype in a format.
 
@@ -189,10 +183,7 @@ async def format_staples(
         int,
         Field(description="Maximum number of staples to return (default 20)"),
     ] = 20,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get the most-played cards in a format with deck inclusion percentages.
 
@@ -243,10 +234,7 @@ async def deck_price(
         str,
         Field(description="Archetype name (e.g. 'Boros Energy', 'Azorius Control')"),
     ],
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get the estimated paper price for an archetype deck.
 

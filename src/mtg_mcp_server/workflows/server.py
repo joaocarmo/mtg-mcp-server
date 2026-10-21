@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated
 
 import structlog
 from fastmcp import Context, FastMCP
@@ -48,6 +48,7 @@ from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallClient
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
+from mtg_mcp_server.utils.formatters import ResponseFormatParam  # noqa: TC001 (FastMCP)
 from mtg_mcp_server.workflows import WorkflowResult
 from mtg_mcp_server.workflows import analysis as analysis_wf
 from mtg_mcp_server.workflows import building as building_wf
@@ -210,10 +211,7 @@ async def commander_overview(
     commander_name: Annotated[
         str, Field(description="Commander card name (e.g. 'Muldrotha, the Gravetide')")
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Comprehensive commander profile combining data from all available sources.
 
@@ -244,10 +242,7 @@ async def evaluate_upgrade(
         str, Field(description="Card to evaluate for the deck (e.g. 'Spore Frog')")
     ],
     commander_name: Annotated[str, Field(description="Commander the deck is built around")],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Assess whether a card is worth adding to a specific commander deck.
 
@@ -285,10 +280,7 @@ async def draft_pack_pick(
         list[str] | None,
         Field(description="Cards already drafted — enables color fit analysis when provided"),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Rank cards in a draft pack using 17Lands win rate data.
 
@@ -312,10 +304,7 @@ async def suggest_cuts(
     decklist: Annotated[list[str], Field(description="List of card names in the deck")],
     commander_name: Annotated[str, Field(description="Commander the deck is built around")],
     num_cuts: Annotated[int, Field(description="Number of cut candidates to suggest")] = 5,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Identify the weakest cards to cut from a commander decklist.
 
@@ -343,10 +332,7 @@ async def card_comparison(
     cards: Annotated[list[str], Field(description="2-5 card names to compare side-by-side")],
     commander_name: Annotated[str, Field(description="Commander the deck is built around")],
     ctx: Context,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Compare 2-5 cards side-by-side for a specific commander deck.
 
@@ -387,10 +373,7 @@ async def budget_upgrade(
     num_suggestions: Annotated[
         int, Field(description="Number of upgrade suggestions to return")
     ] = 10,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
     *,
     ctx: Context,
 ) -> ToolResult:
@@ -427,10 +410,7 @@ async def deck_analysis(
     ],
     commander_name: Annotated[str, Field(description="Commander the deck is built around")],
     ctx: Context,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Full decklist health check — mana curve, colors, combos, bracket, budget, synergy.
 
@@ -464,10 +444,7 @@ async def set_overview(
     event_type: Annotated[
         str, Field(description="Draft format — 'PremierDraft' (default) or 'TradDraft'")
     ] = "PremierDraft",
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
     *,
     ctx: Context,
 ) -> ToolResult:
@@ -510,10 +487,7 @@ async def theme_search(
     ] = None,
     max_price: Annotated[float | None, Field(description="Maximum card price in USD")] = None,
     limit: Annotated[int, Field(description="Maximum number of results")] = 20,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Find cards matching a theme — mechanical, tribal, or abstract/flavorful.
 
@@ -546,10 +520,7 @@ async def build_around(
     ],
     budget: Annotated[float | None, Field(description="Maximum price per card in USD")] = None,
     limit: Annotated[int, Field(description="Maximum number of suggestions")] = 20,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Find synergistic cards for 1-5 build-around cards in any format.
 
@@ -592,10 +563,7 @@ async def complete_deck(
     budget: Annotated[
         float | None, Field(description="Maximum price per suggested card in USD")
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
     *,
     ctx: Context,
 ) -> ToolResult:
@@ -632,10 +600,7 @@ async def commander_comparison(
         list[str], Field(description="2-5 commander names to compare head-to-head")
     ],
     ctx: Context,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Compare 2-5 commanders head-to-head: stats, combos, staples, popularity.
 
@@ -673,10 +638,7 @@ async def tribal_staples(
         str | None, Field(description="Format legality filter (e.g. 'commander', 'modern')")
     ] = None,
     limit: Annotated[int, Field(description="Maximum number of results")] = 20,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Best cards for a creature type — lords, synergy pieces, and top members.
 
@@ -705,10 +667,7 @@ async def precon_upgrade(
     ctx: Context,
     budget: Annotated[float, Field(description="Maximum price per upgrade card in USD")] = 50.0,
     num_upgrades: Annotated[int, Field(description="Number of upgrade suggestions")] = 10,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Analyze and upgrade a Commander precon — identify weakest cards, suggest replacements.
 
@@ -747,10 +706,7 @@ async def color_identity_staples(
         Field(description="Card category filter (e.g. 'creatures', 'instants', 'lands')"),
     ] = None,
     limit: Annotated[int, Field(description="Maximum number of results")] = 20,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Top cards across ALL commanders in a color identity.
 
@@ -783,10 +739,7 @@ async def sealed_pool_build(
     ],
     set_code: Annotated[str, Field(description="Three-letter set code (e.g. 'LCI', 'MKM')")],
     ctx: Context,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Build 1-3 decks from a sealed pool using card quality and color pair analysis.
 
@@ -819,10 +772,7 @@ async def draft_signal_read(
             description="Current pack contents — if provided, cards are ranked with signal context"
         ),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Analyze draft picks and recommend a direction based on color signals.
 
@@ -855,10 +805,7 @@ async def draft_log_review(
         list[str] | None,
         Field(description="Final deck submitted — enables 'made the deck' analysis"),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Review a completed draft — pick-by-pick GIH WR analysis and key decision points.
 
@@ -892,10 +839,7 @@ async def rotation_check(
         list[str] | None,
         Field(description="Card names to check for rotation — omit for general rotation info"),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Check Standard rotation status and identify which cards are rotating.
 
@@ -924,10 +868,7 @@ async def metagame_snapshot(
         str,
         Field(description="Competitive format (e.g. 'Modern', 'Legacy', 'Pioneer', 'Pauper')"),
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get the current metagame breakdown for a competitive format.
 
@@ -956,10 +897,7 @@ async def archetype_decklist(
             description="Archetype name (e.g. 'Boros Energy', 'Mono-Blue Terror') — fuzzy matched"
         ),
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get the stock decklist for a competitive archetype.
 
@@ -988,10 +926,7 @@ async def archetype_comparison(
         list[str],
         Field(description="2-4 archetype names to compare (fuzzy matched)"),
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Compare 2-4 competitive archetypes side-by-side.
 
@@ -1023,10 +958,7 @@ async def format_entry_guide(
         float | None,
         Field(description="Max budget in USD — filters archetypes to this price ceiling"),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get a beginner-oriented guide for entering a competitive format.
 
@@ -1064,10 +996,7 @@ async def suggest_sideboard(
             "(e.g. 'heavy on Mono-Red and Affinity')"
         ),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Suggest a 15-card sideboard for a competitive deck.
 
@@ -1103,10 +1032,7 @@ async def sideboard_guide(
         str,
         Field(description="Matchup archetype name (e.g. 'Mono-Red Aggro') — fuzzy matched"),
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Get a specific sideboard in/out plan for a named matchup.
 
@@ -1142,10 +1068,7 @@ async def sideboard_matrix(
         list[str] | None,
         Field(description="Matchup names to include — omit to auto-detect from metagame data"),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Generate a sideboard matrix for a deck across common matchups.
 
@@ -1300,10 +1223,7 @@ async def deck_validate(
     sideboard: Annotated[
         list[str] | None, Field(description="Sideboard card names, same format as decklist")
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Validate a decklist against a format's construction rules.
 
@@ -1337,10 +1257,7 @@ async def suggest_mana_base(
         int | None,
         Field(description="Override total land count (default: auto-calculated from avg CMC)"),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Suggest a mana base for a decklist based on color pip distribution.
 
@@ -1366,10 +1283,7 @@ async def suggest_mana_base(
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_PRICING)
 async def price_comparison(
     cards: Annotated[list[str], Field(description="2-20 card names to compare prices")],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Compare prices across multiple cards using Scryfall bulk data.
 
@@ -1519,10 +1433,7 @@ async def rules_lookup(
             description="Narrow search to a section (e.g. 'combat', 'stack', 'lands', 'state-based')"
         ),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Look up MTG Comprehensive Rules by number or keyword search.
 
@@ -1544,10 +1455,7 @@ async def keyword_explain(
     keyword: Annotated[
         str, Field(description="MTG keyword to explain (e.g. 'trample', 'deathtouch')")
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Explain an MTG keyword with rules text, examples, and interactions.
 
@@ -1568,10 +1476,7 @@ async def keyword_explain(
 async def rules_interaction(
     mechanic_a: Annotated[str, Field(description="First mechanic or card name")],
     mechanic_b: Annotated[str, Field(description="Second mechanic or card name")],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Explain how two mechanics or cards interact under MTG rules.
 
@@ -1594,10 +1499,7 @@ async def rules_scenario(
     scenario: Annotated[
         str, Field(description="Game scenario to resolve (describe the board state and action)")
     ],
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Resolve a game scenario step-by-step using MTG rules.
 
@@ -1623,10 +1525,7 @@ async def combat_calculator(
             description="Additional keyword abilities to consider (e.g. 'deathtouch', 'trample')"
         ),
     ] = None,
-    response_format: Annotated[
-        Literal["detailed", "concise"],
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Calculate combat step-by-step with keyword interactions.
 

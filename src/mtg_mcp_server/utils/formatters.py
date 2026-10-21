@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
+
+from pydantic import Field
 
 if TYPE_CHECKING:
     from mtg_mcp_server.types import Card
 
 ResponseFormat = Literal["detailed", "concise"]
+ResponseFormatParam = Annotated[
+    ResponseFormat,
+    Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
+]
 
 _RE_SLUG_SPECIAL = re.compile(r"[,.'\"!?:;()]+")
 _RE_SLUG_WHITESPACE = re.compile(r"\s+")

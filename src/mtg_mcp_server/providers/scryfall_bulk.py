@@ -36,7 +36,11 @@ from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
 from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient, ScryfallBulkError
 from mtg_mcp_server.utils.color_identity import is_within_identity, parse_color_identity
 from mtg_mcp_server.utils.format_rules import get_format_rules, normalize_format
-from mtg_mcp_server.utils.formatters import ResponseFormat, format_card_detail
+from mtg_mcp_server.utils.formatters import (
+    ResponseFormat,
+    ResponseFormatParam,
+    format_card_detail,
+)
 from mtg_mcp_server.utils.query_parser import parse_query
 from mtg_mcp_server.utils.slim import slim_card
 
@@ -135,10 +139,7 @@ async def card_lookup(
         str,
         Field(description="Card name for exact lookup, case-insensitive (e.g. 'Sol Ring')"),
     ],
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Look up a Magic card by exact name using Scryfall bulk data.
 
@@ -174,10 +175,7 @@ async def card_search(
         ),
     ] = "name",
     limit: Annotated[int, Field(description="Maximum number of results to return")] = 20,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Search for Magic cards in Scryfall bulk data.
 
@@ -321,10 +319,7 @@ async def format_search(
         Field(description="Rarity filter (e.g. 'common', 'uncommon', 'rare', 'mythic')"),
     ] = None,
     limit: Annotated[int, Field(description="Maximum results to return")] = 20,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Search for legal cards in a specific format using natural language.
 
@@ -552,10 +547,7 @@ async def format_staples(
             )
         ),
     ] = "auto",
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Find the most popular (staple) cards legal in a format.
 
@@ -765,10 +757,7 @@ async def similar_cards(
         Field(description="Maximum USD price filter"),
     ] = None,
     limit: Annotated[int, Field(description="Maximum results to return")] = 10,
-    response_format: Annotated[
-        ResponseFormat,
-        Field(description="Output verbosity: 'detailed' (default) or 'concise'"),
-    ] = "detailed",
+    response_format: ResponseFormatParam = "detailed",
 ) -> ToolResult:
     """Find cards similar to a given card.
 
