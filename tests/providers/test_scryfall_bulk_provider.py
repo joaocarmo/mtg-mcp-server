@@ -845,14 +845,10 @@ class TestFormatStaples:
         cards = sc["cards"]
         assert cards[0]["name"] == "Sol Ring"
 
-    async def test_staples_competitive_for_modern_without_goldfish(self):
-        """Non-singleton formats fall back to competitive when MTGGoldfish unavailable."""
+    async def test_staples_auto_selects_competitive_for_modern(self):
+        """Non-singleton formats auto-select the competitive heuristic."""
         mock = _make_pool_client()
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = None
+        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
             async with Client(transport=scryfall_bulk_mcp) as client:
                 result = await client.call_tool(
                     "format_staples",
@@ -865,11 +861,7 @@ class TestFormatStaples:
     async def test_staples_competitive_prefers_bolt_over_muldrotha(self):
         """Competitive heuristic ranks low-CMC instants above expensive creatures."""
         mock = _make_pool_client()
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = None
+        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
             async with Client(transport=scryfall_bulk_mcp) as client:
                 result = await client.call_tool(
                     "format_staples",
@@ -885,11 +877,7 @@ class TestFormatStaples:
     async def test_staples_competitive_includes_cards_without_edhrec_rank(self):
         """Cards without EDHREC rank are NOT excluded in competitive mode."""
         mock = _make_pool_client()
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = None
+        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
             async with Client(transport=scryfall_bulk_mcp) as client:
                 result = await client.call_tool(
                     "format_staples",
@@ -914,134 +902,10 @@ class TestFormatStaples:
         card_names = [c["name"] for c in sc["cards"]]
         assert "Monastery Swiftspear" not in card_names
 
-    async def test_staples_tournament_mode_with_goldfish(self):
-        """Tournament mode uses MTGGoldfish data when available."""
-        from mtg_mcp_server.types import GoldfishFormatStaple
-
-        mock = _make_pool_client()
-        goldfish_staples = [
-            GoldfishFormatStaple(
-                rank=1, name="Lightning Bolt", pct_of_decks=45.0, copies_played=4.0
-            ),
-            GoldfishFormatStaple(rank=2, name="Counterspell", pct_of_decks=30.0, copies_played=3.5),
-        ]
-        mock_gf = AsyncMock()
-        mock_gf.get_format_staples = AsyncMock(return_value=goldfish_staples)
-
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = mock_gf
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "format_staples",
-                    {"format": "modern"},
-                )
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["ranking_mode"] == "tournament"
-        card_names = [c["name"] for c in sc["cards"]]
-        assert card_names[0] == "Lightning Bolt"
-        assert card_names[1] == "Counterspell"
-
-    async def test_staples_tournament_graceful_fallback(self):
-        """Tournament mode falls back to competitive if MTGGoldfish errors."""
-        from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
-
-        mock = _make_pool_client()
-        mock_gf = AsyncMock()
-        mock_gf.get_format_staples = AsyncMock(side_effect=MTGGoldfishError("scrape failed"))
-
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = mock_gf
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "format_staples",
-                    {"format": "modern"},
-                )
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        # Should fall back to competitive, not error
-        assert sc["ranking_mode"] == "competitive"
-        # Fallback note should appear in output
-        text = result.content[0].text
-        assert "Tournament data unavailable" in text
-
-    async def test_staples_tournament_empty_goldfish_falls_back(self):
-        """Tournament mode falls back when MTGGoldfish returns empty list."""
-        mock = _make_pool_client()
-        mock_gf = AsyncMock()
-        mock_gf.get_format_staples = AsyncMock(return_value=[])
-
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = mock_gf
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "format_staples",
-                    {"format": "modern"},
-                )
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["ranking_mode"] == "competitive"
-
-    async def test_staples_tournament_bulk_error_falls_back(self):
-        """Tournament mode falls back when bulk data fails inside tournament path."""
-        from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkError
-
-        mock = _make_pool_client()
-        # Override all_cards to fail on first call (tournament), succeed on second (competitive)
-        call_count = 0
-        original_all_cards = mock.all_cards
-
-        async def _all_cards_failing_once():
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise ScryfallBulkError("bulk download failed")
-            return await original_all_cards()
-
-        mock.all_cards = _all_cards_failing_once
-
-        from mtg_mcp_server.types import GoldfishFormatStaple
-
-        mock_gf = AsyncMock()
-        mock_gf.get_format_staples = AsyncMock(
-            return_value=[
-                GoldfishFormatStaple(
-                    rank=1, name="Lightning Bolt", pct_of_decks=45.0, copies_played=4.0
-                ),
-            ]
-        )
-
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = mock_gf
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "format_staples",
-                    {"format": "modern"},
-                )
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["ranking_mode"] == "competitive"
-
     async def test_staples_concise_competitive_format(self):
         """Concise output for competitive mode uses score, not rank."""
         mock = _make_pool_client()
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = None
+        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
             async with Client(transport=scryfall_bulk_mcp) as client:
                 result = await client.call_tool(
                     "format_staples",
@@ -1050,63 +914,6 @@ class TestFormatStaples:
         text = result.content[0].text
         assert "(score:" in text
         assert "(rank:" not in text
-
-    async def test_staples_concise_tournament_format(self):
-        """Concise output for tournament mode uses % of decks."""
-        from mtg_mcp_server.types import GoldfishFormatStaple
-
-        mock = _make_pool_client()
-        goldfish_staples = [
-            GoldfishFormatStaple(
-                rank=1, name="Lightning Bolt", pct_of_decks=45.0, copies_played=4.0
-            ),
-        ]
-        mock_gf = AsyncMock()
-        mock_gf.get_format_staples = AsyncMock(return_value=goldfish_staples)
-
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = mock_gf
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "format_staples",
-                    {"format": "modern", "response_format": "concise"},
-                )
-        text = result.content[0].text
-        assert "% of decks" in text
-
-    async def test_staples_tournament_with_color_filter(self):
-        """Tournament mode applies color identity filtering."""
-        from mtg_mcp_server.types import GoldfishFormatStaple
-
-        mock = _make_pool_client()
-        goldfish_staples = [
-            GoldfishFormatStaple(
-                rank=1, name="Lightning Bolt", pct_of_decks=45.0, copies_played=4.0
-            ),
-            GoldfishFormatStaple(rank=2, name="Counterspell", pct_of_decks=30.0, copies_played=3.5),
-        ]
-        mock_gf = AsyncMock()
-        mock_gf.get_format_staples = AsyncMock(return_value=goldfish_staples)
-
-        with (
-            patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock),
-            patch("mtg_mcp_server.providers.scryfall_bulk._goldfish_mod") as gf_mod,
-        ):
-            gf_mod._client = mock_gf
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "format_staples",
-                    {"format": "modern", "color": "red"},
-                )
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        card_names = [c["name"] for c in sc["cards"]]
-        assert "Lightning Bolt" in card_names
-        # Counterspell is blue, should be filtered out for red identity
-        assert "Counterspell" not in card_names
 
 
 # ---------------------------------------------------------------------------

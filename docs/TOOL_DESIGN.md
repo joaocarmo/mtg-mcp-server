@@ -70,7 +70,7 @@ Rate-limit-free; backed by `ScryfallBulkClient`.
 | `bulk_card_search` | `query`, `search_field="name"` (or "type", "text"), `limit=20` | Name, mana, type line | `search_cards()` / `search_by_type()` / `search_by_text()` |
 | `bulk_format_legality` | `card_name`, `format` | legal / not_legal / banned / restricted | `get_card()` |
 | `bulk_format_search` | `format`, `query`, `limit=20` | Format-legal matches | `filter_cards()` |
-| `bulk_format_staples` | `format`, `color=None` (identity), `card_type=None`, `limit=20`, `ranking_mode="auto"` (or `edhrec`, `competitive`, `tournament`), `fmt` | Ranked staples. Auto mode: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; competitive formats use MTGGoldfish frequency (% Decks) when available, otherwise a mana-efficiency score | `filter_cards()`, optionally `MTGGoldfishClient.get_format_staples()` |
+| `bulk_format_staples` | `format`, `color=None` (identity), `card_type=None`, `limit=20`, `ranking_mode="auto"` (or `edhrec`, `competitive`), `fmt` | Ranked staples. Auto mode: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; other formats use a mana-efficiency score | `filter_cards()` |
 | `bulk_ban_list` | `format` | Banned and restricted cards | `filter_cards()` |
 | `bulk_random_card` | `format=None`, `card_type=None` | Random card, full details | `filter_cards()` |
 | `bulk_similar_cards` | `card_name`, `limit=10` | Similar by type, keywords or mana cost; shared attributes highlighted | `get_card()` + `filter_cards()` |

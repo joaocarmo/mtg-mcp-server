@@ -305,14 +305,14 @@ class TestCrossFormatLive:
         assert "Sol Ring" in text or "Commander" in text.lower()
 
     async def test_format_staples_modern_nonsingleton(self, live_client):
-        """Non-singleton format should use tournament or competitive mode, not EDHREC."""
+        """Non-singleton format should use competitive mode, not EDHREC."""
         result = await live_client.call_tool(
             "bulk_format_staples", {"format": "modern", "limit": 5}
         )
         text = result.content[0].text
         assert "Modern" in text
-        # Should use tournament (% Decks) or competitive (Score), NOT edhrec (Rank #)
-        assert "% Decks" in text or "Score" in text
+        # Should use competitive (Score), NOT edhrec (Rank #)
+        assert "Score" in text
 
 
 class TestRulesDiscoveryLive:

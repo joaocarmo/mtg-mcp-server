@@ -45,10 +45,10 @@ If bulk tools unavailable (older server), try `bulk_card_lookup` / `bulk_card_se
 | Call | Validate |
 |------|----------|
 | `bulk_format_staples(format="commander", limit=5)` | EDHREC mode: header contains "Rank", Sol Ring likely in top 5 |
-| `bulk_format_staples(format="modern", limit=5)` | Tournament or competitive mode: header contains "% Decks" or "Score" (NOT "Rank #") |
-| `bulk_format_staples(format="pauper", limit=5)` | Tournament or competitive mode: header contains "% Decks" or "Score", results should be commons (Lightning Bolt, Counterspell typical) |
+| `bulk_format_staples(format="modern", limit=5)` | Competitive mode: header contains "Score" (NOT "Rank #") |
+| `bulk_format_staples(format="pauper", limit=5)` | Competitive mode: header contains "Score", results should be commons (Lightning Bolt, Counterspell typical) |
 
-Commander uses EDHREC rank (singleton format). Modern and Pauper auto-select tournament mode (MTGGoldfish data) or competitive heuristic (fallback). Verify no Commander staples like Sol Ring appear in Modern/Pauper results.
+Commander uses EDHREC rank (singleton format). Modern and Pauper auto-select the competitive heuristic. Verify no Commander staples like Sol Ring appear in Modern/Pauper results.
 
 ### 4. Spellbook (sequential — need combo ID from search)
 

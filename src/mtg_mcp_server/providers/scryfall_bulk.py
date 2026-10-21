@@ -27,18 +27,12 @@ from mtg_mcp_server.providers import (
     TOOL_ANNOTATIONS,
     format_legalities,
 )
-
-# Runtime availability check only — no method calls from scryfall_bulk's lifespan.
-# The orchestrator starts both lifespans; we read _goldfish_mod._client to decide
-# whether tournament-mode ranking is available.
-from mtg_mcp_server.providers import mtggoldfish as _goldfish_mod
-from mtg_mcp_server.services.mtggoldfish import MTGGoldfishError
 from mtg_mcp_server.services.scryfall_bulk import (
     ScryfallBulkClient,
     ScryfallBulkError,
     filter_card_pool,
 )
-from mtg_mcp_server.utils.color_identity import is_within_identity, parse_color_identity
+from mtg_mcp_server.utils.color_identity import parse_color_identity
 from mtg_mcp_server.utils.format_rules import get_format_rules, normalize_format
 from mtg_mcp_server.utils.formatters import (
     ResponseFormat,
@@ -454,10 +448,6 @@ def _score_competitive(card: Card) -> float:
     return cmc_score + type_score + rarity_score + price_score + keyword_score
 
 
-RankingMode = Literal["auto", "edhrec", "competitive", "tournament"]
-ResolvedRankingMode = Literal["edhrec", "competitive", "tournament"]
-
-
 def _is_singleton_format(fmt: str) -> bool:
     """Check if a format uses singleton deck construction rules."""
     try:
@@ -465,18 +455,6 @@ def _is_singleton_format(fmt: str) -> bool:
     except KeyError:
         log.debug("singleton_check.unknown_format", format=fmt)
         return False
-
-
-def _resolve_ranking_mode(mode: RankingMode, fmt: str) -> ResolvedRankingMode:
-    """Resolve 'auto' to a concrete ranking mode based on format and availability."""
-    if mode != "auto":
-        return mode
-    if _is_singleton_format(fmt):
-        return "edhrec"
-    # Prefer tournament data when MTGGoldfish is available
-    if _goldfish_mod._client is not None:
-        return "tournament"
-    return "competitive"
 
 
 @scryfall_bulk_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_SEARCH)
@@ -497,12 +475,12 @@ async def format_staples(
     ] = None,
     limit: Annotated[int, Field(description="Maximum results to return")] = 20,
     ranking_mode: Annotated[
-        RankingMode,
+        Literal["auto", "edhrec", "competitive"],
         Field(
             description=(
-                "How to rank staples: 'auto' (default) picks the best mode for the format, "
-                "'edhrec' uses Commander popularity, 'competitive' uses a mana-efficiency heuristic, "
-                "'tournament' uses MTGGoldfish metagame frequency."
+                "How to rank staples: 'auto' (default) uses 'edhrec' for singleton formats "
+                "and 'competitive' otherwise, 'edhrec' uses Commander popularity, "
+                "'competitive' uses a mana-efficiency heuristic."
             )
         ),
     ] = "auto",
@@ -511,39 +489,16 @@ async def format_staples(
     """Find the most popular (staple) cards legal in a format.
 
     Ranking adapts to the format: singleton formats (Commander, Brawl, Oathbreaker)
-    use EDHREC rank; competitive formats use MTGGoldfish tournament frequency when
-    available, falling back to a mana-efficiency heuristic.
+    use EDHREC rank; other formats use a mana-efficiency heuristic.
     """
     client = _get_client()
     fmt = normalize_format(format, strict=False)
-    resolved_mode = _resolve_ranking_mode(ranking_mode, fmt)
+    use_edhrec = ranking_mode == "edhrec" or (ranking_mode == "auto" and _is_singleton_format(fmt))
 
     try:
         identity = parse_color_identity(color) if color else None
     except ValueError as exc:
         raise ToolError(str(exc)) from exc
-
-    # --- Tournament mode: MTGGoldfish-driven ranking ---
-    fallback_note = ""
-    if resolved_mode == "tournament":
-        result = await _format_staples_tournament(
-            client,
-            fmt,
-            identity,
-            card_type,
-            limit,
-            response_format,
-            color,
-        )
-        if result is not None:
-            return result
-        # Goldfish failed — fall back to competitive
-        log.warning("format_staples.goldfish_fallback", format=fmt)
-        resolved_mode = "competitive"
-        fallback_note = (
-            "\n\n> **Note:** Tournament data unavailable;"
-            " results use competitive heuristic ranking."
-        )
 
     try:
         all_cards = await client.all_cards()
@@ -558,13 +513,13 @@ async def format_staples(
         limit=sys.maxsize,
     )
     # EDHREC mode excludes cards without rank; competitive does not
-    if resolved_mode == "edhrec":
+    if use_edhrec:
         matches = [c for c in matches if c.edhrec_rank is not None]
 
     if not matches:
         raise ToolError(f"No staples found for {fmt}" + (f" ({color})" if color else "") + ".")
 
-    if resolved_mode == "edhrec":
+    if use_edhrec:
         matches.sort(key=lambda c: c.edhrec_rank or 0)
         matches = matches[:limit]
         scored: list[tuple[float, Card]] | None = None
@@ -604,97 +559,14 @@ async def format_staples(
                 lines.append(f"| {score:.1f} | {card.name} | {cost} | {card.type_line} |")
 
     return ToolResult(
-        content="\n".join(lines) + fallback_note + ATTRIBUTION_SCRYFALL_BULK,
-        structured_content={
-            "format": fmt,
-            "color": color,
-            "card_type": card_type,
-            "ranking_mode": resolved_mode,
-            "total_results": len(matches),
-            "cards": [slim_card(card) for card in matches],
-        },
-    )
-
-
-async def _format_staples_tournament(
-    client: ScryfallBulkClient,
-    fmt: str,
-    identity: frozenset[str] | None,
-    card_type: str | None,
-    limit: int,
-    response_format: ResponseFormat,
-    color: str | None,
-) -> ToolResult | None:
-    """Attempt tournament-mode ranking via MTGGoldfish. Returns None on failure."""
-    goldfish = _goldfish_mod._client
-    if goldfish is None:
-        log.debug("format_staples.tournament_skip", format=fmt, reason="goldfish_client_none")
-        return None
-    try:
-        staples = await goldfish.get_format_staples(fmt, limit=limit * 2)
-    except MTGGoldfishError:
-        log.warning("format_staples.goldfish_error", format=fmt, exc_info=True)
-        return None
-
-    if not staples:
-        log.debug("format_staples.tournament_skip", format=fmt, reason="empty_staples")
-        return None
-
-    # Cross-reference goldfish names with bulk data for full Card details
-    try:
-        all_cards = await client.all_cards()
-    except ScryfallBulkError:
-        log.warning("format_staples.tournament_bulk_error", format=fmt, exc_info=True)
-        return None
-
-    cards_by_name: dict[str, Card] = {c.name.lower(): c for c in all_cards}
-    ranked: list[tuple[float, Card]] = []
-    for gs in staples:
-        card = cards_by_name.get(gs.name.lower())
-        if card is None:
-            continue
-        if card.legalities.get(fmt) != "legal":
-            continue
-        if identity is not None and not is_within_identity(card.color_identity, identity):
-            continue
-        if card_type is not None and card_type.lower() not in card.type_line.lower():
-            continue
-        ranked.append((gs.pct_of_decks, card))
-
-    if not ranked:
-        log.debug("format_staples.tournament_skip", format=fmt, reason="no_matches_after_filter")
-        return None
-
-    ranked.sort(key=lambda t: t[0], reverse=True)
-    ranked = ranked[:limit]
-
-    header = f"## {fmt.title()} Staples (Tournament Data"
-    if color:
-        header += f", {color}"
-    header += ")"
-    if card_type:
-        header += f" -- {card_type.title()}"
-    lines = [header, ""]
-
-    if response_format == "concise":
-        for pct, card in ranked:
-            lines.append(f"  {card.name} ({pct:.1f}% of decks)")
-    else:
-        lines.append("| % Decks | Card | Mana Cost | Type |")
-        lines.append("|---------|------|-----------|------|")
-        for pct, card in ranked:
-            cost = card.mana_cost or ""
-            lines.append(f"| {pct:.1f}% | {card.name} | {cost} | {card.type_line} |")
-
-    return ToolResult(
         content="\n".join(lines) + ATTRIBUTION_SCRYFALL_BULK,
         structured_content={
             "format": fmt,
             "color": color,
             "card_type": card_type,
-            "ranking_mode": "tournament",
-            "total_results": len(ranked),
-            "cards": [slim_card(card) for _, card in ranked],
+            "ranking_mode": "edhrec" if use_edhrec else "competitive",
+            "total_results": len(matches),
+            "cards": [slim_card(card) for card in matches],
         },
     )
 
