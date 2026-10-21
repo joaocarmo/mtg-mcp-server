@@ -78,6 +78,10 @@ def format_card_detail(card: Card, *, response_format: ResponseFormat = "detaile
         lines.append(f"Set: {card.set_code.upper()} ({card.rarity})")
     if card.prices.usd:
         lines.append(f"Price: ${card.prices.usd} (foil: ${card.prices.usd_foil or 'N/A'})")
+    elif card.prices.usd_foil:
+        lines.append(f"Price: foil ${card.prices.usd_foil}")
+    if card.prices.eur:
+        lines.append(f"Price (EUR): \u20ac{card.prices.eur}")
     if card.edhrec_rank is not None:
         lines.append(f"EDHREC Rank: {card.edhrec_rank}")
     return lines

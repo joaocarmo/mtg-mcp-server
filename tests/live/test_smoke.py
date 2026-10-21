@@ -314,14 +314,6 @@ class TestCrossFormatLive:
         # Should use tournament (% Decks) or competitive (Score), NOT edhrec (Rank #)
         assert "% Decks" in text or "Score" in text
 
-    async def test_card_in_formats(self, live_client):
-        result = await live_client.call_tool(
-            "bulk_card_in_formats", {"card_name": "Lightning Bolt"}
-        )
-        text = result.content[0].text
-        assert "Lightning Bolt" in text
-        assert "modern" in text.lower()
-
 
 class TestRulesDiscoveryLive:
     """Hit the real rules page; guards against WotC changing its markup."""

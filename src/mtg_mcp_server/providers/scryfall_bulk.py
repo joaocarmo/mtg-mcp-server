@@ -224,23 +224,6 @@ async def card_search(
 
 
 # ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-# Preferred format display order for card_in_formats.
-_FORMAT_DISPLAY_ORDER = [
-    "standard",
-    "pioneer",
-    "modern",
-    "legacy",
-    "vintage",
-    "commander",
-    "pauper",
-]
-
-
-# ---------------------------------------------------------------------------
 # Cross-format tools
 # ---------------------------------------------------------------------------
 
@@ -899,61 +882,6 @@ async def ban_list(
             "format": fmt,
             "banned": [{"name": c.name, "type_line": c.type_line} for c in banned],
             "restricted": [{"name": c.name, "type_line": c.type_line} for c in restricted],
-        },
-    )
-
-
-@scryfall_bulk_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_LOOKUP)
-async def card_in_formats(
-    card_name: Annotated[
-        str,
-        Field(description="Card name to check format legality for"),
-    ],
-) -> ToolResult:
-    """Show a card's legality across all Magic formats.
-
-    Returns a table with the card's legality status in each format,
-    ordered with the most common formats first.
-    """
-    client = _get_client()
-
-    try:
-        card = await client.get_card(card_name)
-    except ScryfallBulkError as exc:
-        raise ToolError(f"Scryfall bulk data error: {exc}") from exc
-
-    if card is None:
-        raise ToolError(f"Card not found: '{card_name}'. Check spelling.")
-
-    lines = [
-        f"## {card.name} -- Format Legality",
-        f"*{card.type_line}*",
-    ]
-    if card.prices.usd:
-        lines.append(f"Price: ${card.prices.usd}")
-    lines.append("")
-    lines.append("| Format | Status |")
-    lines.append("|--------|--------|")
-
-    # Show priority formats first, then the rest alphabetically
-    seen: set[str] = set()
-    for fmt in _FORMAT_DISPLAY_ORDER:
-        if fmt in card.legalities:
-            status = card.legalities[fmt].replace("_", " ").title()
-            lines.append(f"| {fmt.title()} | {status} |")
-            seen.add(fmt)
-
-    for fmt in sorted(card.legalities.keys()):
-        if fmt not in seen:
-            status = card.legalities[fmt].replace("_", " ").title()
-            lines.append(f"| {fmt.title()} | {status} |")
-
-    return ToolResult(
-        content="\n".join(lines) + ATTRIBUTION_SCRYFALL_BULK,
-        structured_content={
-            "name": card.name,
-            "type_line": card.type_line,
-            "legalities": card.legalities,
         },
     )
 

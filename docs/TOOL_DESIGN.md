@@ -16,11 +16,9 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
 | `scryfall_search_cards` | `query` (Scryfall syntax, e.g. `f:commander id:sultai t:creature cmc<=3`), `page=1`, `limit=30` (0=all), `fmt` | Matching cards (name, type, mana, price) + pagination; slim card fields | `search_cards()` |
-| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colors, identity, legalities, prices, set, rarity, EDHREC rank | `get_card_by_name()` |
-| `scryfall_card_price` | `name` | USD, USD foil, EUR (updated daily) | `get_card_by_name()` |
+| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colors, identity, legalities (legal, banned, restricted), prices (USD, USD foil, EUR), set, rarity, EDHREC rank | `get_card_by_name()` |
 | `scryfall_card_rulings` | `name` | Rulings with dates and sources | `get_card_by_name()` → `get_rulings()` |
 | `scryfall_set_info` | `set_code` (e.g. "dom") | Name, code, release date, type, card count, icon URI | `get_set()` |
-| `scryfall_whats_new` | `days=30` | Recently released cards with set and rarity | `search_cards()` (date filter) |
 
 ## Commander Spellbook (`spellbook_`)
 
@@ -49,8 +47,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
-| `moxfield_decklist` | `deck_id` (ID or full URL) | Decklist by board (commanders, main, side, companions); structured metadata + per-board lists | `get_deck()` |
-| `moxfield_deck_info` | `deck_id` | Name, format, author, description, dates, URL, per-board counts | `get_deck()` (metadata) |
+| `moxfield_decklist` | `deck_id` (ID or full URL) | Author, description, dates, URL, then decklist by board (commanders, main, side, companions); structured metadata + per-board lists | `get_deck()` |
 | `moxfield_search_decks` | `query=None`, `format=None`, `sort="Updated"` (also "Created", "Views"), `page=1`, `page_size=20` | Paginated summaries: name, format, author, colors, counts, URL | `search_decks()` |
 | `moxfield_user_decks` | `username`, `format=None` | User's public decks; verifies the user exists first | `search_users()` + `search_decks()` |
 
@@ -69,13 +66,12 @@ Rate-limit-free; backed by `ScryfallBulkClient`.
 
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
-| `bulk_card_lookup` | `name` | Full card incl. P/T, keywords, prices, legalities, EDHREC rank, images | `get_card()` |
+| `bulk_card_lookup` | `name` | Full card incl. P/T, keywords, prices (USD, foil, EUR), legalities (legal, banned, restricted), EDHREC rank, images | `get_card()` |
 | `bulk_card_search` | `query`, `search_field="name"` (or "type", "text"), `limit=20` | Name, mana, type line | `search_cards()` / `search_by_type()` / `search_by_text()` |
 | `bulk_format_legality` | `card_name`, `format` | legal / not_legal / banned / restricted | `get_card()` |
 | `bulk_format_search` | `format`, `query`, `limit=20` | Format-legal matches | `filter_cards()` |
 | `bulk_format_staples` | `format`, `color=None` (identity), `card_type=None`, `limit=20`, `ranking_mode="auto"` (or `edhrec`, `competitive`, `tournament`), `fmt` | Ranked staples. Auto mode: singleton formats (Commander, Brawl, Oathbreaker) use EDHREC rank; competitive formats use MTGGoldfish frequency (% Decks) when available, otherwise a mana-efficiency score | `filter_cards()`, optionally `MTGGoldfishClient.get_format_staples()` |
 | `bulk_ban_list` | `format` | Banned and restricted cards | `filter_cards()` |
-| `bulk_card_in_formats` | `card_name` | Legality per format | `get_card()` |
 | `bulk_random_card` | `format=None`, `card_type=None` | Random card, full details | `filter_cards()` |
 | `bulk_similar_cards` | `card_name`, `limit=10` | Similar by type, keywords or mana cost; shared attributes highlighted | `get_card()` + `filter_cards()` |
 

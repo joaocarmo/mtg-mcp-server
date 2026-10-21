@@ -20,12 +20,12 @@ pytestmark = pytest.mark.integration
 class TestToolRegistration:
     """Verify the orchestrator exposes the expected tools."""
 
-    async def test_all_66_tools_registered(self, mcp_client: Client):
-        """The orchestrator exposes exactly 66 tools."""
+    async def test_all_tools_registered(self, mcp_client: Client):
+        """The orchestrator exposes the expected number of tools."""
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
-        # 1 ping + 6 scryfall + 4 spellbook + 2 draft + 2 edhrec + 4 moxfield + 4 goldfish + 9 bulk + 29 workflows + 5 rules = 66
-        assert len(tools) == 66, f"Expected 66 tools, got {len(tools)}.\nTools: {tool_names}"
+        # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 4 goldfish + 8 bulk + 29 workflows + 5 rules = 62
+        assert len(tools) == 62, f"Expected 62 tools, got {len(tools)}.\nTools: {tool_names}"
 
     async def test_no_mtgjson_tools(self, mcp_client: Client):
         """No tool names contain 'mtgjson' (replaced by Scryfall bulk data)."""
@@ -69,13 +69,6 @@ class TestNewBulkTools:
         text = result.content[0].text
         assert "modern" in text.lower() or "Ban" in text or "No banned" in text
 
-    async def test_card_in_formats_returns_table(self, mcp_client: Client):
-        """bulk_card_in_formats returns legality table for a known card."""
-        result = await mcp_client.call_tool("bulk_card_in_formats", {"card_name": "Sol Ring"})
-        text = result.content[0].text
-        assert "Sol Ring" in text
-        assert "commander" in text.lower()
-
     async def test_format_search_returns_results(self, mcp_client: Client):
         """bulk_format_search returns matching cards."""
         result = await mcp_client.call_tool(
@@ -93,12 +86,6 @@ class TestNewScryfallTools:
         result = await mcp_client.call_tool("scryfall_set_info", {"set_code": "dom"})
         text = result.content[0].text
         assert "Dominaria" in text
-
-    async def test_whats_new_returns_results(self, mcp_client: Client):
-        """scryfall_whats_new returns recent cards."""
-        result = await mcp_client.call_tool("scryfall_whats_new", {"days": 7})
-        text = result.content[0].text
-        assert len(text) > 0
 
 
 class TestNewWorkflowTools:

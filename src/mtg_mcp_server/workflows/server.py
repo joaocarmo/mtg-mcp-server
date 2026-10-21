@@ -1346,7 +1346,7 @@ def evaluate_collection(
     return f"""Evaluate this card collection for format playability and value:
 Cards: {cards}
 
-Step 1: Use bulk_card_in_formats for each card to see where it's legal.
+Step 1: Use bulk_card_lookup for each card to see where it's legal, banned or restricted.
 
 Step 2: Use price_comparison to see the current value of all cards.
 

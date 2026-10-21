@@ -154,7 +154,6 @@ class TestToolRegistration:
             "similar_cards",
             "random_card",
             "ban_list",
-            "card_in_formats",
         }
         assert tool_names == expected
 
@@ -1322,62 +1321,23 @@ class TestBanList:
 
 
 # ---------------------------------------------------------------------------
-# card_in_formats tests
+# card_lookup legality tests
 # ---------------------------------------------------------------------------
 
 
-class TestCardInFormats:
-    """Tests for the card_in_formats tool."""
+class TestCardLookupLegalities:
+    """card_lookup lists banned and restricted formats, not just legal ones."""
 
-    async def test_shows_all_formats(self):
-        """card_in_formats shows legality in all formats."""
+    async def test_shows_banned_and_restricted(self):
+        """card_lookup names the formats where a card is banned or restricted."""
         mock = _make_pool_client()
         with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
             async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "card_in_formats",
-                    {"card_name": "Sol Ring"},
-                )
+                result = await client.call_tool("card_lookup", {"name": "Sol Ring"})
         text = result.content[0].text
-        assert "Sol Ring" in text
-        assert "Commander" in text
-        assert "Modern" in text
-        assert "Vintage" in text
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["name"] == "Sol Ring"
-        assert isinstance(sc["legalities"], dict)
-
-    async def test_card_not_found(self):
-        """card_in_formats returns error for unknown card."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "card_in_formats",
-                    {"card_name": "Nonexistent"},
-                    raise_on_error=False,
-                )
-        assert result.is_error
-        assert "not found" in result.content[0].text.lower()
-
-    async def test_format_order(self):
-        """card_in_formats shows priority formats first."""
-        mock = _make_pool_client()
-        with patch("mtg_mcp_server.providers.scryfall_bulk.ScryfallBulkClient", return_value=mock):
-            async with Client(transport=scryfall_bulk_mcp) as client:
-                result = await client.call_tool(
-                    "card_in_formats",
-                    {"card_name": "Sol Ring"},
-                )
-        text = result.content[0].text
-        # Commander and Modern should appear before less common formats
-        assert "Commander" in text
-        assert "Format" in text  # table header
-        sc = result.structured_content
-        assert isinstance(sc, dict)
-        assert sc["name"] == "Sol Ring"
-        assert isinstance(sc["legalities"], dict)
+        assert "Legalities: commander" in text
+        assert "Banned: modern" in text
+        assert "Restricted: vintage" in text
 
 
 # ---------------------------------------------------------------------------
@@ -1455,7 +1415,7 @@ class TestNewResources:
 
 
 class TestNewToolRegistration:
-    """Verify all 9 tools are registered (2 existing + 7 new)."""
+    """Verify all bulk tools are registered."""
 
     async def test_all_tools_registered(self):
         mock = _make_pool_client()
@@ -1472,7 +1432,6 @@ class TestNewToolRegistration:
             "similar_cards",
             "random_card",
             "ban_list",
-            "card_in_formats",
         }
         assert expected == tool_names
 

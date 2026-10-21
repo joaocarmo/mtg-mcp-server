@@ -161,76 +161,24 @@ class TestMoxfieldDecklist:
         assert "Muldrotha Self-Mill" in text
 
 
-class TestMoxfieldDeckInfo:
-    """Moxfield deck_info tool behavior."""
+class TestMoxfieldDecklistMetadata:
+    """decklist prints the deck metadata, not just the cards."""
 
     @respx.mock
-    async def test_returns_deck_metadata(self, client: Client):
-        """deck_info returns markdown with name, format, author, and dates."""
+    async def test_includes_description_dates_and_url(self, client: Client):
+        """decklist markdown carries description, created/updated dates and URL."""
         fixture = _load_fixture("deck_commander.json")
         respx.get(f"{BASE_URL}/v3/decks/all/abc123").mock(
             return_value=httpx.Response(200, json=fixture)
         )
 
-        result = await client.call_tool("deck_info", {"deck_id": "abc123"})
+        result = await client.call_tool("decklist", {"deck_id": "abc123"})
         text = result.content[0].text
 
-        assert "Muldrotha Self-Mill" in text
-        assert "commander" in text
-        assert "mtgplayer42" in text
+        assert "Self-mill value engine" in text
         assert "2025-01-15" in text
         assert "2025-03-20" in text
-
-    @respx.mock
-    async def test_structured_content_has_metadata(self, client: Client):
-        """Structured content has deck metadata fields and board_counts."""
-        fixture = _load_fixture("deck_commander.json")
-        respx.get(f"{BASE_URL}/v3/decks/all/abc123").mock(
-            return_value=httpx.Response(200, json=fixture)
-        )
-
-        result = await client.call_tool("deck_info", {"deck_id": "abc123"})
-        sc = result.structured_content
-
-        assert sc is not None
-        assert sc["id"] == "abc123"
-        assert sc["name"] == "Muldrotha Self-Mill"
-        assert sc["format"] == "commander"
-        assert sc["author"] == "mtgplayer42"
-        assert "board_counts" in sc
-        assert isinstance(sc["board_counts"], dict)
-        assert "commanders" in sc["board_counts"]
-        assert "mainboard" in sc["board_counts"]
-
-    @respx.mock
-    async def test_not_found_returns_error(self, client: Client):
-        """deck_info returns an error response for nonexistent decks."""
-        respx.get(f"{BASE_URL}/v3/decks/all/nonexistent").mock(
-            return_value=httpx.Response(404, text="Not Found")
-        )
-
-        result = await client.call_tool(
-            "deck_info",
-            {"deck_id": "nonexistent"},
-            raise_on_error=False,
-        )
-        assert result.is_error
-        assert "not found" in result.content[0].text.lower()
-
-    @respx.mock
-    async def test_server_error_returns_error(self, client: Client):
-        """deck_info returns an error response for server errors (non-404)."""
-        respx.get(f"{BASE_URL}/v3/decks/all/abc123").mock(
-            return_value=httpx.Response(500, text="Internal Server Error")
-        )
-
-        result = await client.call_tool(
-            "deck_info",
-            {"deck_id": "abc123"},
-            raise_on_error=False,
-        )
-        assert result.is_error
-        assert "Moxfield API error" in result.content[0].text
+        assert "https://www.moxfield.com/decks/abc123" in text
 
 
 class TestToolRegistration:
@@ -240,7 +188,7 @@ class TestToolRegistration:
         """All Moxfield tools are registered on the provider."""
         tools = await client.list_tools()
         tool_names = {t.name for t in tools}
-        assert tool_names == {"decklist", "deck_info", "search_decks", "user_decks"}
+        assert tool_names == {"decklist", "search_decks", "user_decks"}
 
     async def test_tools_have_annotations(self, client: Client):
         """Tools have the expected readOnly, idempotent, and openWorld annotations."""

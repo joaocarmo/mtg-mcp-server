@@ -56,12 +56,11 @@ class TestScryfallMounted:
     """Verify Scryfall tools appear with scryfall_ namespace on the orchestrator."""
 
     async def test_namespaced_tools_appear(self, mcp_client: Client):
-        """All four Scryfall tools are listed with the scryfall_ namespace prefix."""
+        """Scryfall tools are listed with the scryfall_ namespace prefix."""
         tools = await mcp_client.list_tools()
         tool_names = {t.name for t in tools}
         assert "scryfall_search_cards" in tool_names
         assert "scryfall_card_details" in tool_names
-        assert "scryfall_card_price" in tool_names
         assert "scryfall_card_rulings" in tool_names
 
     @respx.mock
@@ -182,11 +181,10 @@ class TestMoxfieldMounted:
     """Verify Moxfield tools appear with moxfield_ namespace on the orchestrator."""
 
     async def test_namespaced_tools_appear(self, mcp_client: Client):
-        """Both Moxfield tools are listed with the moxfield_ namespace prefix."""
+        """Moxfield tools are listed with the moxfield_ namespace prefix."""
         tools = await mcp_client.list_tools()
         tool_names = {t.name for t in tools}
         assert "moxfield_decklist" in tool_names
-        assert "moxfield_deck_info" in tool_names
 
     @respx.mock
     async def test_end_to_end_decklist(self, mcp_client: Client):
@@ -360,7 +358,7 @@ class TestToolSchemaCompleteness:
         """Server exposes the expected number of tools."""
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
-        assert len(tools) == 66, f"Expected 66 tools, got {len(tools)}.\nTools: {tool_names}"
+        assert len(tools) == 62, f"Expected 62 tools, got {len(tools)}.\nTools: {tool_names}"
 
     async def test_no_context_parameter_exposed(self, mcp_client: Client):
         """No tool should expose 'ctx' (Context) as a user-visible parameter."""
@@ -505,7 +503,7 @@ class TestToolNamingConventions:
             "spellbook_": ["spellbook_find_combos", "spellbook_combo_details"],
             "draft_": ["draft_card_ratings", "draft_archetype_stats"],
             "edhrec_": ["edhrec_commander_staples", "edhrec_card_synergy"],
-            "moxfield_": ["moxfield_decklist", "moxfield_deck_info"],
+            "moxfield_": ["moxfield_decklist", "moxfield_search_decks"],
             "bulk_": ["bulk_card_lookup", "bulk_card_search"],
         }
         for prefix, expected_tools in backend_prefixes.items():
