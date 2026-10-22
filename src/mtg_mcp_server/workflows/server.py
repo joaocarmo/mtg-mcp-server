@@ -39,6 +39,7 @@ from mtg_mcp_server.providers import (
     TAGS_VALIDATE,
     TOOL_ANNOTATIONS,
 )
+from mtg_mcp_server.providers import scryfall_bulk as bulk_provider
 from mtg_mcp_server.services.base import ServiceError
 from mtg_mcp_server.services.edhrec import CommanderNotFoundError, EDHRECClient
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
@@ -86,7 +87,8 @@ async def workflow_lifespan(server: FastMCP):
     Uses ``AsyncExitStack`` to manage multiple clients in a single lifespan.
     Feature-flagged backends (17Lands, EDHREC, Scryfall bulk data, MTGGoldfish)
     are only created when their corresponding ``Settings`` flag is enabled.
-    All clients are torn down when the server shuts down.
+    All clients it creates are torn down when the server shuts down. A bulk
+    client shared with the bulk provider is left to that provider.
     """
     global _scryfall, _spellbook, _seventeen_lands, _edhrec, _bulk, _rules, _mtggoldfish
     settings = Settings()
@@ -106,12 +108,16 @@ async def workflow_lifespan(server: FastMCP):
                 EDHRECClient(base_url=settings.edhrec_base_url)
             )
         if settings.enable_bulk_data:
-            client = ScryfallBulkClient(
-                base_url=settings.scryfall_base_url,
-                refresh_hours=settings.bulk_data_refresh_hours,
-            )
-            _bulk = await stack.enter_async_context(client)
-            _bulk.start_background_refresh()
+            # The orchestrator mounts the bulk provider first, so its lifespan has
+            # already started a client: share it to hold the card data once.
+            _bulk = bulk_provider._client
+            if _bulk is None:
+                client = ScryfallBulkClient(
+                    base_url=settings.scryfall_base_url,
+                    refresh_hours=settings.bulk_data_refresh_hours,
+                )
+                _bulk = await stack.enter_async_context(client)
+                _bulk.start_background_refresh()
         if settings.enable_rules:
             _rules = RulesService(
                 rules_url=settings.rules_url,
@@ -550,7 +556,8 @@ async def complete_deck(
         Field(description="Format to build for (e.g. 'standard', 'modern', 'commander')"),
     ],
     commander: Annotated[
-        str | None, Field(description="Commander name (required for Commander format)")
+        str | None,
+        Field(description="Exact commander card name; limits suggestions to its color identity"),
     ] = None,
     budget: Annotated[
         float | None, Field(description="Maximum price per suggested card in USD")
@@ -1047,10 +1054,6 @@ async def sideboard_guide(
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
 async def sideboard_matrix(
-    decklist: Annotated[
-        list[str],
-        Field(description="Main deck card names (e.g. ['4 Lightning Bolt', '4 Goblin Guide'])"),
-    ],
     sideboard: Annotated[
         list[str],
         Field(description="Sideboard card names (e.g. ['2 Hydroblast', '3 Tormod\\'s Crypt'])"),
@@ -1070,7 +1073,6 @@ async def sideboard_matrix(
     return await _run(
         "sideboard_matrix failed",
         sideboard_wf.sideboard_matrix(
-            decklist=decklist,
             sideboard=sideboard,
             format=format,
             bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),

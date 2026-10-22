@@ -595,7 +595,6 @@ class TestSideboardMatrixSuccess:
 
     async def test_produces_matrix(self, mock_bulk: AsyncMock) -> None:
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=["2x Counterspell", "2x Rest in Peace", "2x Wrath of God"],
             format="modern",
             bulk=mock_bulk,
@@ -624,7 +623,6 @@ class TestSideboardMatrixSuccess:
     async def test_counterspell_in_against_combo(self, mock_bulk: AsyncMock) -> None:
         """Counterspell should be IN against combo (counter target spell matches)."""
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=["2x Counterspell"],
             format="modern",
             bulk=mock_bulk,
@@ -636,7 +634,6 @@ class TestSideboardMatrixSuccess:
 
     async def test_markdown_table_format(self, mock_bulk: AsyncMock) -> None:
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=["2x Counterspell"],
             format="modern",
             bulk=mock_bulk,
@@ -656,7 +653,6 @@ class TestSideboardMatrixWithGoldfish:
         self, mock_bulk: AsyncMock, mock_goldfish: AsyncMock
     ) -> None:
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=["2x Counterspell", "2x Rest in Peace"],
             format="modern",
             bulk=mock_bulk,
@@ -675,7 +671,6 @@ class TestSideboardMatrixWithGoldfish:
         )
 
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=["2x Counterspell"],
             format="modern",
             bulk=mock_bulk,
@@ -691,7 +686,6 @@ class TestSideboardMatrixNoMatchups:
 
     async def test_returns_error_without_matchups_or_goldfish(self, mock_bulk: AsyncMock) -> None:
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=["2x Counterspell"],
             format="modern",
             bulk=mock_bulk,
@@ -702,7 +696,6 @@ class TestSideboardMatrixNoMatchups:
 
     async def test_empty_sideboard(self, mock_bulk: AsyncMock) -> None:
         result = await sideboard_matrix(
-            decklist=["4x Lightning Bolt"],
             sideboard=[],
             format="modern",
             bulk=mock_bulk,
@@ -717,7 +710,6 @@ class TestSideboardMatrixResponseFormat:
 
     async def test_concise_omits_legend(self, mock_bulk: AsyncMock) -> None:
         args = {
-            "decklist": ["4x Lightning Bolt"],
             "sideboard": ["2x Counterspell"],
             "format": "modern",
             "bulk": mock_bulk,

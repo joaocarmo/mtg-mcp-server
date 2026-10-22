@@ -66,7 +66,7 @@ tests/               # Mirrors src/: services/, providers/, workflows/, utils/,
 
 **Client lifecycle:** each provider creates its client in a `@lifespan`, constructed from `Settings()` so `MTG_MCP_*_BASE_URL` overrides apply. The client is stored in a module-level `_client` and read through `_get_client()`, which raises `RuntimeError` if the lifespan isn't running. See `providers/scryfall.py` for the template.
 
-**Workflow lifespan** uses `AsyncExitStack` to enter several clients, skipping disabled backends (those stay `None` and workflows degrade). `BaseClient.__aenter__` returns `Self` so `enter_async_context()` infers the subclass. The bulk client starts `start_background_refresh()`, and the rules service calls `ensure_loaded()`.
+**Workflow lifespan** uses `AsyncExitStack` to enter several clients, skipping disabled backends (those stay `None` and workflows degrade). `BaseClient.__aenter__` returns `Self` so `enter_async_context()` infers the subclass. For bulk data, it reuses the bulk provider's client, which the orchestrator mounts first, so the card data is held once. Run alone, it creates its own client and calls `start_background_refresh()`. The rules service calls `ensure_loaded()`.
 
 **Tools** return `ToolResult(content=markdown, structured_content=data)`. All share `TOOL_ANNOTATIONS` (readOnly, idempotent, openWorld) plus domain `tags`. Long-running workflows report progress through an `on_progress` callback, which `server.py` bridges to `ctx.report_progress()`.
 

@@ -608,6 +608,66 @@ class TestCompleteDeck:
 
         assert result.markdown is not None
 
+    @pytest.mark.parametrize("alias", ["edh", "cedh", "EDH"])
+    async def test_format_alias_uses_commander_rules(
+        self, mock_bulk: AsyncMock, alias: str
+    ) -> None:
+        """Commander aliases get the 100-card target and the commander legality key."""
+        cards = {"Card A": _mock_card("Card A")}
+        mock_bulk.get_cards = AsyncMock(return_value=cards)
+
+        result = await complete_deck(["Card A"], alias, bulk=mock_bulk)
+
+        assert result.data["target_size"] == 100
+        assert result.data["gaps"]
+        for call in mock_bulk.filter_cards.call_args_list:
+            assert call.kwargs["format"] == "commander"
+
+    async def test_commander_color_identity_filters_suggestions(self, mock_bulk: AsyncMock) -> None:
+        """Suggestions are limited to the commander's color identity."""
+        cards = {"Card A": _mock_card("Card A")}
+        mock_bulk.get_cards = AsyncMock(return_value=cards)
+        mock_bulk.get_card = AsyncMock(
+            return_value=_mock_card("Atraxa", color_identity=["W", "U", "B", "G"])
+        )
+
+        await complete_deck(["Card A"], "commander", bulk=mock_bulk, commander="Atraxa")
+
+        mock_bulk.get_card.assert_awaited_once_with("Atraxa")
+        assert mock_bulk.filter_cards.call_args_list
+        for call in mock_bulk.filter_cards.call_args_list:
+            assert call.kwargs["color_identity"] == frozenset({"W", "U", "B", "G"})
+
+    async def test_unknown_commander_is_noted(self, mock_bulk: AsyncMock) -> None:
+        """An unknown commander is reported and suggestions are not color-filtered."""
+        cards = {"Card A": _mock_card("Card A")}
+        mock_bulk.get_cards = AsyncMock(return_value=cards)
+
+        result = await complete_deck(
+            ["Card A"], "commander", bulk=mock_bulk, commander="Not A Card"
+        )
+
+        assert "Not A Card" in result.markdown
+        for call in mock_bulk.filter_cards.call_args_list:
+            assert call.kwargs["color_identity"] is None
+
+    async def test_commander_ignored_outside_commander_format(self, mock_bulk: AsyncMock) -> None:
+        """Only the commander format looks up the commander."""
+        mock_bulk.get_cards = AsyncMock(return_value={"Card A": _mock_card("Card A")})
+
+        result = await complete_deck(["Card A"], "modern", bulk=mock_bulk, commander="Not A Card")
+
+        mock_bulk.get_card.assert_not_awaited()
+        assert "Not A Card" not in result.markdown
+
+    async def test_data_format_is_normalized(self, mock_bulk: AsyncMock) -> None:
+        """Structured output reports the canonical format name."""
+        mock_bulk.get_cards = AsyncMock(return_value={"Card A": _mock_card("Card A")})
+
+        result = await complete_deck(["Card A"], "EDH", bulk=mock_bulk)
+
+        assert result.data["format"] == "commander"
+
     async def test_progress_reporting(self, mock_bulk: AsyncMock) -> None:
         """Progress callback is invoked during processing."""
         cards = {f"Card {i}": _mock_card(f"Card {i}") for i in range(5)}

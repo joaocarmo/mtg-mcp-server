@@ -745,7 +745,6 @@ def _format_sideboard_guide(
 
 
 async def sideboard_matrix(
-    decklist: list[str],
     sideboard: list[str],
     format: str,
     *,
@@ -757,7 +756,6 @@ async def sideboard_matrix(
     """Build a sideboard matrix: cards as rows, matchups as columns, cells = IN/OUT/FLEX.
 
     Args:
-        decklist: Main deck card list.
         sideboard: Sideboard card list.
         format: Format name.
         bulk: ScryfallBulkClient for card lookup.
