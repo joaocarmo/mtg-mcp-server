@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 from mtg_mcp_server.utils.color_identity import parse_color_identity
+from mtg_mcp_server.utils.format_rules import normalize_format
 from mtg_mcp_server.workflows import WorkflowResult
 
 if TYPE_CHECKING:
@@ -574,8 +575,6 @@ _TARGET_SIZES: dict[str, int] = {
     "pioneer": 60,
     "pauper": 60,
     "limited": 40,
-    "sealed": 40,
-    "draft": 40,
 }
 
 # Healthy card category ratios for Commander (out of 100)
@@ -635,7 +634,7 @@ async def complete_deck(
         decklist: Partial list of card names.
         format: Format for target size and legality.
         bulk: Initialized ScryfallBulkClient.
-        commander: Commander name (unused currently, reserved for future enrichment).
+        commander: Commander name. Its color identity limits the suggestions.
         budget: Optional max price per card.
         on_progress: Optional progress callback.
         response_format: Output verbosity.
@@ -644,6 +643,7 @@ async def complete_deck(
         WorkflowResult with gap analysis and suggestions.
     """
     log.info("complete_deck.start", cards=len(decklist), format=format)
+    fmt = normalize_format(format, strict=False)
 
     total_steps = 3
     if on_progress is not None:
@@ -670,7 +670,7 @@ async def complete_deck(
         cat = _categorize_card(card)
         categories.setdefault(cat, []).append(card)
 
-    target_size = _TARGET_SIZES.get(format.lower(), 60)
+    target_size = _TARGET_SIZES.get(fmt, 60)
     cards_needed = max(0, target_size - len(resolved))
 
     # Step 3: Identify gaps and find suggestions
@@ -678,17 +678,25 @@ async def complete_deck(
         await on_progress(3, total_steps)
 
     gaps: dict[str, int] = {}
-    if format.lower() == "commander":
+    if fmt == "commander":
         for cat, (low, _high) in _COMMANDER_RATIOS.items():
             current = len(categories.get(cat, []))
             if current < low:
                 gaps[cat] = low - current
 
+    identity: frozenset[str] | None = None
+    commander_missing = False
+    if commander:
+        commander_card = await bulk.get_card(commander)
+        if commander_card is not None:
+            identity = frozenset(commander_card.color_identity)
+        else:
+            commander_missing = True
+
     # Search for suggestions in underrepresented categories
     suggestions: dict[str, list[Card]] = {}
     for cat, needed in gaps.items():
         cat_limit = min(needed + 3, 10)  # A few extra for variety
-        fmt = format.lower()
 
         # Map category to search criteria
         cat_text_any: list[str] | None = None
@@ -708,6 +716,7 @@ async def complete_deck(
             text_any=cat_text_any,
             type_contains=cat_type_contains,
             format=fmt,
+            color_identity=identity,
             max_price=budget,
             limit=cat_limit,
         )
@@ -729,6 +738,8 @@ async def complete_deck(
             lines.append(f"Gaps: {', '.join(gap_parts)}")
         if unresolved:
             lines.append(f"Unresolved: {', '.join(unresolved)}")
+        if commander_missing:
+            lines.append(f"Commander not found: {commander} (suggestions not color-filtered)")
     else:
         lines.append("# Deck Completion Analysis")
         lines.append(f"*Format: {format} | Target: {target_size} cards*")
@@ -738,6 +749,10 @@ async def complete_deck(
         lines.append("## Current Deck")
         lines.append(f"**Cards resolved:** {len(resolved)}/{len(decklist)}")
         lines.append(f"**Cards needed:** {cards_needed}")
+        if commander_missing:
+            lines.append(
+                f"**Commander not found:** {commander}. Suggestions are not color-filtered."
+            )
         lines.append("")
 
         # Category breakdown
