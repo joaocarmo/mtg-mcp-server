@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-10-22
+
+v5.0.0 moves to FastMCP 4 and fixes `complete_deck`.
+This is a breaking change: `sideboard_matrix` no longer accepts `decklist` (see Removed).
+
 ### Changed
 - Upgraded to FastMCP 4 (MCP Python SDK v2). The server negotiates the 2026-07-28 protocol with new clients; older clients keep working. The upgrade leaves tool input schemas unchanged; `ping` no longer advertises an output schema.
 - Refreshed all dependencies to their latest releases. Python 3.14 and 3.15 are now tested and supported.
@@ -80,6 +85,7 @@ The server now exposes 61 tools (incl. `ping`), 18 prompts and 5 resources
 ### Security
 - Upgraded certifi to 2026.10.19 to resolve PYSEC-2026-4320
 
+[5.0.0]: https://github.com/joaocarmo/mtg-mcp-server/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/joaocarmo/mtg-mcp-server/compare/v3.0.0...v4.0.0
 
 ## [3.0.0] - 2026-04-03
