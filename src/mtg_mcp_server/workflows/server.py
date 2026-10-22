@@ -1047,10 +1047,6 @@ async def sideboard_guide(
 
 @workflow_mcp.tool(annotations=TOOL_ANNOTATIONS, tags=TAGS_CONSTRUCTED)
 async def sideboard_matrix(
-    decklist: Annotated[
-        list[str],
-        Field(description="Main deck card names (e.g. ['4 Lightning Bolt', '4 Goblin Guide'])"),
-    ],
     sideboard: Annotated[
         list[str],
         Field(description="Sideboard card names (e.g. ['2 Hydroblast', '3 Tormod\\'s Crypt'])"),
@@ -1070,7 +1066,6 @@ async def sideboard_matrix(
     return await _run(
         "sideboard_matrix failed",
         sideboard_wf.sideboard_matrix(
-            decklist=decklist,
             sideboard=sideboard,
             format=format,
             bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),

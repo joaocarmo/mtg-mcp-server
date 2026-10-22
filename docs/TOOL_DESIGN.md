@@ -129,7 +129,7 @@ Archetype and matchup names are fuzzy-matched.
 | `format_entry_guide` | `format`, `budget=None` | Format rules, archetypes by budget, recommended first deck, cross-archetype staples; returns the rules even with no metagame data | MTGGoldfish, Bulk (all optional) |
 | `suggest_sideboard` | `decklist`, `format`, `meta_context=None` | 15 cards by category (graveyard hate, removal, counters, wipes, …), format staples marked | Bulk (req), MTGGoldfish |
 | `sideboard_guide` | `decklist`, `sideboard`, `format`, `matchup` | Matchup strategy, IN/OUT plan with per-card reasoning, balanced swaps | Bulk (req), MTGGoldfish |
-| `sideboard_matrix` | `decklist`, `sideboard`, `format`, `matchups=None` (auto from metagame) | Rows = sideboard cards, columns = matchups, cells IN/OUT/FLEX | Bulk (req), MTGGoldfish |
+| `sideboard_matrix` | `sideboard`, `format`, `matchups=None` (auto from metagame) | Rows = sideboard cards, columns = matchups, cells IN/OUT/FLEX | Bulk (req), MTGGoldfish |
 
 ### Rules engine
 

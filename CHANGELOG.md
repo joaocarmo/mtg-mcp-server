@@ -8,8 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Upgraded to FastMCP 4 (MCP Python SDK v2). The server negotiates the 2026-07-28 protocol with new clients; older clients keep working. Tool input schemas are unchanged; `ping` no longer advertises an output schema.
+- Upgraded to FastMCP 4 (MCP Python SDK v2). The server negotiates the 2026-07-28 protocol with new clients; older clients keep working. The upgrade leaves tool input schemas unchanged; `ping` no longer advertises an output schema.
 - Refreshed all dependencies to their latest releases. Python 3.14 and 3.15 are now tested and supported.
+
+### Removed
+- **Breaking:** `sideboard_matrix` no longer takes `decklist`. The tool never read it: the matrix uses only the sideboard. Calls that still pass it are rejected.
+
+### Fixed
+- `complete_deck` now resolves format aliases such as `edh` and `cedh`. They get the 100-card target, the commander ratios and the right legality filter.
+- `complete_deck` now uses `commander`. Suggestions stay within its colour identity. An unknown commander is reported, and suggestions are then not colour-filtered.
 
 ## [4.0.0] - 2026-10-21
 
