@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `suggest_sideboard` now only suggests cards within the deck's colour identity. Colourless cards still qualify. Categories with no on-colour answer are listed in `data["empty_categories"]` and noted in the output. Ported from upstream ([j4th/mtg-mcp-server#64](https://github.com/j4th/mtg-mcp-server/issues/64)).
+
 ## [5.0.0] - 2026-10-22
 
 v5.0.0 moves to FastMCP 4 and fixes `complete_deck`.

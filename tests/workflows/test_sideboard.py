@@ -370,6 +370,46 @@ class TestSuggestSideboardSuccess:
         assert result.data["total_cards"] == 0
 
 
+class TestSuggestSideboardColorFilter:
+    """suggest_sideboard keeps candidates within the deck's color identity."""
+
+    async def test_every_search_uses_deck_identity(self, mock_bulk: AsyncMock) -> None:
+        """An Izzet deck passes {R, U} to every candidate search, hosers included."""
+        mock_bulk.get_cards = AsyncMock(
+            return_value={"Lightning Bolt": BOLT, "Counterspell": COUNTERSPELL}
+        )
+        mock_bulk.filter_cards = AsyncMock(return_value=[])
+
+        await suggest_sideboard(["4x Lightning Bolt", "4x Counterspell"], "modern", bulk=mock_bulk)
+
+        calls = mock_bulk.filter_cards.call_args_list
+        assert calls
+        for call in calls:
+            assert call.kwargs["color_identity"] == frozenset({"R", "U"})
+
+    async def test_empty_category_is_reported(self, mock_bulk: AsyncMock) -> None:
+        """Categories with no on-color candidates are listed and noted."""
+        mock_bulk.get_cards = AsyncMock(return_value={"Lightning Bolt": BOLT})
+        mock_bulk.filter_cards = AsyncMock(return_value=[])
+
+        result = await suggest_sideboard(["4x Lightning Bolt"], "modern", bulk=mock_bulk)
+
+        assert result.data["empty_categories"]
+        assert "No strong on-color answers" in result.markdown
+
+    async def test_no_resolved_cards_skips_filter(self, mock_bulk: AsyncMock) -> None:
+        """With no resolved cards the identity is unknown, so searches are unfiltered."""
+        mock_bulk.get_cards = AsyncMock(return_value={})
+        mock_bulk.filter_cards = AsyncMock(return_value=[])
+
+        result = await suggest_sideboard(["4x Lightning Bolt"], "modern", bulk=mock_bulk)
+
+        assert "empty_categories" not in result.data
+        assert mock_bulk.filter_cards.call_args_list
+        for call in mock_bulk.filter_cards.call_args_list:
+            assert call.kwargs["color_identity"] is None
+
+
 class TestSuggestSideboardWithGoldfish:
     """suggest_sideboard with MTGGoldfish format staples."""
 

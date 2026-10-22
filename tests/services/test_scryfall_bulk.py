@@ -868,6 +868,11 @@ class TestFilterCards:
         for card in results:
             assert frozenset(card.color_identity).issubset(sultai)
 
+    async def test_color_identity_filter_keeps_colorless(self, loaded_client: ScryfallBulkClient):
+        """Colorless cards fit any color identity."""
+        results = await loaded_client.filter_cards(color_identity=frozenset({"R"}), limit=1000)
+        assert "Sol Ring" in {card.name for card in results}
+
     async def test_filter_by_type(self, loaded_client: ScryfallBulkClient):
         """Filter by type_contains returns cards with matching type line."""
         results = await loaded_client.filter_cards(type_contains=["Creature"])

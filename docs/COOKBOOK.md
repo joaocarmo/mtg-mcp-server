@@ -573,7 +573,7 @@ For the full matrix:
 
 > Generate a sideboard matrix for my deck across the top Modern matchups.
 
-**What you get:** `suggest_sideboard` provides 15 categorized cards (graveyard hate, removal, counterspells, etc.) with format staple markers. `sideboard_guide` gives an in/out plan with reasoning per card. `sideboard_matrix` shows a grid with each sideboard card vs. each matchup as IN/OUT/FLEX.
+**What you get:** `suggest_sideboard` provides up to 15 categorized cards (graveyard hate, removal, counterspells, etc.) that the deck can cast, with format staple markers. `sideboard_guide` gives an in/out plan with reasoning per card. `sideboard_matrix` shows a grid with each sideboard card vs. each matchup as IN/OUT/FLEX.
 
 **Tips:** The `build_constructed_deck` prompt walks through the full flow from metagame analysis to sideboard construction. Archetype names use fuzzy matching -- "boros energy" and "Boros Energy" both work.
 
