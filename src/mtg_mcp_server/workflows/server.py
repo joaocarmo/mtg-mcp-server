@@ -39,6 +39,7 @@ from mtg_mcp_server.providers import (
     TAGS_VALIDATE,
     TOOL_ANNOTATIONS,
 )
+from mtg_mcp_server.providers import scryfall_bulk as bulk_provider
 from mtg_mcp_server.services.base import ServiceError
 from mtg_mcp_server.services.edhrec import CommanderNotFoundError, EDHRECClient
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
@@ -106,12 +107,16 @@ async def workflow_lifespan(server: FastMCP):
                 EDHRECClient(base_url=settings.edhrec_base_url)
             )
         if settings.enable_bulk_data:
-            client = ScryfallBulkClient(
-                base_url=settings.scryfall_base_url,
-                refresh_hours=settings.bulk_data_refresh_hours,
-            )
-            _bulk = await stack.enter_async_context(client)
-            _bulk.start_background_refresh()
+            # The orchestrator mounts the bulk provider first, so its lifespan has
+            # already started a client: share it to hold the card data once.
+            _bulk = bulk_provider._client
+            if _bulk is None:
+                client = ScryfallBulkClient(
+                    base_url=settings.scryfall_base_url,
+                    refresh_hours=settings.bulk_data_refresh_hours,
+                )
+                _bulk = await stack.enter_async_context(client)
+                _bulk.start_background_refresh()
         if settings.enable_rules:
             _rules = RulesService(
                 rules_url=settings.rules_url,

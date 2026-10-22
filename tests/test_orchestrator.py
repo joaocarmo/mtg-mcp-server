@@ -210,6 +210,27 @@ class TestScryfallBulkMounted:
         assert "bulk_card_lookup" in tool_names
         assert "bulk_card_search" in tool_names
 
+    @pytest.mark.usefixtures("mcp_client")
+    async def test_workflows_share_bulk_client(self):
+        """Workflows reuse the bulk provider's client, so card data is held once."""
+        from mtg_mcp_server.providers import scryfall_bulk as bulk_provider
+        from mtg_mcp_server.workflows import server as workflow_server
+
+        assert bulk_provider._client is not None
+        assert workflow_server._bulk is bulk_provider._client
+
+    @pytest.mark.usefixtures("offline_rules")
+    async def test_standalone_workflows_own_bulk_client(self):
+        """Without the bulk provider, the workflow server creates its own client."""
+        from fastmcp import Client
+
+        from mtg_mcp_server.providers import scryfall_bulk as bulk_provider
+        from mtg_mcp_server.workflows import server as workflow_server
+
+        async with Client(transport=workflow_server.workflow_mcp):
+            assert bulk_provider._client is None
+            assert workflow_server._bulk is not None
+
     async def test_end_to_end_card_lookup(self, mcp_client: Client):
         """Calling bulk_card_lookup through the orchestrator returns card data."""
         metadata = json.loads((SCRYFALL_BULK_FIXTURES / "bulk_metadata.json").read_text())
