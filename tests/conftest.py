@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastmcp import Client
 
@@ -9,6 +11,7 @@ from mtg_mcp_server.server import mcp
 from mtg_mcp_server.services.edhrec import EDHRECClient
 from mtg_mcp_server.services.moxfield import MoxfieldClient
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
+from mtg_mcp_server.services.rules import RulesService
 from mtg_mcp_server.services.scryfall import ScryfallClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
@@ -42,8 +45,27 @@ def _clear_caches():
     MTGGoldfishClient._staples_cache.clear()
 
 
+_RULES_TEXT = (Path(__file__).parent / "fixtures" / "rules" / "comprehensive_rules.txt").read_text(
+    encoding="utf-8-sig"
+)
+
+
 @pytest.fixture
-async def mcp_client():
+def offline_rules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serve the Comprehensive Rules from the fixture file instead of wizards.com.
+
+    The workflow server loads the rules at startup, so every test that starts it
+    would otherwise download them.
+    """
+
+    async def _download(self: RulesService) -> str:
+        return _RULES_TEXT
+
+    monkeypatch.setattr(RulesService, "_download", _download)
+
+
+@pytest.fixture
+async def mcp_client(offline_rules: None):
     """In-memory MCP client connected to the orchestrator."""
     async with Client(transport=mcp) as client:
         yield client

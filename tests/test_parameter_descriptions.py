@@ -28,6 +28,7 @@ from mtg_mcp_server.workflows.server import workflow_mcp
         (workflow_mcp, "workflow"),
     ],
 )
+@pytest.mark.usefixtures("offline_rules")
 async def test_all_tool_params_have_descriptions(server, server_name):
     """Every tool parameter must have a description for MCP schema compliance."""
     async with Client(transport=server) as client:
