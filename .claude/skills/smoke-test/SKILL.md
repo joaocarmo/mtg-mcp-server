@@ -121,7 +121,7 @@ If MTGGoldfish is unavailable, metagame_snapshot returns a no-data message. SKIP
 
 | Call | Validate |
 |------|----------|
-| `suggest_sideboard(decklist=["4 Lightning Bolt", "4 Goblin Guide", "4 Eidolon of the Great Revel", "4 Monastery Swiftspear", "4 Searing Blaze", "4 Lava Spike", "4 Rift Bolt", "4 Skullcrack", "12 Mountain", "4 Inspiring Vantage", "4 Sacred Foundry", "4 Sunbaked Canyon"], format="modern")` | Categorized sideboard suggestions (15 cards max) |
+| `suggest_sideboard(decklist=["4 Lightning Bolt", "4 Goblin Guide", "4 Eidolon of the Great Revel", "4 Monastery Swiftspear", "4 Searing Blaze", "4 Lava Spike", "4 Rift Bolt", "4 Skullcrack", "12 Mountain", "4 Inspiring Vantage", "4 Sacred Foundry", "4 Sunbaked Canyon"], format="modern")` | Categorized sideboard suggestions (15 cards max), all red, white or colorless |
 | `sideboard_guide(decklist=["4 Lightning Bolt", "4 Goblin Guide", "12 Mountain"], sideboard=["2 Rest in Peace", "2 Smash to Smithereens"], format="modern", matchup="control")` | IN/OUT plan with reasoning |
 | `sideboard_matrix(sideboard=["2 Rest in Peace", "2 Smash to Smithereens"], format="modern", matchups=["aggro", "control", "combo"])` | Matrix table with IN/OUT/FLEX per matchup |
 

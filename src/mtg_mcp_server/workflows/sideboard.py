@@ -146,6 +146,15 @@ def _extract_deck_colors(resolved: dict[str, Card | None]) -> set[str]:
     return colors
 
 
+def _deck_color_identity(resolved: dict[str, Card | None]) -> frozenset[str]:
+    """Return the union of color identity across the resolved cards."""
+    identity: set[str] = set()
+    for card in resolved.values():
+        if card is not None:
+            identity.update(card.color_identity)
+    return frozenset(identity)
+
+
 def _opposing_colors(deck_colors: set[str]) -> frozenset[str] | set[str]:
     """Return colors not in the deck's color set."""
     return VALID_COLORS - deck_colors
@@ -273,11 +282,16 @@ async def suggest_sideboard(
     resolved = await bulk.get_cards(card_names)
     deck_colors = _extract_deck_colors(resolved)
     main_deck_lower = {name.lower() for name in card_names}
+    resolved_count = sum(1 for v in resolved.values() if v is not None)
+    # With nothing resolved the identity is unknown; an empty set would filter out every card.
+    identity_filter = _deck_color_identity(resolved) if resolved_count else None
+    if identity_filter is None:
+        log.warning("suggest_sideboard.no_cards_resolved", cards=len(card_names))
 
     log.debug(
         "suggest_sideboard.resolved",
         deck_colors=sorted(deck_colors),
-        resolved_count=sum(1 for v in resolved.values() if v is not None),
+        resolved_count=resolved_count,
     )
 
     # Fetch format staples if MTGGoldfish available
@@ -320,6 +334,7 @@ async def suggest_sideboard(
     categories_result: dict[str, list[dict[str, str]]] = {}
     all_suggested: list[dict[str, str]] = []
     seen_names: set[str] = set()  # Deduplicate across categories
+    empty_categories: list[str] = []
 
     # Process categories -- priority ones first, then the rest
     ordered_categories = list(SIDEBOARD_CATEGORIES.keys())
@@ -347,6 +362,7 @@ async def suggest_sideboard(
                 format=format.lower(),
                 limit=10,
                 text_any=text_any,
+                color_identity=identity_filter,
             )
         except ServiceError:
             log.warning("suggest_sideboard.filter_failed", category=cat_name, exc_info=True)
@@ -384,6 +400,8 @@ async def suggest_sideboard(
         if cat_cards:
             categories_result[cat_name] = cat_cards
             all_suggested.extend(cat_cards)
+        elif identity_filter is not None:
+            empty_categories.append(cat_name)
 
     # Add Color Hosers dynamically based on opposing colors
     if len(all_suggested) < _MAX_SIDEBOARD:
@@ -398,6 +416,7 @@ async def suggest_sideboard(
                         format=format.lower(),
                         text_any=hoser_patterns,
                         limit=5,
+                        color_identity=identity_filter,
                     )
                     hoser_cards: list[dict[str, str]] = []
                     for card in hosers:
@@ -426,7 +445,7 @@ async def suggest_sideboard(
 
     # Format output
     markdown = _format_suggest_sideboard(
-        format, categories_result, all_suggested, staple_names, response_format
+        format, categories_result, all_suggested, empty_categories, staple_names, response_format
     )
     data: dict[str, object] = {
         "format": format,
@@ -434,6 +453,8 @@ async def suggest_sideboard(
         "suggested_cards": all_suggested,
         "total_cards": len(all_suggested),
     }
+    if empty_categories:
+        data["empty_categories"] = empty_categories
 
     return WorkflowResult(markdown=markdown, data=data)
 
@@ -442,6 +463,7 @@ def _format_suggest_sideboard(
     format: str,
     categories: dict[str, list[dict[str, str]]],
     all_suggested: list[dict[str, str]],
+    empty_categories: list[str],
     staple_names: set[str],
     response_format: Literal["detailed", "concise"],
 ) -> str:
@@ -462,6 +484,14 @@ def _format_suggest_sideboard(
                 lines.append(
                     f"- **{card['name']}** ({card['mana_cost']}) -- {card['reasoning']}{marker}"
                 )
+        lines.append("")
+
+    if empty_categories:
+        for cat_name in empty_categories:
+            lines.append(
+                f"> No strong on-color answers for {cat_name.lower()} in {format}; "
+                "consider colorless options."
+            )
         lines.append("")
 
     if response_format != "concise" and staple_names:
