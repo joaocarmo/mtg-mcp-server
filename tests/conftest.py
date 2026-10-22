@@ -30,14 +30,7 @@ def _no_http_waits(monkeypatch: pytest.MonkeyPatch) -> None:
         return None
 
     monkeypatch.setattr(BaseClient._request.retry, "sleep", _no_sleep)
-    for client_cls in (
-        ScryfallClient,
-        SpellbookClient,
-        SeventeenLandsClient,
-        EDHRECClient,
-        MoxfieldClient,
-        MTGGoldfishClient,
-    ):
+    for client_cls in BaseClient.__subclasses__():
         monkeypatch.setattr(client_cls, "rate_limit_rps", 1_000_000.0)
 
 
