@@ -651,6 +651,23 @@ class TestCompleteDeck:
         for call in mock_bulk.filter_cards.call_args_list:
             assert call.kwargs["color_identity"] is None
 
+    async def test_commander_ignored_outside_commander_format(self, mock_bulk: AsyncMock) -> None:
+        """Only the commander format looks up the commander."""
+        mock_bulk.get_cards = AsyncMock(return_value={"Card A": _mock_card("Card A")})
+
+        result = await complete_deck(["Card A"], "modern", bulk=mock_bulk, commander="Not A Card")
+
+        mock_bulk.get_card.assert_not_awaited()
+        assert "Not A Card" not in result.markdown
+
+    async def test_data_format_is_normalized(self, mock_bulk: AsyncMock) -> None:
+        """Structured output reports the canonical format name."""
+        mock_bulk.get_cards = AsyncMock(return_value={"Card A": _mock_card("Card A")})
+
+        result = await complete_deck(["Card A"], "EDH", bulk=mock_bulk)
+
+        assert result.data["format"] == "commander"
+
     async def test_progress_reporting(self, mock_bulk: AsyncMock) -> None:
         """Progress callback is invoked during processing."""
         cards = {f"Card {i}": _mock_card(f"Card {i}") for i in range(5)}

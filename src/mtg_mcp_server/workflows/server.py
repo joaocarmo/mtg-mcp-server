@@ -87,7 +87,8 @@ async def workflow_lifespan(server: FastMCP):
     Uses ``AsyncExitStack`` to manage multiple clients in a single lifespan.
     Feature-flagged backends (17Lands, EDHREC, Scryfall bulk data, MTGGoldfish)
     are only created when their corresponding ``Settings`` flag is enabled.
-    All clients are torn down when the server shuts down.
+    All clients it creates are torn down when the server shuts down. A bulk
+    client shared with the bulk provider is left to that provider.
     """
     global _scryfall, _spellbook, _seventeen_lands, _edhrec, _bulk, _rules, _mtggoldfish
     settings = Settings()
@@ -555,7 +556,8 @@ async def complete_deck(
         Field(description="Format to build for (e.g. 'standard', 'modern', 'commander')"),
     ],
     commander: Annotated[
-        str | None, Field(description="Commander name (required for Commander format)")
+        str | None,
+        Field(description="Exact commander card name; limits suggestions to its color identity"),
     ] = None,
     budget: Annotated[
         float | None, Field(description="Maximum price per suggested card in USD")

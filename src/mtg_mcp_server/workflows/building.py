@@ -634,7 +634,8 @@ async def complete_deck(
         decklist: Partial list of card names.
         format: Format for target size and legality.
         bulk: Initialized ScryfallBulkClient.
-        commander: Commander name. Its color identity limits the suggestions.
+        commander: Exact commander card name. In the commander format, its color
+            identity limits the suggestions.
         budget: Optional max price per card.
         on_progress: Optional progress callback.
         response_format: Output verbosity.
@@ -686,7 +687,7 @@ async def complete_deck(
 
     identity: frozenset[str] | None = None
     commander_missing = False
-    if commander:
+    if commander and fmt == "commander":
         commander_card = await bulk.get_card(commander)
         if commander_card is not None:
             identity = frozenset(commander_card.color_identity)
@@ -739,7 +740,10 @@ async def complete_deck(
         if unresolved:
             lines.append(f"Unresolved: {', '.join(unresolved)}")
         if commander_missing:
-            lines.append(f"Commander not found: {commander} (suggestions not color-filtered)")
+            lines.append(
+                f"Commander not found: {commander} (use the exact card name; "
+                "suggestions not color-filtered)"
+            )
     else:
         lines.append("# Deck Completion Analysis")
         lines.append(f"*Format: {format} | Target: {target_size} cards*")
@@ -751,7 +755,8 @@ async def complete_deck(
         lines.append(f"**Cards needed:** {cards_needed}")
         if commander_missing:
             lines.append(
-                f"**Commander not found:** {commander}. Suggestions are not color-filtered."
+                f"**Commander not found:** {commander}. Use the exact card name. "
+                "Suggestions are not color-filtered."
             )
         lines.append("")
 
@@ -799,7 +804,7 @@ async def complete_deck(
         gaps=len(gaps),
     )
     data: dict[str, object] = {
-        "format": format,
+        "format": fmt,
         "deck_size_current": len(resolved),
         "target_size": target_size,
         "cards_needed": cards_needed,

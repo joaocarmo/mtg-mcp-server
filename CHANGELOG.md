@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `complete_deck` now resolves format aliases such as `edh` and `cedh`. They get the 100-card target, the commander ratios and the right legality filter.
-- `complete_deck` now uses `commander`. Suggestions stay within its colour identity. An unknown commander is reported, and suggestions are then not colour-filtered.
+- `complete_deck` now uses `commander` in the commander format. Suggestions stay within its colour identity. An unknown commander is reported, and suggestions are then not colour-filtered.
 
 ## [4.0.0] - 2026-10-21
 
