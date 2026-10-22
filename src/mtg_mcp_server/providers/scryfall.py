@@ -26,8 +26,9 @@ from mtg_mcp_server.utils.formatters import (
 )
 from mtg_mcp_server.utils.slim import slim_card
 
-# Module-level client set by the lifespan. This pattern is required because
-# FastMCP's Depends()/lifespan_context DI doesn't propagate through mount().
+# Module-level client set by the lifespan and read through _get_client().
+# Kept over ctx.lifespan_context so tests can patch it and other servers can
+# reuse the client.
 _client: ScryfallClient | None = None
 
 
