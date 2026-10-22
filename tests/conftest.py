@@ -8,6 +8,7 @@ import pytest
 from fastmcp import Client
 
 from mtg_mcp_server.server import mcp
+from mtg_mcp_server.services.base import BaseClient
 from mtg_mcp_server.services.edhrec import EDHRECClient
 from mtg_mcp_server.services.moxfield import MoxfieldClient
 from mtg_mcp_server.services.mtggoldfish import MTGGoldfishClient
@@ -15,6 +16,29 @@ from mtg_mcp_server.services.rules import RulesService
 from mtg_mcp_server.services.scryfall import ScryfallClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
+
+
+@pytest.fixture(autouse=True)
+def _no_http_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skip retry backoff and rate-limit pauses.
+
+    HTTP is mocked, so the real waits only slow the suite: a 5xx test would
+    otherwise sleep through every retry at the service's request rate.
+    """
+
+    async def _no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(BaseClient._request.retry, "sleep", _no_sleep)
+    for client_cls in (
+        ScryfallClient,
+        SpellbookClient,
+        SeventeenLandsClient,
+        EDHRECClient,
+        MoxfieldClient,
+        MTGGoldfishClient,
+    ):
+        monkeypatch.setattr(client_cls, "rate_limit_rps", 1_000_000.0)
 
 
 @pytest.fixture(autouse=True)
