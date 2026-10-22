@@ -318,6 +318,27 @@ class TestSuggestSideboardSuccess:
         assert isinstance(result.data["suggested_cards"], list)
         assert result.data["total_cards"] <= 15
 
+    async def test_hoser_search_targets_opposing_colors(self, mock_bulk: AsyncMock) -> None:
+        """A mono-red deck searches for protection from each other color."""
+        mock_bulk.get_cards = AsyncMock(
+            return_value={"Lightning Bolt": BOLT, "Goblin Guide": CREATURE_A}
+        )
+        mock_bulk.filter_cards = AsyncMock(return_value=[])  # leave sideboard room for hosers
+        await suggest_sideboard(["4x Lightning Bolt", "4x Goblin Guide"], "modern", bulk=mock_bulk)
+
+        hoser_calls = [
+            c.kwargs["text_any"]
+            for c in mock_bulk.filter_cards.call_args_list
+            if any("protection from" in p for p in c.kwargs.get("text_any") or [])
+        ]
+        assert len(hoser_calls) == 1
+        assert sorted(hoser_calls[0]) == [
+            "protection from black",
+            "protection from blue",
+            "protection from green",
+            "protection from white",
+        ]
+
     async def test_deduplicates_against_main_deck(self, mock_bulk: AsyncMock) -> None:
         """Cards in the main deck are not suggested for the sideboard."""
         # filter_cards returns cards that include Lightning Bolt (which is in main deck)

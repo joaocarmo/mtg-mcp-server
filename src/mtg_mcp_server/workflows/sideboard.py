@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 from mtg_mcp_server.services.base import ServiceError
-from mtg_mcp_server.utils.color_identity import VALID_COLORS
+from mtg_mcp_server.utils.color_identity import COLOR_NAMES, VALID_COLORS
 from mtg_mcp_server.utils.decklist import parse_decklist
 from mtg_mcp_server.utils.fuzzy import match_archetype
 from mtg_mcp_server.workflows import WorkflowResult
@@ -390,12 +390,7 @@ async def suggest_sideboard(
         opposing = _opposing_colors(deck_colors)
         if opposing:
             # Search for "protection from {color}" or anti-color effects
-            color_names = {"W": "white", "U": "blue", "B": "black", "R": "red", "G": "green"}
-            hoser_patterns = []
-            for c in opposing:
-                cname = color_names.get(c, "")
-                if cname:
-                    hoser_patterns.append(f"protection from {cname}")
+            hoser_patterns = [f"protection from {COLOR_NAMES[c].lower()}" for c in opposing]
 
             if hoser_patterns:
                 try:

@@ -24,7 +24,7 @@ from mtg_mcp_server.services.mtggoldfish import (
 from mtg_mcp_server.utils.formatters import ResponseFormatParam  # noqa: TC001 (FastMCP)
 from mtg_mcp_server.utils.slim import slim_archetype, slim_format_staple
 
-# Module-level client set by the lifespan. See edhrec.py for pattern rationale.
+# Module-level client set by the lifespan. See scryfall.py for pattern rationale.
 _client: MTGGoldfishClient | None = None
 
 

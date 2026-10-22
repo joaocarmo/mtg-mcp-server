@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Literal
 
 import structlog
 
+from mtg_mcp_server.utils.color_identity import COLOR_NAMES
 from mtg_mcp_server.utils.decklist import parse_decklist
 from mtg_mcp_server.utils.format_rules import normalize_format
 from mtg_mcp_server.utils.mana import count_pips, suggest_land_count
@@ -21,14 +22,6 @@ if TYPE_CHECKING:
     from mtg_mcp_server.types import Card
 
 log = structlog.get_logger(service="workflow.mana_base")
-
-_COLOR_NAMES: dict[str, str] = {
-    "W": "White",
-    "U": "Blue",
-    "B": "Black",
-    "R": "Red",
-    "G": "Green",
-}
 
 _BASIC_LAND_FOR_COLOR: dict[str, str] = {
     "W": "Plains",
@@ -163,8 +156,8 @@ async def suggest_mana_base(
     for color, pips in total_pips.items():
         if pips >= 5.0:
             heavy_warnings.append(
-                f"{_COLOR_NAMES.get(color, color)}: {pips:.1f} pips "
-                f"- consider extra {_COLOR_NAMES.get(color, color).lower()} sources"
+                f"{COLOR_NAMES.get(color, color)}: {pips:.1f} pips "
+                f"- consider extra {COLOR_NAMES.get(color, color).lower()} sources"
             )
 
     # --- Build output ---
@@ -192,7 +185,7 @@ async def suggest_mana_base(
                 if color in total_pips:
                     pips = total_pips[color]
                     ratio = pip_ratios.get(color, 0.0)
-                    lines.append(f"| {_COLOR_NAMES[color]} ({color}) | {pips:.1f} | {ratio:.0%} |")
+                    lines.append(f"| {COLOR_NAMES[color]} ({color}) | {pips:.1f} | {ratio:.0%} |")
             lines.append("")
         else:
             lines.append("## Color Pip Distribution")

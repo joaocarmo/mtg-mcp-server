@@ -18,7 +18,7 @@ from mtg_mcp_server.config import Settings
 from mtg_mcp_server.providers import ATTRIBUTION_MOXFIELD, TAGS_BETA, TOOL_ANNOTATIONS
 from mtg_mcp_server.services.moxfield import DeckNotFoundError, MoxfieldClient, MoxfieldError
 
-# Module-level client set by the lifespan. See edhrec.py for pattern rationale.
+# Module-level client set by the lifespan. See scryfall.py for pattern rationale.
 _client: MoxfieldClient | None = None
 
 
