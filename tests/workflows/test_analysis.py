@@ -139,11 +139,11 @@ def _make_bulk(cards: dict[str, Card] | None = None) -> AsyncMock:
     }
     lookup = cards if cards is not None else default_cards
 
-    async def get_card(name: str) -> Card | None:
-        return lookup.get(name.lower())
+    async def get_cards(names: list[str]) -> dict[str, Card | None]:
+        return {name: lookup.get(name.lower()) for name in names}
 
     mock = AsyncMock()
-    mock.get_card = AsyncMock(side_effect=get_card)
+    mock.get_cards = AsyncMock(side_effect=get_cards)
     return mock
 
 
@@ -371,7 +371,7 @@ class TestDeckAnalysisBulkDisabled:
     async def test_bulk_error_falls_back_to_scryfall(self) -> None:
         """A bulk data error falls back to Scryfall instead of failing the card."""
         bulk = AsyncMock()
-        bulk.get_card = AsyncMock(side_effect=ScryfallBulkError("Download failed"))
+        bulk.get_cards = AsyncMock(side_effect=ScryfallBulkError("Download failed"))
         result = await deck_analysis(
             ["Sol Ring"],
             COMMANDER,
@@ -383,6 +383,24 @@ class TestDeckAnalysisBulkDisabled:
         assert isinstance(result.data, dict)
         assert result.data["unresolved"] == []
         assert result.data["total_mana_value"] == 1.0
+
+    async def test_bulk_outage_tries_bulk_once(self) -> None:
+        """A bulk outage costs one bulk attempt, then each card falls back to Scryfall."""
+        bulk = AsyncMock()
+        bulk.get_cards = AsyncMock(side_effect=ScryfallBulkError("Download failed"))
+        scryfall = _make_scryfall()
+        result = await deck_analysis(
+            ["Sol Ring", "Spore Frog", "Bad Card"],
+            COMMANDER,
+            bulk=bulk,
+            scryfall=scryfall,
+            spellbook=_make_spellbook(),
+            edhrec=_make_edhrec(),
+        )
+        assert isinstance(result.data, dict)
+        assert result.data["unresolved"] == []
+        bulk.get_cards.assert_awaited_once()
+        assert scryfall.get_card_by_name.await_count == 3
 
 
 class TestDeckAnalysisEdhrecDisabled:
@@ -735,7 +753,7 @@ class TestDeckAnalysisQuantities:
             spellbook=_make_spellbook(),
             edhrec=_make_edhrec(),
         )
-        assert bulk.get_card.await_count == 1
+        bulk.get_cards.assert_awaited_once_with(["Sol Ring"])
 
     async def test_bare_names_still_supported(self) -> None:
         """Lists without quantities behave exactly as before."""

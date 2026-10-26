@@ -229,38 +229,42 @@ async def _resolve_cards(
     bulk: ScryfallBulkClient | None,
     scryfall: ScryfallClient,
 ) -> tuple[list[Card], list[str]]:
-    """Resolve all cards in the decklist using bulk-data-first fallback.
+    """Resolve card names from bulk data, falling back to Scryfall per card.
 
     Each distinct name is resolved once and then repeated to match its
     quantity, so the curve, pips and budget count every copy.
     """
+    unique_names = list(dict.fromkeys(name for _, name in parsed))
+    by_name: dict[str, Card] = {}
+
+    # One batch call: while bulk data fails to load, every call retries the download.
+    if bulk is not None:
+        try:
+            found = await bulk.get_cards(unique_names)
+        except Exception:
+            log.warning("resolve_card.bulk_error", exc_info=True)
+        else:
+            for name in unique_names:
+                card = found.get(name)
+                if card is not None:
+                    by_name[name] = card
+
     # Cap concurrent Scryfall lookups to avoid overwhelming the connection pool.
     sem = asyncio.Semaphore(10)
 
     async def _bounded_resolve(name: str) -> Card:
-        """Resolve one card from bulk data, falling back to Scryfall on miss or error."""
         async with sem:
-            if bulk is not None:
-                try:
-                    card = await bulk.get_card(name)
-                except Exception:
-                    log.warning("resolve_card.bulk_error", name=name, exc_info=True)
-                    card = None
-                if card is not None:
-                    return card
             return await scryfall.get_card_by_name(name)
 
-    unique_names = list(dict.fromkeys(name for _, name in parsed))
-    tasks = [_bounded_resolve(name) for name in unique_names]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    missing = [name for name in unique_names if name not in by_name]
+    results = await asyncio.gather(*map(_bounded_resolve, missing), return_exceptions=True)
 
-    by_name: dict[str, Card] = {}
     failures: list[str] = []
 
-    for name, result in zip(unique_names, results, strict=True):
+    for name, result in zip(missing, results, strict=True):
         if isinstance(result, BaseException):
             log.warning(
-                "deck_analysis.resolve_failed",
+                "resolve_card.failed",
                 card=name,
                 error=str(result),
                 error_type=type(result).__name__,

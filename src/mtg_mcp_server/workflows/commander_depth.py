@@ -22,6 +22,7 @@ import structlog
 
 from mtg_mcp_server.utils.color_identity import is_within_identity, parse_color_identity
 from mtg_mcp_server.workflows import WorkflowResult
+from mtg_mcp_server.workflows.analysis import _resolve_cards
 from mtg_mcp_server.workflows.commander import _fmt_synergy
 from mtg_mcp_server.workflows.deck import (
     CardScore,
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from mtg_mcp_server.services.edhrec import EDHRECClient
+    from mtg_mcp_server.services.scryfall import ScryfallClient
     from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
     from mtg_mcp_server.services.spellbook import SpellbookClient
     from mtg_mcp_server.types import Card, EDHRECCard, EDHRECCommanderData
@@ -127,6 +129,7 @@ async def commander_comparison(
     commanders: list[str],
     *,
     bulk: ScryfallBulkClient,
+    scryfall: ScryfallClient,
     spellbook: SpellbookClient,
     edhrec: EDHRECClient | None = None,
     on_progress: Callable[[int, int], Awaitable[None]] | None = None,
@@ -137,6 +140,8 @@ async def commander_comparison(
     Args:
         commanders: Commander names to compare (2-5).
         bulk: Initialized ScryfallBulkClient.
+        scryfall: Initialized ScryfallClient, used for cards bulk data lacks or
+            while it is unavailable.
         spellbook: Initialized SpellbookClient.
         edhrec: Initialized EDHRECClient, or None if disabled.
         on_progress: Optional callback for progress reporting.
@@ -146,22 +151,20 @@ async def commander_comparison(
         WorkflowResult with markdown comparison table and structured data.
 
     Raises:
-        ValueError: If a commander is not found in bulk data.
+        ValueError: If a commander is not found.
     """
     log.info("commander_comparison.start", commanders=commanders)
 
-    # Step 1/3: Resolve all commanders via bulk data
+    # Step 1/3: Resolve all commanders
     if on_progress is not None:
         await on_progress(1, 3)
 
-    resolve_tasks = [bulk.get_card(name) for name in commanders]
-    resolved = await asyncio.gather(*resolve_tasks)
-
-    stats_list: list[_CommanderStats] = []
-    for i, card in enumerate(resolved):
-        if card is None:
-            raise ValueError(f"Commander not found: '{commanders[i]}'")
-        stats_list.append(_CommanderStats(name=card.name, card=card))
+    resolved, failed = await _resolve_cards(
+        [(1, name) for name in commanders], bulk=bulk, scryfall=scryfall
+    )
+    if failed:
+        raise ValueError(f"Commander not found or unavailable: '{failed[0]}'")
+    stats_list = [_CommanderStats(name=card.name, card=card) for card in resolved]
 
     # Step 2/3: Fetch combo counts and EDHREC data
     if on_progress is not None:
@@ -568,6 +571,7 @@ async def precon_upgrade(
     commander: str,
     *,
     bulk: ScryfallBulkClient,
+    scryfall: ScryfallClient,
     spellbook: SpellbookClient,
     edhrec: EDHRECClient | None = None,
     budget: float = 50.0,
@@ -584,6 +588,8 @@ async def precon_upgrade(
         decklist: Card names in the current decklist.
         commander: Commander name.
         bulk: Initialized ScryfallBulkClient.
+        scryfall: Initialized ScryfallClient, used for cards bulk data lacks or
+            while it is unavailable.
         spellbook: Initialized SpellbookClient.
         edhrec: Initialized EDHRECClient, or None if disabled.
         budget: Maximum price per card in USD.
@@ -634,9 +640,16 @@ async def precon_upgrade(
         # Sort by synergy descending
         all_staples.sort(key=lambda c: c.synergy, reverse=True)
 
-        # Look up prices for top staples via bulk data (batch)
+        # Look up prices for top staples
         candidate_names = [e.name for e in all_staples[: num_upgrades * 3]]
-        price_map = await bulk.get_cards(candidate_names)
+        cards, failed = await _resolve_cards(
+            [(1, name) for name in candidate_names], bulk=bulk, scryfall=scryfall
+        )
+        price_map = {
+            name: card
+            for name, card in zip(candidate_names, cards, strict=True)
+            if name not in failed
+        }
         upgrade_candidates: list[tuple[EDHRECCard, float]] = []
         for ecard in all_staples[: num_upgrades * 3]:
             card_data = price_map.get(ecard.name)

@@ -13,13 +13,16 @@ from typing import TYPE_CHECKING, Literal
 
 import structlog
 
+from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkError
 from mtg_mcp_server.utils.color_identity import parse_color_identity
 from mtg_mcp_server.utils.format_rules import normalize_format
 from mtg_mcp_server.workflows import WorkflowResult
+from mtg_mcp_server.workflows.analysis import _resolve_cards
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from mtg_mcp_server.services.scryfall import ScryfallClient
     from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
     from mtg_mcp_server.services.spellbook import SpellbookClient
     from mtg_mcp_server.types import Card, Combo
@@ -620,6 +623,7 @@ async def complete_deck(
     format: str,
     *,
     bulk: ScryfallBulkClient,
+    scryfall: ScryfallClient,
     commander: str | None = None,
     budget: float | None = None,
     on_progress: Callable[[int, int], Awaitable[None]] | None = None,
@@ -634,6 +638,8 @@ async def complete_deck(
         decklist: Partial list of card names.
         format: Format for target size and legality.
         bulk: Initialized ScryfallBulkClient.
+        scryfall: Initialized ScryfallClient, used for cards bulk data lacks or
+            while it is unavailable.
         commander: Exact commander card name. In the commander format, its color
             identity limits the suggestions.
         budget: Optional max price per card.
@@ -651,16 +657,15 @@ async def complete_deck(
         await on_progress(1, total_steps)
 
     # Step 1: Resolve all cards
-    resolved_map = await bulk.get_cards(decklist)
+    cards, failed = await _resolve_cards([(1, n) for n in decklist], bulk=bulk, scryfall=scryfall)
     resolved: list[Card] = []
     unresolved: list[str] = []
 
-    for name in decklist:
-        card = resolved_map.get(name)
-        if card is not None:
-            resolved.append(card)
-        else:
+    for name, card in zip(decklist, cards, strict=True):
+        if name in failed:
             unresolved.append(name)
+        else:
+            resolved.append(card)
 
     # Step 2: Categorize resolved cards
     if on_progress is not None:
@@ -688,14 +693,17 @@ async def complete_deck(
     identity: frozenset[str] | None = None
     commander_missing = False
     if commander and fmt == "commander":
-        commander_card = await bulk.get_card(commander)
-        if commander_card is not None:
-            identity = frozenset(commander_card.color_identity)
-        else:
+        [commander_card], commander_failed = await _resolve_cards(
+            [(1, commander)], bulk=bulk, scryfall=scryfall
+        )
+        if commander_failed:
             commander_missing = True
+        else:
+            identity = frozenset(commander_card.color_identity)
 
     # Search for suggestions in underrepresented categories
     suggestions: dict[str, list[Card]] = {}
+    suggestions_unavailable = False
     for cat, needed in gaps.items():
         cat_limit = min(needed + 3, 10)  # A few extra for variety
 
@@ -713,14 +721,20 @@ async def complete_deck(
         elif cat == "lands":
             cat_type_contains = ["land"]
 
-        cat_suggestions = await bulk.filter_cards(
-            text_any=cat_text_any,
-            type_contains=cat_type_contains,
-            format=fmt,
-            color_identity=identity,
-            max_price=budget,
-            limit=cat_limit,
-        )
+        try:
+            cat_suggestions = await bulk.filter_cards(
+                text_any=cat_text_any,
+                type_contains=cat_type_contains,
+                format=fmt,
+                color_identity=identity,
+                max_price=budget,
+                limit=cat_limit,
+            )
+        except ScryfallBulkError:
+            # Stop here: each further search would retry the failed download.
+            log.warning("complete_deck.suggestions_unavailable", exc_info=True)
+            suggestions_unavailable = True
+            break
         # Exclude cards already in the deck
         existing_names = {c.name.lower() for c in resolved}
         cat_suggestions = [c for c in cat_suggestions if c.name.lower() not in existing_names]
@@ -744,6 +758,8 @@ async def complete_deck(
                 f"Commander not found: {commander} (use the exact card name; "
                 "suggestions not color-filtered)"
             )
+        if suggestions_unavailable:
+            lines.append("Suggestions unavailable: card data could not be loaded. Try again later.")
     else:
         lines.append("# Deck Completion Analysis")
         lines.append(f"*Format: {format} | Target: {target_size} cards*")
@@ -790,6 +806,11 @@ async def complete_deck(
                 for card in cat_cards[:5]:
                     lines.append(_fmt_card_line(card))
                 lines.append("")
+        if suggestions_unavailable:
+            lines.append(
+                "**Suggestions unavailable: card data could not be loaded. Try again later.**"
+            )
+            lines.append("")
 
         if unresolved:
             lines.append("## Unresolved Cards")
