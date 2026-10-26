@@ -229,7 +229,7 @@ async def _resolve_cards(
     bulk: ScryfallBulkClient | None,
     scryfall: ScryfallClient,
 ) -> tuple[list[Card], list[str]]:
-    """Resolve all cards in the decklist using bulk-data-first fallback.
+    """Resolve card names from bulk data, falling back to Scryfall per card.
 
     Each distinct name is resolved once and then repeated to match its
     quantity, so the curve, pips and budget count every copy.
@@ -264,7 +264,7 @@ async def _resolve_cards(
     for name, result in zip(missing, results, strict=True):
         if isinstance(result, BaseException):
             log.warning(
-                "deck_analysis.resolve_failed",
+                "resolve_card.failed",
                 card=name,
                 error=str(result),
                 error_type=type(result).__name__,
