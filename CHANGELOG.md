@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `suggest_sideboard` now only suggests cards within the deck's colour identity. Colourless cards still qualify. Categories with no on-colour answer are listed in `data["empty_categories"]` and noted in the output. Ported from upstream ([j4th/mtg-mcp-server#64](https://github.com/j4th/mtg-mcp-server/issues/64)).
+- `complete_deck`, `precon_upgrade` and `commander_comparison` fall back to the Scryfall API for card lookups when bulk data can't load, instead of failing. `complete_deck` notes when it can't search for suggestions. Card resolution now makes one bulk-data call per request, so an outage costs one failed load instead of one per card. Ported from upstream.
 
 ## [5.0.0] - 2026-10-22
 

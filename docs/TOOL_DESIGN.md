@@ -90,9 +90,9 @@ Implemented as pure async functions in `workflows/` and wrapped in `workflows/se
 | `card_comparison` | `cards` (2-5), `commander_name` | Table: mana, type, synergy, inclusion, combo count, price. A missing card fails the call; EDHREC/Spellbook failures show N/A. Progress ×3 | Scryfall + Spellbook (req), EDHREC |
 | `budget_upgrade` | `commander_name`, `budget` (max USD per card), `num_suggestions=10` | Ranked by synergy per dollar: synergy, inclusion, price, synergy/$. Returns a message if EDHREC is disabled or nothing fits. Progress ×2 | Scryfall + EDHREC (req) |
 | `deck_analysis` | `decklist`, `commander_name` | Mana curve, colour pips, combos and bracket, total/avg budget, 5 lowest-synergy cards, unresolved cards, footer. Bulk-first card resolution. Progress ×3 | Bulk/Scryfall (req), Spellbook, EDHREC |
-| `commander_comparison` | `commanders` (2-5) | Table: mana, type, identity, EDHREC rank, combo count, top staples, unique strengths. Progress ×3 | Bulk + Spellbook (req), EDHREC |
+| `commander_comparison` | `commanders` (2-5) | Table: mana, type, identity, EDHREC rank, combo count, top staples, unique strengths. Progress ×3 | Bulk/Scryfall + Spellbook (req), EDHREC |
 | `tribal_staples` | `tribe` ("Elf"), `color_identity=None`, `format=None` | Lords, synergy pieces, members, support, each with oracle text and price | Bulk (req), EDHREC |
-| `precon_upgrade` | `decklist`, `commander`, `budget=50.0`, `num_upgrades=10` | Swap pairs (cut → add) with reasoning, ranked by synergy delta; source status | Bulk + Spellbook (req), EDHREC |
+| `precon_upgrade` | `decklist`, `commander`, `budget=50.0`, `num_upgrades=10` | Swap pairs (cut → add) with reasoning, ranked by synergy delta; source status | Bulk/Scryfall + Spellbook (req), EDHREC |
 | `color_identity_staples` | `color_identity` ("simic", "UG"), `category=None` | Staples by EDHREC rank with prices; falls back to the bulk-data EDHREC rank when EDHREC is off | Bulk (req), EDHREC |
 
 ### Draft / Limited
@@ -111,7 +111,7 @@ Implemented as pure async functions in `workflows/` and wrapped in `workflows/se
 |------|--------|--------|----------|
 | `theme_search` | `theme` ("sacrifice", "tokens"), `color_identity=None`, `format=None`, `max_price=None`, `limit=20` | Cards matched by oracle-text patterns, sorted by match quality, with type, text excerpt, price | Bulk (req) |
 | `build_around` | `cards` (1-5), `format` (req), `budget=None`, `limit=20` | Resolved cards, detected mechanics, synergy candidates, combo potential | Bulk + Spellbook (req) |
-| `complete_deck` | `decklist`, `format`, `commander=None`, `budget=None` | Current composition, target size, category gaps (creatures, removal, draw, …) with suggestions | Bulk (req) |
+| `complete_deck` | `decklist`, `format`, `commander=None`, `budget=None` | Current composition, target size, category gaps (creatures, removal, draw, …) with suggestions; notes when suggestions are unavailable | Bulk/Scryfall (req); suggestions need bulk |
 | `deck_validate` | `decklist`, `format`, `commander=None`, `sideboard=None` | VALID/INVALID plus legality, size, copy limits, colour identity (Commander), rarity (Pauper) | Bulk (req) |
 | `suggest_mana_base` | `decklist`, `format`, `total_lands=None` | Pip analysis, land count, basic split, format-legal duals | Bulk (req) |
 | `price_comparison` | `cards` | USD, USD foil, EUR per card + total | Bulk (req) |

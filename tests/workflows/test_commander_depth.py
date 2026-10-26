@@ -6,10 +6,13 @@ and color_identity_staples. Service clients are mocked with AsyncMock.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 import pytest
 
+from mtg_mcp_server.services.scryfall import CardNotFoundError
+from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkError
 from mtg_mcp_server.services.spellbook import SpellbookError
 from mtg_mcp_server.types import (
     Card,
@@ -28,6 +31,9 @@ from mtg_mcp_server.workflows.commander_depth import (
     precon_upgrade,
     tribal_staples,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -100,8 +106,22 @@ def mock_bulk() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_scryfall() -> AsyncMock:
+    client = AsyncMock()
+    client.get_card_by_name = AsyncMock(
+        side_effect=CardNotFoundError("Card not found", status_code=404)
+    )
+    return client
+
+
+@pytest.fixture
 def mock_spellbook() -> AsyncMock:
     return AsyncMock()
+
+
+def _in_order(*cards: Card) -> Callable[[list[str]], dict[str, Card]]:
+    """Bulk ``get_cards`` stand-in that pairs the requested names with ``cards`` in order."""
+    return lambda names: dict(zip(names, cards, strict=True))
 
 
 @pytest.fixture
@@ -165,6 +185,7 @@ class TestCommanderComparison:
     async def test_two_commanders_all_sources(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         mock_edhrec: AsyncMock,
         muldrotha: Card,
@@ -172,7 +193,7 @@ class TestCommanderComparison:
         mock_combos: list[Combo],
     ) -> None:
         """Two commanders with all sources succeeding."""
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(side_effect=[mock_combos, []])
         mock_edhrec.commander_top_cards = AsyncMock(
             side_effect=[
@@ -204,6 +225,7 @@ class TestCommanderComparison:
         result = await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=mock_edhrec,
         )
@@ -217,32 +239,36 @@ class TestCommanderComparison:
     async def test_commander_not_found(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
     ) -> None:
-        """Commander not found in bulk data raises error."""
-        mock_bulk.get_card = AsyncMock(return_value=None)
+        """A commander found in neither bulk data nor Scryfall raises an error."""
+        mock_bulk.get_cards = AsyncMock(side_effect=dict.fromkeys)
 
         with pytest.raises(ValueError, match="not found"):
             await commander_comparison(
                 ["Nonexistent Commander"],
                 bulk=mock_bulk,
+                scryfall=mock_scryfall,
                 spellbook=mock_spellbook,
             )
 
     async def test_edhrec_disabled(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
         atraxa: Card,
     ) -> None:
         """Works without EDHREC."""
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(return_value=[])
 
         result = await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=None,
         )
@@ -253,12 +279,13 @@ class TestCommanderComparison:
     async def test_spellbook_failure_partial(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
         atraxa: Card,
     ) -> None:
         """Spellbook failure degrades gracefully."""
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(
             side_effect=SpellbookError("timeout", status_code=503)
         )
@@ -266,6 +293,7 @@ class TestCommanderComparison:
         result = await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
         )
 
@@ -276,12 +304,13 @@ class TestCommanderComparison:
     async def test_progress_callback(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
         atraxa: Card,
     ) -> None:
         """Progress callback is invoked at each step."""
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(return_value=[])
 
         progress_calls: list[tuple[int, int]] = []
@@ -292,6 +321,7 @@ class TestCommanderComparison:
         await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             on_progress=on_progress,
         )
@@ -303,27 +333,30 @@ class TestCommanderComparison:
     async def test_concise_format(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
         atraxa: Card,
     ) -> None:
         """Concise format is shorter than detailed."""
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(return_value=[])
 
         detailed = await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             response_format="detailed",
         )
 
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(return_value=[])
 
         concise = await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             response_format="concise",
         )
@@ -333,13 +366,14 @@ class TestCommanderComparison:
     async def test_shared_and_unique_staples(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         mock_edhrec: AsyncMock,
         muldrotha: Card,
         atraxa: Card,
     ) -> None:
         """EDHREC data shows shared and unique staples."""
-        mock_bulk.get_card = AsyncMock(side_effect=[muldrotha, atraxa])
+        mock_bulk.get_cards = AsyncMock(side_effect=_in_order(muldrotha, atraxa))
         mock_spellbook.find_combos = AsyncMock(return_value=[])
         mock_edhrec.commander_top_cards = AsyncMock(
             side_effect=[
@@ -365,12 +399,38 @@ class TestCommanderComparison:
         result = await commander_comparison(
             ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"],
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=mock_edhrec,
         )
 
         # Sol Ring is shared, Spore Frog / Deepglow Skate are unique
         assert "Sol Ring" in result.markdown
+
+    async def test_bulk_outage_falls_back_to_scryfall(
+        self,
+        mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
+        mock_spellbook: AsyncMock,
+        muldrotha: Card,
+        atraxa: Card,
+    ) -> None:
+        """With bulk data down, commanders resolve through Scryfall."""
+        mock_bulk.get_cards = AsyncMock(side_effect=ScryfallBulkError("Download failed"))
+        by_name = {muldrotha.name: muldrotha, atraxa.name: atraxa}
+        mock_scryfall.get_card_by_name = AsyncMock(side_effect=lambda name: by_name[name])
+        mock_spellbook.find_combos = AsyncMock(return_value=[])
+
+        result = await commander_comparison(
+            [muldrotha.name, atraxa.name],
+            bulk=mock_bulk,
+            scryfall=mock_scryfall,
+            spellbook=mock_spellbook,
+        )
+
+        assert "Muldrotha" in result.markdown
+        assert "Atraxa" in result.markdown
+        mock_bulk.get_cards.assert_awaited_once()
 
 
 # ===========================================================================
@@ -534,6 +594,7 @@ class TestPreconUpgrade:
     async def test_basic_upgrade(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         mock_edhrec: AsyncMock,
         muldrotha: Card,
@@ -576,6 +637,7 @@ class TestPreconUpgrade:
             ["Golgari Signet", "Sol Ring"],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=mock_edhrec,
         )
@@ -586,6 +648,7 @@ class TestPreconUpgrade:
     async def test_empty_decklist(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
     ) -> None:
         """Empty decklist returns early."""
@@ -593,6 +656,7 @@ class TestPreconUpgrade:
             [],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
         )
 
@@ -601,6 +665,7 @@ class TestPreconUpgrade:
     async def test_edhrec_disabled(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
     ) -> None:
@@ -617,6 +682,7 @@ class TestPreconUpgrade:
             ["Golgari Signet"],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=None,
         )
@@ -627,6 +693,7 @@ class TestPreconUpgrade:
     async def test_budget_filter(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         mock_edhrec: AsyncMock,
         muldrotha: Card,
@@ -654,6 +721,7 @@ class TestPreconUpgrade:
             ["Golgari Signet"],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=mock_edhrec,
             budget=0.10,  # Very tight budget
@@ -664,6 +732,7 @@ class TestPreconUpgrade:
     async def test_progress_callback(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
     ) -> None:
@@ -685,6 +754,7 @@ class TestPreconUpgrade:
             ["Golgari Signet"],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             on_progress=on_progress,
         )
@@ -696,6 +766,7 @@ class TestPreconUpgrade:
     async def test_spellbook_failure(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         muldrotha: Card,
     ) -> None:
@@ -712,6 +783,7 @@ class TestPreconUpgrade:
             ["Golgari Signet"],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
         )
 
@@ -722,6 +794,7 @@ class TestPreconUpgrade:
     async def test_combo_pieces_protected(
         self,
         mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
         mock_spellbook: AsyncMock,
         mock_edhrec: AsyncMock,
         muldrotha: Card,
@@ -768,6 +841,7 @@ class TestPreconUpgrade:
             ["Spore Frog", "Golgari Signet"],
             "Muldrotha, the Gravetide",
             bulk=mock_bulk,
+            scryfall=mock_scryfall,
             spellbook=mock_spellbook,
             edhrec=mock_edhrec,
         )
@@ -779,6 +853,40 @@ class TestPreconUpgrade:
             cut_names = [c["name"] for c in cuts]
             if "Spore Frog" in cut_names and "Golgari Signet" in cut_names:
                 assert cut_names.index("Golgari Signet") < cut_names.index("Spore Frog")
+
+    async def test_bulk_outage_prices_from_scryfall(
+        self,
+        mock_bulk: AsyncMock,
+        mock_scryfall: AsyncMock,
+        mock_spellbook: AsyncMock,
+        mock_edhrec: AsyncMock,
+    ) -> None:
+        """With bulk data down, upgrade prices come from Scryfall."""
+        mock_bulk.get_cards = AsyncMock(side_effect=ScryfallBulkError("Download failed"))
+        mock_scryfall.get_card_by_name = AsyncMock(
+            return_value=_mock_card("Spore Frog", usd="0.25")
+        )
+        mock_spellbook.find_decklist_combos = AsyncMock(
+            return_value=DecklistCombos(identity="BGU", included=[], almost_included=[])
+        )
+        mock_edhrec.commander_top_cards = AsyncMock(
+            return_value=_mock_edhrec_data(
+                "Muldrotha",
+                [EDHRECCard(name="Spore Frog", synergy=0.61, inclusion=61, num_decks=6100)],
+            )
+        )
+
+        result = await precon_upgrade(
+            ["Golgari Signet"],
+            "Muldrotha, the Gravetide",
+            bulk=mock_bulk,
+            scryfall=mock_scryfall,
+            spellbook=mock_spellbook,
+            edhrec=mock_edhrec,
+        )
+
+        assert result.data["swaps"][0]["add"] == "Spore Frog"
+        assert result.data["swaps"][0]["add_price"] == 0.25
 
 
 # ===========================================================================

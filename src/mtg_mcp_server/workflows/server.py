@@ -580,6 +580,7 @@ async def complete_deck(
             decklist,
             format,
             bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            scryfall=_require(_scryfall, "ScryfallClient"),
             commander=commander,
             budget=budget,
             on_progress=partial(_progress, ctx),
@@ -617,6 +618,7 @@ async def commander_comparison(
         commander_depth_wf.commander_comparison(
             commanders,
             bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            scryfall=_require(_scryfall, "ScryfallClient"),
             spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             on_progress=partial(_progress, ctx),
@@ -683,6 +685,7 @@ async def precon_upgrade(
             decklist,
             commander,
             bulk=_require(_bulk, "Bulk data", "MTG_MCP_ENABLE_BULK_DATA"),
+            scryfall=_require(_scryfall, "ScryfallClient"),
             spellbook=_require(_spellbook, "SpellbookClient"),
             edhrec=_edhrec,
             budget=budget,
