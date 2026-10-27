@@ -13,12 +13,17 @@ Tools:
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Literal
 
 import structlog
 
 from mtg_mcp_server.services.base import ServiceError
-from mtg_mcp_server.utils.color_identity import COLOR_NAMES, VALID_COLORS
+from mtg_mcp_server.utils.color_identity import (
+    COLOR_NAMES,
+    VALID_COLORS,
+    parse_color_identity,
+)
 from mtg_mcp_server.utils.decklist import parse_decklist
 from mtg_mcp_server.utils.fuzzy import match_archetype
 from mtg_mcp_server.workflows import WorkflowResult
@@ -50,6 +55,7 @@ SIDEBOARD_CATEGORIES: dict[str, dict[str, list[str]]] = {
             "exile target card from a graveyard",
             "exile all cards from all graveyards",
             "exile all graveyards",
+            "exile target player's graveyard",
         ],
     },
     "Artifact Removal": {
@@ -77,6 +83,7 @@ SIDEBOARD_CATEGORIES: dict[str, dict[str, list[str]]] = {
             "destroy all creatures",
             "all creatures get -",
             "exile all creatures",
+            "damage to each creature",
         ],
     },
     "Direct Damage": {
@@ -185,9 +192,37 @@ def _classify_archetype_strategy(matchup: str) -> str:
     matchup_lower = matchup.lower()
 
     strategy_keywords: dict[str, list[str]] = {
-        "aggro": ["aggro", "burn", "red deck", "mono-red", "mono red", "sligh", "zoo", "prowess"],
+        "aggro": [
+            "aggro",
+            "burn",
+            "red deck",
+            "mono-red",
+            "mono red",
+            "sligh",
+            "zoo",
+            "prowess",
+            "goblins",
+            "merfolk",
+            "initiative",
+            "ocelot pride",
+        ],
         "control": ["control", "draw-go", "uw", "azorius", "esper"],
-        "combo": ["combo", "storm", "through the breach", "scapeshift", "living end", "tron"],
+        "combo": [
+            "combo",
+            "storm",
+            "through the breach",
+            "scapeshift",
+            "living end",
+            "tron",
+            "sneak and show",
+            "show and tell",
+            "oops",
+            "all spells",
+            "doomsday",
+            "painter",
+            # Legacy Lands plays like combo-control: counterspells and graveyard hate fit.
+            "lands",
+        ],
         "tempo": ["tempo", "delver", "murktide", "faeries"],
         "midrange": ["midrange", "jund", "energy", "rock", "abzan", "shadow"],
     }
@@ -201,8 +236,39 @@ def _classify_archetype_strategy(matchup: str) -> str:
     return "midrange"
 
 
-def _card_addresses_matchup(card: Card | None, matchup_strategy: str) -> str:
-    """Determine if a sideboard card addresses a given matchup strategy.
+def _infer_matchup_colors(name: str) -> frozenset[str]:
+    """Read colors from a matchup name: color words, guild names or codes like "BUG".
+
+    Returns an empty set when the name names no color.
+    """
+    colors: set[str] = set()
+    for token in re.findall(r"[a-z0-9]+", name.lower()):
+        try:
+            colors.update(parse_color_identity(token))
+        except ValueError:
+            continue
+    return frozenset(colors)
+
+
+def _hated_colors(oracle: str) -> frozenset[str]:
+    """Return the colors a card's oracle text (lower-cased) protects from or punishes."""
+    return frozenset(
+        color
+        for color, name in COLOR_NAMES.items()
+        if any(
+            f"{prefix} {name.lower()}" in oracle
+            for prefix in ("protection from", "and from", "if it's")
+        )
+    )
+
+
+def _card_addresses_matchup(
+    card: Card | None, matchup_strategy: str, *, matchup_colors: frozenset[str]
+) -> str:
+    """Determine if a sideboard card addresses a given matchup.
+
+    A color hoser is judged by the matchup's colors when they are known.
+    Otherwise the card's role is matched against the matchup's strategy.
 
     Returns "IN", "OUT", or "FLEX".
     """
@@ -210,6 +276,10 @@ def _card_addresses_matchup(card: Card | None, matchup_strategy: str) -> str:
         return "FLEX"
 
     oracle = (card.oracle_text or "").lower()
+    hated = _hated_colors(oracle)
+    if hated and matchup_colors:
+        return "IN" if hated & matchup_colors else "OUT"
+
     type_line = card.type_line.lower()
     strategy = _ARCHETYPE_STRATEGIES.get(matchup_strategy, {})
     bring_categories = strategy.get("bring_categories", [])
@@ -564,17 +634,21 @@ async def sideboard_guide(
 
     # Match the archetype
     known_archetypes = list(_DEFAULT_ARCHETYPES)
+    archetype_colors: dict[str, frozenset[str]] = {}
     if mtggoldfish is not None:
         try:
             meta = await mtggoldfish.get_metagame(format.lower())
             known_archetypes = (
                 [a.name for a in meta.archetypes] if meta.archetypes else known_archetypes
             )
+            archetype_colors = {a.name: frozenset(a.colors) for a in meta.archetypes}
         except ServiceError:
             log.warning("sideboard_guide.mtggoldfish_failed", exc_info=True)
 
     matched_name = _match_archetype_name(matchup, known_archetypes) or matchup
     strategy = _classify_archetype_strategy(matched_name)
+    # The user's own words keep the colors when the fuzzy match lands elsewhere.
+    matchup_colors = archetype_colors.get(matched_name) or _infer_matchup_colors(matchup)
 
     log.debug(
         "sideboard_guide.classified",
@@ -589,13 +663,13 @@ async def sideboard_guide(
     ins: list[dict[str, str | int]] = []
     for name in sb_names:
         card = resolved.get(name)
-        verdict = _card_addresses_matchup(card, strategy)
+        verdict = _card_addresses_matchup(card, strategy, matchup_colors=matchup_colors)
         if verdict == "IN":
             ins.append(
                 {
                     "name": name,
                     "quantity": sb_qty.get(name, 1),
-                    "reasoning": _explain_in(card, strategy),
+                    "reasoning": _explain_in(card, strategy, matchup_colors=matchup_colors),
                 }
             )
         elif verdict == "FLEX":
@@ -708,11 +782,16 @@ async def sideboard_guide(
     return WorkflowResult(markdown=markdown, data=data)
 
 
-def _explain_in(card: Card | None, strategy: str) -> str:
+def _explain_in(card: Card | None, strategy: str, *, matchup_colors: frozenset[str]) -> str:
     """Build a reasoning string for bringing a sideboard card in."""
     if card is None:
         return "Unknown card"
     oracle = (card.oracle_text or "").lower()
+
+    hit = _hated_colors(oracle) & matchup_colors
+    if hit:
+        names = ", ".join(COLOR_NAMES[c].lower() for c in COLOR_NAMES if c in hit)
+        return f"Color hoser vs {names}"
 
     for cat_name, cat_def in SIDEBOARD_CATEGORIES.items():
         text_patterns = cat_def.get("text_any", [])
@@ -794,6 +873,7 @@ async def sideboard_matrix(
     """
     # Determine matchup list
     matchup_names: list[str] = []
+    archetype_colors: dict[str, frozenset[str]] = {}
     if matchups:
         matchup_names = matchups
     elif mtggoldfish is not None:
@@ -801,6 +881,7 @@ async def sideboard_matrix(
             meta = await mtggoldfish.get_metagame(format.lower())
             if meta.archetypes:
                 matchup_names = [a.name for a in meta.archetypes[:6]]
+                archetype_colors = {a.name: frozenset(a.colors) for a in meta.archetypes[:6]}
         except ServiceError:
             log.warning("sideboard_matrix.mtggoldfish_failed", exc_info=True)
 
@@ -840,7 +921,8 @@ async def sideboard_matrix(
         row: dict[str, str] = {}
         for mu in matchup_names:
             strategy = _classify_archetype_strategy(mu)
-            verdict = _card_addresses_matchup(card, strategy)
+            matchup_colors = archetype_colors.get(mu) or _infer_matchup_colors(mu)
+            verdict = _card_addresses_matchup(card, strategy, matchup_colors=matchup_colors)
             row[mu] = verdict
         matrix[name] = row
 

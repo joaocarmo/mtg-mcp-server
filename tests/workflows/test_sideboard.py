@@ -15,8 +15,10 @@ from mtg_mcp_server.types import (
     GoldfishMetaSnapshot,
 )
 from mtg_mcp_server.workflows.sideboard import (
+    _card_addresses_matchup,
     _classify_archetype_strategy,
     _extract_deck_colors,
+    _infer_matchup_colors,
     _match_archetype_name,
     _opposing_colors,
     sideboard_guide,
@@ -155,6 +157,39 @@ SKULLCRACK = _mock_card(
     color_identity=["R"],
     mana_cost="{1}{R}",
     cmc=2.0,
+)
+
+PYROBLAST = _mock_card(
+    "Pyroblast",
+    oracle_text="Choose one -- Counter target spell if it's blue; "
+    "or destroy target permanent if it's blue.",
+    type_line="Instant",
+    colors=["R"],
+    color_identity=["R"],
+)
+KOR_FIREWALKER = _mock_card(
+    "Kor Firewalker",
+    oracle_text="Protection from red. Whenever a player casts a red spell, you may gain 1 life.",
+    type_line="Creature -- Kor Soldier",
+    colors=["W"],
+    color_identity=["W"],
+)
+PRO_BLACK_AND_GREEN = _mock_card(
+    "Sword of Feast and Famine",
+    oracle_text="Equipped creature gets +2/+2 and has protection from black and from green.",
+    type_line="Artifact -- Equipment",
+)
+TORMODS_CRYPT = _mock_card(
+    "Tormod's Crypt",
+    oracle_text="{T}, Sacrifice Tormod's Crypt: Exile target player's graveyard.",
+    type_line="Artifact",
+)
+PYROCLASM = _mock_card(
+    "Pyroclasm",
+    oracle_text="Pyroclasm deals 2 damage to each creature.",
+    type_line="Sorcery",
+    colors=["R"],
+    color_identity=["R"],
 )
 
 # ---------------------------------------------------------------------------
@@ -296,10 +331,70 @@ class TestClassifyArchetypeStrategy:
     def test_burn_classified_as_aggro(self) -> None:
         assert _classify_archetype_strategy("Burn") == "aggro"
 
+    @pytest.mark.parametrize(
+        ("name", "strategy"),
+        [
+            ("Goblins", "aggro"),
+            ("Oops All Spells", "combo"),
+            ("Show and Tell", "combo"),
+        ],
+    )
+    def test_more_archetype_keywords(self, name: str, strategy: str) -> None:
+        assert _classify_archetype_strategy(name) == strategy
+
 
 # ===========================================================================
 # suggest_sideboard tests
 # ===========================================================================
+
+
+class TestInferMatchupColors:
+    """Matchup colors come from color words, guild names and letter codes in the name."""
+
+    @pytest.mark.parametrize(
+        ("name", "colors"),
+        [
+            ("Izzet Prowess", {"U", "R"}),
+            ("Mono-Green Tron", {"G"}),
+            ("White Blue Fish", {"W", "U"}),
+            ("BUG Delver", {"B", "U", "G"}),
+            ("Burn", set()),
+            ("Death's Shadow", set()),
+            ("Colorless Eldrazi", set()),
+        ],
+    )
+    def test_infers_colors(self, name: str, colors: set[str]) -> None:
+        assert _infer_matchup_colors(name) == frozenset(colors)
+
+
+class TestCardAddressesMatchupColors:
+    """Color hosers are judged by the matchup's colors when they are known."""
+
+    def test_hoser_in_when_matchup_has_hated_color(self) -> None:
+        verdict = _card_addresses_matchup(PYROBLAST, "tempo", matchup_colors=frozenset({"U"}))
+        assert verdict == "IN"
+
+    def test_hoser_out_when_matchup_lacks_hated_color(self) -> None:
+        verdict = _card_addresses_matchup(PYROBLAST, "combo", matchup_colors=frozenset({"R"}))
+        assert verdict == "OUT"
+
+    def test_hoser_uses_strategy_when_colors_unknown(self) -> None:
+        verdict = _card_addresses_matchup(PYROBLAST, "combo", matchup_colors=frozenset())
+        assert verdict == "IN"  # "counter target spell" is a combo bring category
+
+    def test_multi_color_protection_checks_every_color(self) -> None:
+        verdict = _card_addresses_matchup(
+            PRO_BLACK_AND_GREEN, "midrange", matchup_colors=frozenset({"G"})
+        )
+        assert verdict == "IN"
+
+    def test_tormods_crypt_in_vs_combo(self) -> None:
+        verdict = _card_addresses_matchup(TORMODS_CRYPT, "combo", matchup_colors=frozenset())
+        assert verdict == "IN"
+
+    def test_pyroclasm_in_vs_aggro(self) -> None:
+        verdict = _card_addresses_matchup(PYROCLASM, "aggro", matchup_colors=frozenset())
+        assert verdict == "IN"
 
 
 class TestSuggestSideboardSuccess:
@@ -782,3 +877,74 @@ class TestSideboardMatrixResponseFormat:
 
         assert "**Legend:**" in detailed.markdown
         assert "**Legend:**" not in concise.markdown
+
+
+class TestSideboardColorAware:
+    """The guide and the matrix judge color hosers by the matchup's colors."""
+
+    async def test_matrix_uses_colors_from_matchup_names(self, mock_bulk: AsyncMock) -> None:
+        mock_bulk.get_cards = AsyncMock(return_value={"Pyroblast": PYROBLAST})
+
+        result = await sideboard_matrix(
+            sideboard=["2x Pyroblast"],
+            format="modern",
+            bulk=mock_bulk,
+            matchups=["Mono-Blue Tempo", "Mono-Red Aggro"],
+        )
+
+        assert result.data["matrix"]["Pyroblast"] == {
+            "Mono-Blue Tempo": "IN",
+            "Mono-Red Aggro": "OUT",
+        }
+
+    async def test_matrix_uses_goldfish_colors(self, mock_bulk: AsyncMock) -> None:
+        mock_bulk.get_cards = AsyncMock(return_value={"Kor Firewalker": KOR_FIREWALKER})
+        goldfish = AsyncMock()
+        goldfish.get_metagame = AsyncMock(
+            return_value=GoldfishMetaSnapshot(
+                format="modern",
+                archetypes=[
+                    GoldfishArchetype(name="Burn", slug="burn", meta_share=9.0, colors=["R"]),
+                ],
+                total_decks=100,
+            )
+        )
+
+        result = await sideboard_matrix(
+            sideboard=["2x Kor Firewalker"],
+            format="modern",
+            bulk=mock_bulk,
+            mtggoldfish=goldfish,
+        )
+
+        assert result.data["matrix"]["Kor Firewalker"]["Burn"] == "IN"
+
+    async def test_guide_names_the_hated_color(self, mock_bulk: AsyncMock) -> None:
+        mock_bulk.get_cards = AsyncMock(
+            return_value={"Lightning Bolt": BOLT, "Pyroblast": PYROBLAST}
+        )
+
+        result = await sideboard_guide(
+            decklist=["4x Lightning Bolt"],
+            sideboard=["2x Pyroblast"],
+            format="modern",
+            matchup="Izzet Prowess",
+            bulk=mock_bulk,
+        )
+
+        assert "Color hoser vs blue" in result.markdown
+
+    async def test_guide_no_hoser_reason_without_colors(self, mock_bulk: AsyncMock) -> None:
+        mock_bulk.get_cards = AsyncMock(
+            return_value={"Lightning Bolt": BOLT, "Pyroblast": PYROBLAST}
+        )
+
+        result = await sideboard_guide(
+            decklist=["4x Lightning Bolt"],
+            sideboard=["2x Pyroblast"],
+            format="modern",
+            matchup="Combo",
+            bulk=mock_bulk,
+        )
+
+        assert "Color hoser" not in result.markdown
