@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `precon_upgrade` and `commander_comparison` work with bulk data disabled (`MTG_MCP_ENABLE_BULK_DATA=false`). They look cards up through the Scryfall API instead. Their footer now names Scryfall, since either source may have answered.
+
 ## [5.1.1] - 2026-10-27
 
 v5.1.1 makes the sideboard guide and matrix judge colour hosers by the matchup's colours.
