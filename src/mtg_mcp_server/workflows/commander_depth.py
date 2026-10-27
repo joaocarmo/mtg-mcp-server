@@ -128,7 +128,7 @@ class _Swap:
 async def commander_comparison(
     commanders: list[str],
     *,
-    bulk: ScryfallBulkClient,
+    bulk: ScryfallBulkClient | None,
     scryfall: ScryfallClient,
     spellbook: SpellbookClient,
     edhrec: EDHRECClient | None = None,
@@ -139,7 +139,7 @@ async def commander_comparison(
 
     Args:
         commanders: Commander names to compare (2-5).
-        bulk: Initialized ScryfallBulkClient.
+        bulk: Initialized ScryfallBulkClient, or None if disabled.
         scryfall: Initialized ScryfallClient, used for cards bulk data lacks or
             while it is unavailable.
         spellbook: Initialized SpellbookClient.
@@ -293,7 +293,7 @@ def _format_commander_comparison(
     lines.append("")
     lines.append("---")
     lines.append("**Data Sources:**")
-    lines.append("- [Scryfall Bulk Data](https://scryfall.com): OK")
+    lines.append("- [Scryfall](https://scryfall.com): OK")
 
     any_combo_ok = any(s.combo_error is None for s in stats)
     if any_combo_ok:
@@ -570,7 +570,7 @@ async def precon_upgrade(
     decklist: list[str],
     commander: str,
     *,
-    bulk: ScryfallBulkClient,
+    bulk: ScryfallBulkClient | None,
     scryfall: ScryfallClient,
     spellbook: SpellbookClient,
     edhrec: EDHRECClient | None = None,
@@ -587,7 +587,7 @@ async def precon_upgrade(
     Args:
         decklist: Card names in the current decklist.
         commander: Commander name.
-        bulk: Initialized ScryfallBulkClient.
+        bulk: Initialized ScryfallBulkClient, or None if disabled.
         scryfall: Initialized ScryfallClient, used for cards bulk data lacks or
             while it is unavailable.
         spellbook: Initialized SpellbookClient.
@@ -771,7 +771,7 @@ def _format_precon_upgrade(
     lines.append("")
     lines.append("---")
     lines.append("**Data Sources:**")
-    lines.append("- [Scryfall Bulk Data](https://scryfall.com): OK")
+    lines.append("- [Scryfall](https://scryfall.com): OK")
     if sources.spellbook_ok:
         lines.append("- [Commander Spellbook](https://commanderspellbook.com): OK")
     else:

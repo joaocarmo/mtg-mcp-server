@@ -13,6 +13,7 @@ from mtg_mcp_server.services.base import ServiceError
 from mtg_mcp_server.services.scryfall import CardNotFoundError, ScryfallError
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsError
 from mtg_mcp_server.services.spellbook import SpellbookError
+from mtg_mcp_server.types import Card
 
 if TYPE_CHECKING:
     from fastmcp import Client
@@ -667,3 +668,36 @@ class TestCardComparisonDedup:
         assert mock_scryfall.get_card_by_name.call_count == 2
         assert "Sol Ring" in text
         assert "Mana Crypt" in text
+
+
+# ---------------------------------------------------------------------------
+# Bulk data disabled
+# ---------------------------------------------------------------------------
+
+
+class TestBulkDataDisabled:
+    """Tools that only look up cards by name keep working without bulk data."""
+
+    async def test_commander_comparison_uses_scryfall(self, mcp_client: Client):
+        mock_scryfall = AsyncMock()
+        mock_scryfall.get_card_by_name = AsyncMock(
+            side_effect=lambda name, **_: Card(id=name.lower(), name=name)
+        )
+        mock_spellbook = AsyncMock()
+        mock_spellbook.find_combos = AsyncMock(return_value=[])
+
+        with (
+            patch("mtg_mcp_server.workflows.server._bulk", None),
+            patch("mtg_mcp_server.workflows.server._scryfall", mock_scryfall),
+            patch("mtg_mcp_server.workflows.server._spellbook", mock_spellbook),
+            patch("mtg_mcp_server.workflows.server._edhrec", None),
+        ):
+            result = await mcp_client.call_tool(
+                "commander_comparison",
+                {"commanders": ["Muldrotha, the Gravetide", "Atraxa, Praetors' Voice"]},
+                raise_on_error=False,
+            )
+
+        assert not result.is_error, result.content[0].text
+        assert "Muldrotha" in result.content[0].text
+        assert "Atraxa" in result.content[0].text
