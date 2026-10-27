@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1] - 2026-10-27
+
+v5.1.1 makes the sideboard guide and matrix judge colour hosers by the matchup's colours.
+
 ### Fixed
 - `sideboard_guide` and `sideboard_matrix` judge colour hosers by the matchup's colours. A card with "protection from X", "and from X" or "if it's X" is IN when the matchup plays X and OUT when it doesn't. The colours come from MTGGoldfish when the matchup is a metagame archetype, otherwise from the matchup name ("Izzet Prowess", "Mono-Green Tron", "BUG Delver"). Unknown colours keep the strategy-based verdict.
 - Graveyard hate now includes "exile target player's graveyard" (Tormod's Crypt) and board wipes include "damage to each creature" (Pyroclasm). This also widens `suggest_sideboard` searches.
 - More archetype names map to a strategy: Goblins, Merfolk, Initiative and Ocelot Pride as aggro; Show and Tell, Sneak and Show, Oops All Spells, Doomsday, Painter and Lands as combo. Ported from upstream ([j4th/mtg-mcp-server#63](https://github.com/j4th/mtg-mcp-server/issues/63)).
+
+[5.1.1]: https://github.com/joaocarmo/mtg-mcp-server/compare/v5.1.0...v5.1.1
 
 ## [5.1.0] - 2026-10-26
 
