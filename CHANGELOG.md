@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.3] - 2026-10-27
+
+v5.1.3 recognises more colour hoser wordings in the sideboard guide and matrix.
+
 ### Fixed
 - `sideboard_guide` and `sideboard_matrix` also recognise hosers worded "target X …" or "target X or Y …", such as Red and Blue Elemental Blast, Celestial Purge and Flashfreeze. They now get the colour-based verdict.
+
+[5.1.3]: https://github.com/joaocarmo/mtg-mcp-server/compare/v5.1.2...v5.1.3
 
 ## [5.1.2] - 2026-10-27
 
