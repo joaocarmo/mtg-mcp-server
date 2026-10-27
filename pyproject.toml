@@ -1,6 +1,6 @@
 [project]
 name = "mtg-mcp-server"
-version = "5.1.0"
+version = "5.1.1"
 description = "Magic: The Gathering card search, combo lookup, draft analytics, and Commander tools."
 readme = "README.md"
 license = "MIT"
