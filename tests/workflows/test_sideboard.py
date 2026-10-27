@@ -370,6 +370,34 @@ class TestInferMatchupColors:
 class TestCardAddressesMatchupColors:
     """Color hosers are judged by the matchup's colors when they are known."""
 
+    @pytest.mark.parametrize(
+        ("oracle_text", "matchup_colors", "verdict"),
+        [
+            ("Exile target black or red permanent.", {"R"}, "IN"),
+            ("Exile target black or red permanent.", {"U"}, "OUT"),
+            (
+                "Choose one \u2014\n\u2022 Counter target blue spell.\n"
+                "\u2022 Destroy target blue permanent.",
+                {"U"},
+                "IN",
+            ),
+            ("Counter target red or green spell.", {"G"}, "IN"),
+        ],
+        ids=["celestial-purge-in", "celestial-purge-out", "red-elemental-blast", "flashfreeze"],
+    )
+    def test_target_color_wordings(
+        self, oracle_text: str, matchup_colors: set[str], verdict: str
+    ) -> None:
+        card = _mock_card("Hoser", oracle_text=oracle_text, type_line="Instant")
+        assert (
+            _card_addresses_matchup(card, "midrange", matchup_colors=frozenset(matchup_colors))
+            == verdict
+        )
+
+    def test_color_word_must_be_whole(self) -> None:
+        card = _mock_card("Redirect", oracle_text="Target redirection costs {1} less.")
+        assert _card_addresses_matchup(card, "midrange", matchup_colors=frozenset({"U"})) == "FLEX"
+
     def test_hoser_in_when_matchup_has_hated_color(self) -> None:
         verdict = _card_addresses_matchup(PYROBLAST, "tempo", matchup_colors=frozenset({"U"}))
         assert verdict == "IN"

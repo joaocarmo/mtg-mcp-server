@@ -224,7 +224,6 @@ def _classify_archetype_strategy(matchup: str) -> str:
             "lands",
         ],
         "tempo": ["tempo", "delver", "murktide", "faeries"],
-        "midrange": ["midrange", "jund", "energy", "rock", "abzan", "shadow"],
     }
 
     for strategy, keywords in strategy_keywords.items():
@@ -250,15 +249,21 @@ def _infer_matchup_colors(name: str) -> frozenset[str]:
     return frozenset(colors)
 
 
+_COLOR_LETTERS = {name.lower(): color for color, name in COLOR_NAMES.items()}
+_COLOR_WORD = "|".join(_COLOR_LETTERS)
+# "protection from black and from green", "if it's blue", "target black or red permanent".
+_HATE_PATTERN = re.compile(
+    rf"(?:protection from|and from|if it's|target) ({_COLOR_WORD})\b(?: or ({_COLOR_WORD})\b)?"
+)
+
+
 def _hated_colors(oracle: str) -> frozenset[str]:
     """Return the colors a card's oracle text (lower-cased) protects from or punishes."""
     return frozenset(
-        color
-        for color, name in COLOR_NAMES.items()
-        if any(
-            f"{prefix} {name.lower()}" in oracle
-            for prefix in ("protection from", "and from", "if it's")
-        )
+        _COLOR_LETTERS[word]
+        for match in _HATE_PATTERN.finditer(oracle)
+        for word in match.groups()
+        if word
     )
 
 

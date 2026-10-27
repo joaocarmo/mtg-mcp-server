@@ -603,11 +603,13 @@ class TestPreconUpgrade:
         # Resolve decklist cards
         weak_card = _mock_card("Golgari Signet", edhrec_rank=5000, usd="0.50")
         ok_card = _mock_card("Sol Ring", edhrec_rank=1, usd="3.00")
+        upgrade_card = _mock_card("Spore Frog", usd="0.25", edhrec_rank=1200)
         mock_bulk.get_cards = AsyncMock(
             return_value={
                 "Muldrotha, the Gravetide": muldrotha,
                 "Golgari Signet": weak_card,
                 "Sol Ring": ok_card,
+                "Spore Frog": upgrade_card,
             }
         )
 
@@ -629,10 +631,6 @@ class TestPreconUpgrade:
             )
         )
 
-        # Upgrade card price
-        upgrade_card = _mock_card("Spore Frog", usd="0.25", edhrec_rank=1200)
-        mock_bulk.get_card = AsyncMock(return_value=upgrade_card)
-
         result = await precon_upgrade(
             ["Golgari Signet", "Sol Ring"],
             "Muldrotha, the Gravetide",
@@ -642,8 +640,8 @@ class TestPreconUpgrade:
             edhrec=mock_edhrec,
         )
 
-        assert isinstance(result.data, dict)
-        assert "Muldrotha" in result.markdown or "upgrade" in result.markdown.lower()
+        assert result.data["swaps"][0]["add"] == "Spore Frog"
+        assert result.data["swaps"][0]["add_price"] == 0.25
 
     async def test_empty_decklist(
         self,
@@ -835,7 +833,6 @@ class TestPreconUpgrade:
                 ],
             )
         )
-        mock_bulk.get_card = AsyncMock(return_value=_mock_card("Animate Dead", usd="3.00"))
 
         result = await precon_upgrade(
             ["Spore Frog", "Golgari Signet"],
