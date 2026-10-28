@@ -13,6 +13,7 @@ Endpoints, auth, rate limits and response quirks for each backend. Full response
 | EDHREC | `json.edhrec.com` | none | self-imposed 0.5 req/s | `ENABLE_EDHREC` | Reverse-engineered, fragile |
 | Moxfield | `api2.moxfield.com` | Moxfield/browser-style UA (bot UAs blocked) | self-imposed 1 req/s | `ENABLE_MOXFIELD` | Reverse-engineered, fragile |
 | MTGGoldfish | `www.mtggoldfish.com` | browser-like UA (403 otherwise) | self-imposed 0.5 req/s | `ENABLE_MTGGOLDFISH` | HTML scraping, fragile |
+| TopDeck.gg | `topdeck.gg/api` | `Authorization: <key>` (free key, per user) | 100 req/min (bulk search lower, unpublished); client 1.5 req/s | key set (`TOPDECK_API_KEY`) | Official, documented |
 | Comp. Rules | `media.wizards.com/…/MagicCompRules%20<date>.txt`, discovered from `magic.wizards.com/en/rules` (fallback `RULES_URL`) | none | n/a (file) | `ENABLE_RULES` | Official |
 
 Every base URL can be overridden with `MTG_MCP_<SERVICE>_BASE_URL`. When a flag is off, that provider isn't mounted and workflows treat the backend as unavailable. Fragile sources follow one pattern: feature flag, beta tag, aggressive caching, defensive parsing (`isinstance`/`.get()` chains plus structlog warnings), and `ToolError` on failure, so they never crash the orchestrator.
@@ -112,6 +113,25 @@ No API (JSON requests return 406). Parsed with selectolax.
 | `GET /format-staples/{format}` | Table rows: rank, card name (`td a`), % of decks, avg copies |
 
 Errors: `MTGGoldfishError` → `FormatNotFoundError`, `ArchetypeNotFoundError`.
+
+## TopDeck.gg
+
+Documented v2 API ([docs](https://topdeck.gg/docs/tournaments-v2), [OpenAPI](https://topdeck.gg/openapi.json)). Terms: [Developer Terms](https://topdeck.gg/developer-terms). They require a visible credit with a link wherever users see the data, and forbid compiling data about individual players.
+
+| Endpoint | Notes |
+|----------|-------|
+| `POST /v2/tournaments` | Query mode: `game` + `format` (both case sensitive), `last` (days), `participantMin`, `columns`. TID mode: `{"TID": …}`. Completed tournaments only; an unknown TID returns `200 []`. Standings come in final rank order (checked against `/standings`). `leader` (commander formats) or `archetype` (others, once decklists are public) arrive without a column request |
+| `GET /v2/tournaments/{TID}/players/{ID}` | Swiss record (`gamesWon` etc.), `winsBracket`/`lossesBracket`, `decklist` text, `deckObj`. 404 `{"error": "Player not found in tournament"}` |
+
+Quirks seen live (28 October 2026):
+- Searches include organisers' test events dated years ahead. The client drops events that have not started.
+- `decklist` text has literal `\n` and `\'` escapes. `deckObj` is `{section: {card name: {id, count}}}` plus a `metadata` entry, which the model drops.
+- About half of EDH entries have no `leader` (no deck submitted).
+- `/info` returns `endDate` in milliseconds but `startDate` in seconds (unused).
+- Responses carry no rate-limit headers. A 30-day EDH search (16+ players) is about 1.8 MB and takes about 2 s.
+- `/standings` includes every decklist once an event ends (1.5 MB for 150 players), so the client uses TID mode instead.
+
+Errors: `TopDeckError(ServiceError)` → `TournamentNotFoundError` (empty TID result or player 404). The provider maps 401 to a message naming `MTG_MCP_TOPDECK_API_KEY`.
 
 ## Comprehensive Rules
 

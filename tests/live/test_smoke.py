@@ -10,6 +10,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from mtg_mcp_server.config import Settings
 from mtg_mcp_server.services.base import DEFAULT_USER_AGENT
 from mtg_mcp_server.services.rules import RULES_PAGE_URL, RulesService
 
@@ -27,8 +28,11 @@ class TestServerHealth:
         tools = await live_client.list_tools()
         tool_names = {t.name for t in tools}
         # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 3 goldfish + 8 bulk + 29 workflows + 5 rules = 61
-        assert len(tool_names) == 61, (
-            f"Expected 61 tools, got {len(tool_names)}: {sorted(tool_names)}"
+        # (+ 4 topdeck when MTG_MCP_TOPDECK_API_KEY is set)
+        key = Settings().topdeck_api_key
+        expected = 61 + (4 if key else 0)
+        assert len(tool_names) == expected, (
+            f"Expected {expected} tools, got {len(tool_names)}: {sorted(tool_names)}"
         )
 
     async def test_no_mtgjson_tools(self, live_client):
@@ -324,3 +328,28 @@ class TestRulesDiscoveryLive:
             url = await svc._discover_url(http)
         assert url.startswith("https://media.wizards.com/"), url
         assert url.endswith(".txt"), url
+
+
+@pytest.mark.skipif(
+    not Settings().topdeck_api_key, reason="needs MTG_MCP_TOPDECK_API_KEY (free from TopDeck.gg)"
+)
+class TestTopDeckLive:
+    """TopDeck.gg tools against the real API."""
+
+    async def test_metagame_edh(self, live_client):
+        result = await live_client.call_tool("topdeck_metagame", {"format": "EDH", "limit": 5})
+        sc = result.structured_content
+        assert sc is not None
+        assert sc["tournaments"] > 0, "No EDH tournaments with 16+ players in 30 days"
+        assert sc["known_entries"] > 0
+        assert "TopDeck.gg" in result.content[0].text
+
+    async def test_search_then_tournament(self, live_client):
+        search = await live_client.call_tool(
+            "topdeck_search_tournaments", {"format": "EDH", "limit": 1}
+        )
+        assert search.structured_content is not None
+        tid = search.structured_content["tournaments"][0]["tid"]
+        result = await live_client.call_tool("topdeck_tournament", {"tid": tid, "top": 4})
+        assert result.structured_content is not None
+        assert result.structured_content["standings"][0]["rank"] == 1

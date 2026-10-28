@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from mtg_mcp_server.config import Settings
+
 if TYPE_CHECKING:
     from fastmcp import Client
 
@@ -25,7 +27,12 @@ class TestToolRegistration:
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
         # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 3 goldfish + 8 bulk + 29 workflows + 5 rules = 61
-        assert len(tools) == 61, f"Expected 61 tools, got {len(tools)}.\nTools: {tool_names}"
+        # (+ 4 topdeck when MTG_MCP_TOPDECK_API_KEY is set)
+        key = Settings().topdeck_api_key
+        expected = 61 + (4 if key else 0)
+        assert len(tools) == expected, (
+            f"Expected {expected} tools, got {len(tools)}.\nTools: {tool_names}"
+        )
 
     async def test_no_mtgjson_tools(self, mcp_client: Client):
         """No tool names contain 'mtgjson' (replaced by Scryfall bulk data)."""

@@ -7,6 +7,7 @@ mounted **without** a namespace so its tools have clean names like
 
 Feature-flagged backends (17Lands, EDHREC, Moxfield, MTGGoldfish, Scryfall bulk
 data) are conditionally mounted based on ``Settings`` values loaded from ``MTG_MCP_*`` env vars.
+TopDeck.gg mounts only when ``MTG_MCP_TOPDECK_API_KEY`` is set.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from mtg_mcp_server.providers.scryfall import scryfall_mcp
 from mtg_mcp_server.providers.scryfall_bulk import scryfall_bulk_mcp
 from mtg_mcp_server.providers.seventeen_lands import draft_mcp
 from mtg_mcp_server.providers.spellbook import spellbook_mcp
+from mtg_mcp_server.providers.topdeck import topdeck_mcp
 from mtg_mcp_server.services.cache import disable_all_caches
 from mtg_mcp_server.workflows.server import workflow_mcp
 
@@ -52,7 +54,9 @@ mcp = FastMCP(
         "- edhrec_*: Commander staples and synergy scores (EDHREC, beta)\n"
         "- moxfield_*: Public decklist fetching and search (Moxfield, beta)\n"
         "- bulk_*: Rate-limit-free card lookup and search (Scryfall bulk data)\n"
-        "- goldfish_*: Constructed metagame data (MTGGoldfish, beta)\n\n"
+        "- goldfish_*: Constructed metagame data (MTGGoldfish, beta)\n"
+        "- topdeck_*: Tournament results, standings, decklists and cEDH/constructed "
+        "metagame (TopDeck.gg; only when MTG_MCP_TOPDECK_API_KEY is set)\n\n"
         "Workflow tools (no prefix):\n"
         "- commander_overview: Full commander profile from all sources\n"
         "- evaluate_upgrade: Assess a card for a commander deck\n"
@@ -116,6 +120,9 @@ if _settings.enable_bulk_data:
     mcp.mount(scryfall_bulk_mcp, namespace="bulk")
 if _settings.enable_mtggoldfish:
     mcp.mount(mtggoldfish_mcp, namespace="goldfish")
+# TopDeck.gg needs a per-user API key; without one its tools could only fail.
+if _settings.topdeck_api_key:  # SecretStr("") is falsy
+    mcp.mount(topdeck_mcp, namespace="topdeck")
 
 # Workflow tools mounted without namespace for clean names.
 mcp.mount(workflow_mcp)

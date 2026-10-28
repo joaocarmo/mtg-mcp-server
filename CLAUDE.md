@@ -1,6 +1,6 @@
 # MTG MCP Server
 
-Unified MCP server providing Magic: The Gathering data to AI assistants. Composes Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield and MTGGoldfish into one server using FastMCP's provider/mount architecture.
+Unified MCP server providing Magic: The Gathering data to AI assistants. Composes Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield, MTGGoldfish and TopDeck.gg into one server using FastMCP's provider/mount architecture.
 
 Prerequisite: [mise](https://mise.jdx.dev); `mise install` gets everything else.
 
@@ -105,11 +105,11 @@ Handling review comments:
 
 ## Status
 
-All backends are implemented; none are stubbed. 61 tools (incl. `ping`), 18 prompts, 5 resources (3 templates, 2 static). History: `CHANGELOG.md`.
+All backends are implemented; none are stubbed. 61 tools (incl. `ping`; 65 with a TopDeck.gg key), 18 prompts, 5 resources (3 templates, 2 static). History: `CHANGELOG.md`.
 
 ## Environment
 
-Copy `.env.example` to `.env`. All values have defaults and no credentials are needed (all APIs are public). Every setting uses the `MTG_MCP_` prefix.
+Copy `.env.example` to `.env`. All values have defaults. The only credential is the optional `MTG_MCP_TOPDECK_API_KEY`; the `topdeck_` tools mount only when it is set. Every setting uses the `MTG_MCP_` prefix.
 
 ## Key references
 

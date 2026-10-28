@@ -12,6 +12,7 @@ from mtg_mcp_server.providers.scryfall import scryfall_mcp
 from mtg_mcp_server.providers.scryfall_bulk import scryfall_bulk_mcp
 from mtg_mcp_server.providers.seventeen_lands import draft_mcp
 from mtg_mcp_server.providers.spellbook import spellbook_mcp
+from mtg_mcp_server.providers.topdeck import topdeck_mcp
 from mtg_mcp_server.workflows.server import workflow_mcp
 
 
@@ -25,6 +26,7 @@ from mtg_mcp_server.workflows.server import workflow_mcp
         (moxfield_mcp, "moxfield"),
         (scryfall_bulk_mcp, "scryfall_bulk"),
         (mtggoldfish_mcp, "mtggoldfish"),
+        (topdeck_mcp, "topdeck"),
         (workflow_mcp, "workflow"),
     ],
 )

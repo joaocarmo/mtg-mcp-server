@@ -1,0 +1,425 @@
+{
+  "name": "Player 4",
+  "standing": 1,
+  "leader": "Kraum, Ludevic's Opus / Tymna the Weaver",
+  "decklist": "~~Commanders~~\\n1 Kraum, Ludevic\\'s Opus\\n1 Tymna the Weaver\\n\\n~~Mainboard~~\\n1 Ad Nauseam\\n1 An Offer You Can\\'t Refuse\\n1 Ancient Tomb\\n1 Arcane Signet\\n1 Arid Mesa\\n1 Badlands\\n1 Beseech the Mirror\\n1 Bloodstained Mire\\n1 Borne Upon a Wind\\n1 Brain Freeze\\n1 Cabal Ritual\\n1 Chain of Vapor\\n1 Chrome Mox\\n1 City of Brass\\n1 City of Traitors\\n1 Command Tower\\n1 Commandeer\\n1 Culling the Weak\\n1 Dark Ritual\\n1 Deflecting Swat\\n1 Demonic Consultation\\n1 Demonic Tutor\\n1 Diabolic Intent\\n1 Dispel\\n1 Enlightened Tutor\\n1 Esper Sentinel\\n1 Exotic Orchard\\n1 Faerie Mastermind\\n1 Fellwar Stone\\n1 Fierce Guardianship\\n1 Final Fortune\\n1 Flooded Strand\\n1 Flusterstorm\\n1 Force of Negation\\n1 Force of Will\\n1 Gamble\\n1 Gemstone Caverns\\n1 Gleaming Splendor\\n1 Imperial Seal\\n1 Into the Flood Maw\\n1 Lavinia, Azorius Renegade\\n1 Lim-Dûl\\'s Vault\\n1 Lion\\'s Eye Diamond\\n1 Lotho, Corrupt Shirriff\\n1 Lotus Petal\\n1 Mana Confluence\\n1 Mana Vault\\n1 Marsh Flats\\n1 Memnite\\n1 Mental Misstep\\n1 Mindbreak Trap\\n1 Misdirection\\n1 Misty Rainforest\\n1 Mockingbird\\n1 Mox Amber\\n1 Mox Diamond\\n1 Mox Opal\\n1 Mystic Remora\\n1 Mystical Tutor\\n1 Necropotence\\n1 Opposition Agent\\n1 Orcish Bowmasters\\n1 Orim\\'s Chant\\n1 Otawara, Soaring City\\n1 Pact of Negation\\n1 Plateau\\n1 Polluted Delta\\n1 Pyroblast\\n1 Ragavan, Nimble Pilferer\\n1 Rain of Filth\\n1 Ranger-Captain of Eos\\n1 Red Elemental Blast\\n1 Rhystic Study\\n1 Rite of Flame\\n1 Scalding Tarn\\n1 Scheming Symmetry\\n1 Scrubland\\n1 Silence\\n1 Simian Spirit Guide\\n1 Snapback\\n1 Sol Ring\\n1 Starting Town\\n1 Strike It Rich\\n1 Swan Song\\n1 Tainted Pact\\n1 Tarnished Citadel\\n1 Tataru Taru\\n1 Thassa\\'s Oracle\\n1 Tundra\\n1 Underground Sea\\n1 Underworld Breach\\n1 Valley Floodcaller\\n1 Vampiric Tutor\\n1 Verdant Catacombs\\n1 Voice of Victory\\n1 Volcanic Island\\n1 Windswept Heath\\n1 Wishclaw Talisman\\n\\n\\n",
+  "deckObj": {
+    "Commanders": {
+      "Kraum, Ludevic's Opus": {
+        "id": "5f694f2d-9349-4988-b2b4-788136d4293e",
+        "count": 1
+      },
+      "Tymna the Weaver": {
+        "id": "d15642e4-e61c-4d29-af48-de837991245e",
+        "count": 1
+      }
+    },
+    "Mainboard": {
+      "Ad Nauseam": {
+        "id": "981b0e21-e5e6-4a1e-bfde-679d56623f7f",
+        "count": 1
+      },
+      "An Offer You Can't Refuse": {
+        "id": "234a734b-ba28-4f1b-9d01-3c3e7d516590",
+        "count": 1
+      },
+      "Ancient Tomb": {
+        "id": "23467047-6dba-4498-b783-1ebc4f74b8c2",
+        "count": 1
+      },
+      "Arcane Signet": {
+        "id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+        "count": 1
+      },
+      "Arid Mesa": {
+        "id": "c5acf2a5-40f4-433d-a74d-1cb56c521464",
+        "count": 1
+      },
+      "Badlands": {
+        "id": "13ff3222-91cb-4796-a34e-899ed817694c",
+        "count": 1
+      },
+      "Beseech the Mirror": {
+        "id": "cbbe535b-12d6-4e6c-8b26-9220f06a1604",
+        "count": 1
+      },
+      "Bloodstained Mire": {
+        "id": "fc0707c7-d504-4ccf-a0d2-3eb6e26e7a57",
+        "count": 1
+      },
+      "Borne Upon a Wind": {
+        "id": "ce19962d-94f9-4b2b-b668-963c0acce308",
+        "count": 1
+      },
+      "Brain Freeze": {
+        "id": "464c0150-3dbc-403b-9ada-fef25ab1f29d",
+        "count": 1
+      },
+      "Cabal Ritual": {
+        "id": "5b5bf1fa-6502-4790-b66b-f0f8504ebc7c",
+        "count": 1
+      },
+      "Chain of Vapor": {
+        "id": "2167ac25-d042-4b48-b770-8b94acc1a965",
+        "count": 1
+      },
+      "Chrome Mox": {
+        "id": "ec3d4466-547c-4e02-b1b5-a156ec4637e9",
+        "count": 1
+      },
+      "City of Brass": {
+        "id": "f25351e3-539b-4bbc-b92d-6480acf4d722",
+        "count": 1
+      },
+      "City of Traitors": {
+        "id": "f161111d-9747-47b3-bb10-3c8bded32e21",
+        "count": 1
+      },
+      "Command Tower": {
+        "id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+        "count": 1
+      },
+      "Commandeer": {
+        "id": "ad7d854b-d303-40eb-acd6-03a8023e05e7",
+        "count": 1
+      },
+      "Culling the Weak": {
+        "id": "6385fd0d-256d-4400-9319-afa8170024db",
+        "count": 1
+      },
+      "Dark Ritual": {
+        "id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+        "count": 1
+      },
+      "Deflecting Swat": {
+        "id": "ae120613-97d6-4393-b39d-c3e6c076f5d6",
+        "count": 1
+      },
+      "Demonic Consultation": {
+        "id": "9a1412db-45ad-46ea-8f12-a85d203113d8",
+        "count": 1
+      },
+      "Demonic Tutor": {
+        "id": "82004860-e589-4e38-8d61-8c0210e4ea39",
+        "count": 1
+      },
+      "Diabolic Intent": {
+        "id": "038519b9-bca8-4b27-b5ac-2409595469d0",
+        "count": 1
+      },
+      "Dispel": {
+        "id": "6d7be242-a072-40ce-b540-95880506cccd",
+        "count": 1
+      },
+      "Enlightened Tutor": {
+        "id": "c5229c17-b7be-4b05-b683-f2277edc4849",
+        "count": 1
+      },
+      "Esper Sentinel": {
+        "id": "5def9f38-0a0b-4e8d-9f9d-29dcb46520b4",
+        "count": 1
+      },
+      "Exotic Orchard": {
+        "id": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+        "count": 1
+      },
+      "Faerie Mastermind": {
+        "id": "a984db23-40ea-428d-829f-e944267280f8",
+        "count": 1
+      },
+      "Fellwar Stone": {
+        "id": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+        "count": 1
+      },
+      "Fierce Guardianship": {
+        "id": "d09c9cba-fdd2-479b-ad5d-d05181c3e3f9",
+        "count": 1
+      },
+      "Final Fortune": {
+        "id": "8d0adc5c-3fdd-4e22-b783-5651f8e57b65",
+        "count": 1
+      },
+      "Flooded Strand": {
+        "id": "f3c7af78-a77d-4134-82a2-a5ce84285a84",
+        "count": 1
+      },
+      "Flusterstorm": {
+        "id": "86bf58f2-7f25-4e10-b797-25e0e8e67769",
+        "count": 1
+      },
+      "Force of Negation": {
+        "id": "ac2173f9-f223-440a-9231-fd98762bdc6f",
+        "count": 1
+      },
+      "Force of Will": {
+        "id": "956381ba-6d37-4a8a-846c-bad79222dbee",
+        "count": 1
+      },
+      "Gamble": {
+        "id": "a54f0869-94c8-42af-9080-166efb9486a4",
+        "count": 1
+      },
+      "Gemstone Caverns": {
+        "id": "c0adbddc-b070-4c5f-afe0-0474c72a9251",
+        "count": 1
+      },
+      "Gleaming Splendor": {
+        "id": "c01aeaa5-1d3b-4493-9575-30175dcd780d",
+        "count": 1
+      },
+      "Imperial Seal": {
+        "id": "16cd0b90-f70c-4efa-b252-8de8784ef9a3",
+        "count": 1
+      },
+      "Into the Flood Maw": {
+        "id": "8cb36a67-9206-4665-a03f-64f52ba559c4",
+        "count": 1
+      },
+      "Lavinia, Azorius Renegade": {
+        "id": "81ba3a33-0e04-4f68-9a42-1dd717733b57",
+        "count": 1
+      },
+      "Lim-Dûl's Vault": {
+        "id": "3f8e7a45-4c6e-4ee6-93d0-b7de9715ec97",
+        "count": 1
+      },
+      "Lion's Eye Diamond": {
+        "id": "ee6099b0-fb1f-42f1-b862-7708c6e36d05",
+        "count": 1
+      },
+      "Lotho, Corrupt Shirriff": {
+        "id": "135cc078-1c45-465e-b0b9-7168c89f56f4",
+        "count": 1
+      },
+      "Lotus Petal": {
+        "id": "32e5339e-9e4f-46f8-b305-f9d6d3ba8bb5",
+        "count": 1
+      },
+      "Mana Confluence": {
+        "id": "d0ee5bdc-2b69-4b73-9a20-ffcc18783b29",
+        "count": 1
+      },
+      "Mana Vault": {
+        "id": "736892cb-a34b-4bb9-b56c-e26e3db207a2",
+        "count": 1
+      },
+      "Marsh Flats": {
+        "id": "dab520d0-20b4-4273-ba6b-eb07f85ea433",
+        "count": 1
+      },
+      "Memnite": {
+        "id": "7663ac7c-1de3-4250-b96a-fae9dbd66a27",
+        "count": 1
+      },
+      "Mental Misstep": {
+        "id": "1a0770e6-b093-4439-baff-6889a50ba12e",
+        "count": 1
+      },
+      "Mindbreak Trap": {
+        "id": "48712d36-5c13-4ded-87a4-68106da4a5cd",
+        "count": 1
+      },
+      "Misdirection": {
+        "id": "c39e5fb0-6de3-4105-ad3c-0ecb8951a1d5",
+        "count": 1
+      },
+      "Misty Rainforest": {
+        "id": "09dd85aa-47bc-4713-a9b9-8b52ff2285ed",
+        "count": 1
+      },
+      "Mockingbird": {
+        "id": "b9df2cdf-397c-458d-89cf-911568737ffa",
+        "count": 1
+      },
+      "Mox Amber": {
+        "id": "7a43bd27-fdd8-41f0-9bc4-92568f3408f1",
+        "count": 1
+      },
+      "Mox Diamond": {
+        "id": "f3c5978a-70fa-431f-933b-b954bd0db0ea",
+        "count": 1
+      },
+      "Mox Opal": {
+        "id": "de2440de-e948-4811-903c-0bbe376ff64d",
+        "count": 1
+      },
+      "Mystic Remora": {
+        "id": "8a52f3c0-2552-4425-b2e3-5496eb2232a7",
+        "count": 1
+      },
+      "Mystical Tutor": {
+        "id": "fb81f95c-70f8-4eb7-8d15-15d0ae23ec03",
+        "count": 1
+      },
+      "Necropotence": {
+        "id": "94a844d2-0574-45a7-b347-e0e329767c42",
+        "count": 1
+      },
+      "Opposition Agent": {
+        "id": "1f438b8f-fe23-4f3b-ab2e-f6c33676c462",
+        "count": 1
+      },
+      "Orcish Bowmasters": {
+        "id": "ea5103f5-27e0-4eb1-902c-7f34652d6bf3",
+        "count": 1
+      },
+      "Orim's Chant": {
+        "id": "26d3a818-7faf-443a-a6bd-9773edaedf17",
+        "count": 1
+      },
+      "Otawara, Soaring City": {
+        "id": "e9b6a394-691c-425a-9307-76d8edc7375e",
+        "count": 1
+      },
+      "Pact of Negation": {
+        "id": "f3e213a4-ba5a-468a-93b3-c0a34e1bd725",
+        "count": 1
+      },
+      "Plateau": {
+        "id": "c7a15ca4-085f-4d92-8387-c3711c04c8fa",
+        "count": 1
+      },
+      "Polluted Delta": {
+        "id": "ef86989d-ce80-4e55-aece-7d11710eeffa",
+        "count": 1
+      },
+      "Pyroblast": {
+        "id": "ecc435e2-deb1-420a-a79f-01dd08747314",
+        "count": 1
+      },
+      "Ragavan, Nimble Pilferer": {
+        "id": "37108cd4-bbab-4ce3-9ed6-f60e8422e703",
+        "count": 1
+      },
+      "Rain of Filth": {
+        "id": "aa77980d-0434-40f0-990f-1c8c50610174",
+        "count": 1
+      },
+      "Ranger-Captain of Eos": {
+        "id": "cada3481-cc2b-4412-b9b5-0436af53aad2",
+        "count": 1
+      },
+      "Red Elemental Blast": {
+        "id": "bb329a5c-b9f9-4973-a53f-090024146325",
+        "count": 1
+      },
+      "Rhystic Study": {
+        "id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+        "count": 1
+      },
+      "Rite of Flame": {
+        "id": "8a2e53f9-8100-488f-8504-b59e9bd1cc29",
+        "count": 1
+      },
+      "Scalding Tarn": {
+        "id": "cb027150-848c-4a66-88ad-e20222304dd8",
+        "count": 1
+      },
+      "Scheming Symmetry": {
+        "id": "6dfb50d7-359b-4644-90e3-7ecdacee7c12",
+        "count": 1
+      },
+      "Scrubland": {
+        "id": "c8d95ca8-7d12-4072-aeaf-e20f248c7e39",
+        "count": 1
+      },
+      "Silence": {
+        "id": "8aed54cb-d1bb-45ad-adbe-38e55d84ff31",
+        "count": 1
+      },
+      "Simian Spirit Guide": {
+        "id": "44e0ffa3-8915-4c1f-8f1a-4aeea1365f07",
+        "count": 1
+      },
+      "Snapback": {
+        "id": "e88de17c-086d-4e2a-b5b2-2f9f57ca7c0f",
+        "count": 1
+      },
+      "Sol Ring": {
+        "id": "6ad8011d-3471-4369-9d68-b264cc027487",
+        "count": 1
+      },
+      "Starting Town": {
+        "id": "d04e0975-f401-41b8-a9db-9bcf9cbbce66",
+        "count": 1
+      },
+      "Strike It Rich": {
+        "id": "c34c17c7-3827-49a2-be25-67f44fdfe150",
+        "count": 1
+      },
+      "Swan Song": {
+        "id": "8ddfc283-c9b4-41a5-af88-cf0068e986cc",
+        "count": 1
+      },
+      "Tainted Pact": {
+        "id": "1a85ba2b-ae10-4917-954a-7709b75a9740",
+        "count": 1
+      },
+      "Tarnished Citadel": {
+        "id": "66ae2562-68e9-4c77-ba0a-57f8ff37f656",
+        "count": 1
+      },
+      "Tataru Taru": {
+        "id": "70dd5013-f18f-4501-882f-70590c424e20",
+        "count": 1
+      },
+      "Thassa's Oracle": {
+        "id": "1de1b591-a73f-4974-b507-8c63e07a0868",
+        "count": 1
+      },
+      "Tundra": {
+        "id": "02418479-9455-417f-a6a1-004356faff37",
+        "count": 1
+      },
+      "Underground Sea": {
+        "id": "4b22be3a-8ce1-47d1-b82e-6c3ccfb0548b",
+        "count": 1
+      },
+      "Underworld Breach": {
+        "id": "27e0948b-9916-473b-8d8c-a51bdfbc7457",
+        "count": 1
+      },
+      "Valley Floodcaller": {
+        "id": "4879c8f0-8832-4290-bc71-9838940f75cd",
+        "count": 1
+      },
+      "Vampiric Tutor": {
+        "id": "ededbdae-d9dc-4206-9335-d7158f2d7700",
+        "count": 1
+      },
+      "Verdant Catacombs": {
+        "id": "67d60b24-d429-4ded-90d9-06e49f28c396",
+        "count": 1
+      },
+      "Voice of Victory": {
+        "id": "b12cbda1-ac09-49eb-96b3-a4df27bc37ea",
+        "count": 1
+      },
+      "Volcanic Island": {
+        "id": "c718911c-c955-4eb9-9e16-be4bd49a4e4e",
+        "count": 1
+      },
+      "Windswept Heath": {
+        "id": "29737a60-3ebd-40d9-b935-c4f54b90d45d",
+        "count": 1
+      },
+      "Wishclaw Talisman": {
+        "id": "81c70ae7-3c18-4c9b-8505-e4db9e0e6518",
+        "count": 1
+      }
+    },
+    "metadata": {
+      "game": "Magic: The Gathering",
+      "format": "EDH",
+      "importedFrom": "https://moxfield.com/decks/example"
+    }
+  },
+  "winRate": 0.5,
+  "gamesPlayed": 6,
+  "gamesWon": 3,
+  "byes": 0,
+  "gamesDrawn": 1,
+  "gamesLost": 2,
+  "winsBracket": 2,
+  "lossesBracket": 0
+}

@@ -480,6 +480,97 @@ class MoxfieldSearchResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# TopDeck.gg
+# ---------------------------------------------------------------------------
+
+
+class TopDeckStanding(BaseModel):
+    """One standings row from a TopDeck.gg tournament search."""
+
+    name: str = ""
+    id: str = ""
+    wins: int = 0
+    draws: int = 0
+    losses: int = 0
+    # Commander formats carry ``leader`` ("A / B" for partners); others carry ``archetype``.
+    leader: str | None = None
+    archetype: str | None = None
+
+    @property
+    def deck(self) -> str | None:
+        """The commander or archetype, whichever the format uses."""
+        return self.leader or self.archetype
+
+
+class TopDeckLocation(BaseModel):
+    """Where a TopDeck.gg tournament took place."""
+
+    city: str | None = None
+    state: str | None = None
+    address: str | None = None
+
+
+class TopDeckTournament(BaseModel):
+    """A completed TopDeck.gg tournament. ``standings`` are in final rank order."""
+
+    tid: str = Field(alias="TID")
+    name: str = Field("", alias="tournamentName")
+    format: str = ""
+    start_date: int = Field(0, alias="startDate")
+    swiss_rounds: int = Field(0, alias="swissNum")
+    top_cut: int = Field(0, alias="topCut")
+    location: TopDeckLocation = Field(default_factory=TopDeckLocation, alias="eventData")
+    standings: list[TopDeckStanding] = Field(default_factory=list)
+
+    model_config = {"populate_by_name": True}
+
+
+class TopDeckDeckCard(BaseModel):
+    """A card entry in a TopDeck.gg structured deck."""
+
+    id: str = ""
+    count: int = 1
+
+
+class TopDeckPlayer(BaseModel):
+    """A player's record and deck in one TopDeck.gg tournament."""
+
+    name: str = ""
+    standing: int | None = None
+    leader: str | None = None
+    archetype: str | None = None
+    win_rate: float | None = Field(None, alias="winRate")
+    games_played: int = Field(0, alias="gamesPlayed")
+    games_won: int = Field(0, alias="gamesWon")
+    games_drawn: int = Field(0, alias="gamesDrawn")
+    games_lost: int = Field(0, alias="gamesLost")
+    byes: int = 0
+    wins_bracket: int = Field(0, alias="winsBracket")
+    losses_bracket: int = Field(0, alias="lossesBracket")
+    decklist: str | None = None
+    # Section name ("Commanders", "Mainboard", ...) -> card name -> entry.
+    deck: dict[str, dict[str, TopDeckDeckCard]] = Field(default_factory=dict, alias="deckObj")
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("decklist", mode="before")
+    @classmethod
+    def _unescape_decklist(cls, v: object) -> object:
+        """TopDeck returns decklist text with literal ``\\n`` and ``\\'`` escapes."""
+        if isinstance(v, str):
+            return v.replace("\\n", "\n").replace("\\'", "'")
+        return v
+
+    @field_validator("deck", mode="before")
+    @classmethod
+    def _card_sections_only(cls, v: object) -> object:
+        """Drop the ``metadata`` entry that ``deckObj`` carries beside the card sections."""
+        if not isinstance(v, dict):
+            return {}
+        return {k: s for k, s in v.items() if k != "metadata" and isinstance(s, dict)}
+
+
+# ---------------------------------------------------------------------------
 # Comprehensive Rules
 # ---------------------------------------------------------------------------
 

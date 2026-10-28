@@ -16,6 +16,7 @@ from mtg_mcp_server.services.rules import RulesService
 from mtg_mcp_server.services.scryfall import ScryfallClient
 from mtg_mcp_server.services.seventeen_lands import SeventeenLandsClient
 from mtg_mcp_server.services.spellbook import SpellbookClient
+from mtg_mcp_server.services.topdeck import TopDeckClient
 
 
 @pytest.fixture(autouse=True)
@@ -60,6 +61,9 @@ def _clear_caches():
     MTGGoldfishClient._metagame_cache.clear()
     MTGGoldfishClient._archetype_cache.clear()
     MTGGoldfishClient._staples_cache.clear()
+    TopDeckClient._search_cache.clear()
+    TopDeckClient._tournament_cache.clear()
+    TopDeckClient._player_cache.clear()
 
 
 _RULES_TEXT = (Path(__file__).parent / "fixtures" / "rules" / "comprehensive_rules.txt").read_text(

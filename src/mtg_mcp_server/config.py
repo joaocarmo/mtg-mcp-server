@@ -1,7 +1,7 @@
 """Application configuration via environment variables.
 
 All settings use the ``MTG_MCP_`` prefix and can be overridden via a ``.env``
-file. No credentials are required — all APIs are public.
+file. No credentials are required, except an optional free TopDeck.gg API key.
 
 Example::
 
@@ -10,6 +10,7 @@ Example::
 
 from __future__ import annotations
 
+from pydantic import SecretStr  # noqa: TC002 (pydantic)
 from pydantic_settings import BaseSettings
 
 __all__ = ["Settings"]
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     edhrec_base_url: str = "https://json.edhrec.com"
     moxfield_base_url: str = "https://api2.moxfield.com"
     mtggoldfish_base_url: str = "https://www.mtggoldfish.com"
+    topdeck_base_url: str = "https://topdeck.gg/api"
 
     # --- Feature flags ---
     # Optional backends can be disabled without code changes.
@@ -42,6 +44,10 @@ class Settings(BaseSettings):
     enable_moxfield: bool = True  # Behind flag — reverse-engineered API
     enable_mtggoldfish: bool = True  # Behind flag — scrapes HTML (no API)
     enable_bulk_data: bool = True  # Scryfall Oracle Cards bulk download (~30MB)
+
+    # --- TopDeck.gg ---
+    # Free key from https://topdeck.gg/developers. The topdeck_ tools mount only when it is set.
+    topdeck_api_key: SecretStr | None = None
 
     # --- Caching ---
     disable_cache: bool = False  # Set True in tests to bypass TTLCache
