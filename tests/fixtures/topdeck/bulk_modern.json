@@ -1,0 +1,193 @@
+[
+  {
+    "TID": "liga-modern-reality-j4",
+    "tournamentName": "LIGA MODERN REALITY J4",
+    "swissNum": 4,
+    "startDate": 1792770300,
+    "game": "Magic: The Gathering",
+    "format": "Modern",
+    "topCut": 0,
+    "eventData": {
+      "lat": 40.430694,
+      "lng": -3.671223,
+      "city": "Madrid",
+      "state": "Comunidad de Madrid",
+      "country": "Spain",
+      "headerImage": "https://imagedelivery.net/kN_u_RUfFF6xsGMKYWhO1g/43deb120-ebf0-48b7-897a-caa27c4fba00/public",
+      "address": "C/ de Francisco Silvela, 21, Salamanca, 28028 Madrid, España"
+    },
+    "standings": [
+      {
+        "name": "Player 44",
+        "id": "p44",
+        "wins": 3,
+        "draws": 1,
+        "losses": 0
+      },
+      {
+        "name": "Player 45",
+        "id": "p45",
+        "wins": 3,
+        "draws": 1,
+        "losses": 0
+      },
+      {
+        "name": "Player 46",
+        "id": "p46",
+        "wins": 3,
+        "draws": 0,
+        "losses": 1
+      },
+      {
+        "name": "Player 47",
+        "id": "p47",
+        "wins": 3,
+        "draws": 0,
+        "losses": 1
+      },
+      {
+        "name": "Player 48",
+        "id": "p48",
+        "wins": 3,
+        "draws": 0,
+        "losses": 1
+      },
+      {
+        "name": "Player 49",
+        "id": "p49",
+        "wins": 2,
+        "draws": 0,
+        "losses": 1
+      },
+      {
+        "name": "Player 50",
+        "id": "p50",
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      {
+        "name": "Player 51",
+        "id": "p51",
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      {
+        "name": "Player 52",
+        "id": "p52",
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      {
+        "name": "Player 53",
+        "id": "p53",
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      }
+    ]
+  },
+  {
+    "TID": "iq-arzua-piknitas-modern",
+    "tournamentName": "IQ Arzúa - Piknitas Modern",
+    "swissNum": 5,
+    "startDate": 1791014400,
+    "game": "Magic: The Gathering",
+    "format": "Modern",
+    "topCut": 8,
+    "eventData": {
+      "lat": 42.927956,
+      "lng": -8.161395,
+      "city": "Arzúa",
+      "state": "",
+      "country": "Spain",
+      "headerImage": "https://imagedelivery.net/kN_u_RUfFF6xsGMKYWhO1g/afcc3a3b-98fe-4b05-6217-e2f93cab8700/public",
+      "address": "Recinto Feiral \"Terra do queixo\", Rúa, Tr.ª da Feira A, 15810 Arzúa, A Coruña, España"
+    },
+    "standings": [
+      {
+        "name": "Player 54",
+        "id": "p54",
+        "wins": 7,
+        "draws": 0,
+        "losses": 1,
+        "archetype": "Goryo Reanimator"
+      },
+      {
+        "name": "Player 55",
+        "id": "p55",
+        "wins": 5,
+        "draws": 2,
+        "losses": 1,
+        "archetype": "Eldrazi Tron"
+      },
+      {
+        "name": "Player 56",
+        "id": "p56",
+        "wins": 5,
+        "draws": 0,
+        "losses": 2,
+        "archetype": "Grixis Reanimator"
+      },
+      {
+        "name": "Player 57",
+        "id": "p57",
+        "wins": 4,
+        "draws": 2,
+        "losses": 1,
+        "archetype": "Broodscale"
+      },
+      {
+        "name": "Player 58",
+        "id": "p58",
+        "wins": 3,
+        "draws": 2,
+        "losses": 1,
+        "archetype": "Mako Blitz"
+      },
+      {
+        "name": "Player 59",
+        "id": "p59",
+        "wins": 3,
+        "draws": 2,
+        "losses": 1,
+        "archetype": "Esper Blink"
+      },
+      {
+        "name": "Player 60",
+        "id": "p60",
+        "wins": 3,
+        "draws": 1,
+        "losses": 2,
+        "archetype": "Broodscale"
+      },
+      {
+        "name": "Player 61",
+        "id": "p61",
+        "wins": 3,
+        "draws": 1,
+        "losses": 2,
+        "archetype": "Jeskai Flash",
+        "archetypeInput": "Jeskai Control"
+      },
+      {
+        "name": "Player 62",
+        "id": "p62",
+        "wins": 3,
+        "draws": 0,
+        "losses": 2,
+        "archetype": "Devoted Combo"
+      },
+      {
+        "name": "Player 63",
+        "id": "p63",
+        "wins": 3,
+        "draws": 0,
+        "losses": 2,
+        "archetype": "Prowess"
+      }
+    ]
+  }
+]

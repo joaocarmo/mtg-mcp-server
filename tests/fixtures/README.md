@@ -52,3 +52,15 @@ Captured JSON responses from real API calls, used by tests via `respx` mocking. 
 |------|-----------------|-------------|
 | `bulk_metadata.json` | `GET /bulk-data/oracle_cards` | Bulk data download metadata |
 | `oracle_cards_sample.json` | Subset of Oracle Cards bulk download | 12-entry sample (8 playable cards + 4 adversarial non-playable layouts) in Scryfall format |
+
+### `topdeck/`
+
+Player names and IDs are replaced with `Player N` and `pN`, Discord fields are removed, and the deck import URL is a placeholder. Commander, archetype and card names are unchanged. Standings are trimmed.
+
+| File | Source Endpoint | Description |
+|------|-----------------|-------------|
+| `bulk_edh.json` | `POST /v2/tournaments` (EDH, `last: 7`, `participantMin: 16`) | 3 events: a 16-player top cut, a 4-player top cut, and a test event dated 2030 |
+| `bulk_modern.json` | `POST /v2/tournaments` (Modern, `last: 30`, `participantMin: 16`) | 2 events; the second has archetype labels |
+| `tournament.json` | `POST /v2/tournaments` (`TID` mode) | 1 event, first 20 standings |
+| `player.json` | `GET /v2/tournaments/{TID}/players/{ID}` | Event winner with record, `decklist` text and `deckObj` |
+| `player_not_found.json` | `GET /v2/tournaments/{TID}/players/{unknown}` | 404 response |

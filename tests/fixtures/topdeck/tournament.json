@@ -1,0 +1,185 @@
+[
+  {
+    "TID": "mbg-commanderpalooza-3-timetwister-event",
+    "tournamentName": "MBG Commanderpalooza #3 (TimeTwister event)",
+    "swissNum": 6,
+    "startDate": 1792850400,
+    "game": "Magic: The Gathering",
+    "format": "EDH",
+    "topCut": 16,
+    "averageElo": 1563,
+    "modeElo": 1500,
+    "medianElo": 1513,
+    "topElo": 2001,
+    "eventData": {
+      "lat": 42.2137335,
+      "lng": -83.15911009999999,
+      "city": "Wyandotte",
+      "state": "MI",
+      "headerImage": "https://imagedelivery.net/kN_u_RUfFF6xsGMKYWhO1g/4c738ed9-e0d5-4d84-6f9d-5d646e4b5f00/public",
+      "address": "633 Ford Avenue, Wyandotte, MI, USA"
+    },
+    "standings": [
+      {
+        "name": "Player 4",
+        "id": "p4",
+        "wins": 5,
+        "draws": 1,
+        "losses": 2,
+        "leader": "Kraum, Ludevic's Opus / Tymna the Weaver"
+      },
+      {
+        "name": "Player 5",
+        "id": "p5",
+        "wins": 4,
+        "draws": 2,
+        "losses": 2,
+        "leader": "Dack Fayden, Helping Hand"
+      },
+      {
+        "name": "Player 6",
+        "id": "p6",
+        "wins": 3,
+        "draws": 4,
+        "losses": 1,
+        "leader": "Kinnan, Bonder Prodigy"
+      },
+      {
+        "name": "Player 7",
+        "id": "p7",
+        "wins": 3,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Kinnan, Bonder Prodigy"
+      },
+      {
+        "name": "Player 8",
+        "id": "p8",
+        "wins": 4,
+        "draws": 2,
+        "losses": 1,
+        "leader": "Rograkh, Son of Rohgahh / Silas Renn, Seeker Adept"
+      },
+      {
+        "name": "Player 9",
+        "id": "p9",
+        "wins": 4,
+        "draws": 1,
+        "losses": 2,
+        "leader": "Urabrask"
+      },
+      {
+        "name": "Player 10",
+        "id": "p10",
+        "wins": 3,
+        "draws": 2,
+        "losses": 2,
+        "leader": "K'rrik, Son of Yawgmoth"
+      },
+      {
+        "name": "Player 11",
+        "id": "p11",
+        "wins": 3,
+        "draws": 0,
+        "losses": 4,
+        "leader": "Rograkh, Son of Rohgahh / Thrasios, Triton Hero"
+      },
+      {
+        "name": "Player 12",
+        "id": "p12",
+        "wins": 2,
+        "draws": 4,
+        "losses": 1,
+        "leader": "Sisay, Weatherlight Captain"
+      },
+      {
+        "name": "Player 13",
+        "id": "p13",
+        "wins": 2,
+        "draws": 4,
+        "losses": 1,
+        "leader": "Kraum, Ludevic's Opus / Tymna the Weaver"
+      },
+      {
+        "name": "Player 14",
+        "id": "p14",
+        "wins": 2,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Vadrik, Astral Archmage"
+      },
+      {
+        "name": "Player 15",
+        "id": "p15",
+        "wins": 2,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Kraum, Ludevic's Opus / Tymna the Weaver"
+      },
+      {
+        "name": "Player 16",
+        "id": "p16",
+        "wins": 2,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Kraum, Ludevic's Opus / Tymna the Weaver"
+      },
+      {
+        "name": "Player 17",
+        "id": "p17",
+        "wins": 2,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Kinnan, Bonder Prodigy"
+      },
+      {
+        "name": "Player 18",
+        "id": "p18",
+        "wins": 2,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Kraum, Ludevic's Opus / Tymna the Weaver"
+      },
+      {
+        "name": "Player 19",
+        "id": "p19",
+        "wins": 2,
+        "draws": 3,
+        "losses": 2,
+        "leader": "Nick Fury, Agent of S.H.I.E.L.D."
+      },
+      {
+        "name": "Player 20",
+        "id": "p20",
+        "wins": 2,
+        "draws": 3,
+        "losses": 1,
+        "leader": "Dargo, the Shipwrecker / Tymna the Weaver"
+      },
+      {
+        "name": "Player 21",
+        "id": "p21",
+        "wins": 1,
+        "draws": 2,
+        "losses": 2,
+        "leader": "Kraum, Ludevic's Opus / Tymna the Weaver"
+      },
+      {
+        "name": "Player 22",
+        "id": "p22",
+        "wins": 2,
+        "draws": 2,
+        "losses": 2,
+        "leader": "Rograkh, Son of Rohgahh / Silas Renn, Seeker Adept"
+      },
+      {
+        "name": "Player 23",
+        "id": "p23",
+        "wins": 2,
+        "draws": 2,
+        "losses": 2,
+        "leader": "Dack Fayden, Helping Hand"
+      }
+    ]
+  }
+]
