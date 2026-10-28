@@ -85,6 +85,33 @@ endpoints.
 
 ---
 
+## Moxfield
+
+Decklists and deck search provided by [Moxfield](https://www.moxfield.com).
+
+Moxfield has no public API. This project calls the undocumented API that the
+Moxfield website uses. The
+[Moxfield Terms of Service](https://moxfield.com/help/terms) allow
+non-commercial personal use only. They forbid automated access without
+Moxfield's approval, which this project does not have. Each user is
+responsible for their own use. Set `MTG_MCP_ENABLE_MOXFIELD=false` to turn
+the `moxfield_` tools off. Every tool output links back to Moxfield.
+
+---
+
+## MTGGoldfish
+
+Metagame shares, archetype decklists, format staples and deck prices
+provided by [MTGGoldfish](https://www.mtggoldfish.com).
+
+MTGGoldfish has no API. This project reads its public HTML pages. The
+[MTGGoldfish Terms of Use](https://www.mtggoldfish.com/policies/terms-of-use)
+allow personal, non-commercial use only. Each user is responsible for their
+own use. Set `MTG_MCP_ENABLE_MTGGOLDFISH=false` to turn the `goldfish_`
+tools off. Every tool output links back to MTGGoldfish.
+
+---
+
 ## TopDeck.gg
 
 Tournament results, standings and decklists provided by

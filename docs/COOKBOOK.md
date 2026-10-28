@@ -600,4 +600,51 @@ You want to find decklists for inspiration.
 
 ---
 
+### Read the cEDH Tournament Metagame
+
+You play cEDH and want to know which commanders win paper tournaments.
+
+**Tools involved:**
+- `topdeck_metagame`
+- `topdeck_search_tournaments`
+- `topdeck_tournament`
+- `topdeck_player_deck`
+
+**Prompts:**
+
+> What are the top cEDH commanders in paper tournaments over the last 30 days?
+
+**Example output** (from `topdeck_metagame`)**:**
+
+```
+**EDH metagame** (last 30 days, tournaments with 16+ players)
+541 tournaments, 14186 entries. Deck known for 6613 (46.6%).
+Win rate = wins / (wins + draws + losses). Field average: 18.9%.
+
+| Deck | Entries | Share | Top cuts | Conversion | Win rate |
+|---|---|---|---|---|---|
+| Kraum, Ludevic's Opus / Tymna the Weaver | 544 | 8.2% | 141 | 28.4% | 21.4% |
+| Kinnan, Bonder Prodigy | 503 | 7.6% | 138 | 30.8% | 21.8% |
+| Rograkh, Son of Rohgahh / Thrasios, Triton Hero | 372 | 5.6% | 96 | 28.1% | 22.2% |
+| Sisay, Weatherlight Captain | 329 | 5.0% | 94 | 31.0% | 22.1% |
+| Rograkh, Son of Rohgahh / Silas Renn, Seeker Adept | 316 | 4.8% | 81 | 28.0% | 20.0% |
+| Thrasios, Triton Hero / Tymna the Weaver | 233 | 3.5% | 58 | 27.1% | 19.8% |
+| Vivi Ornitier | 153 | 2.3% | 32 | 23.2% | 17.1% |
+| Nick Fury, Agent of S.H.I.E.L.D. | 136 | 2.1% | 32 | 26.0% | 20.1% |
+```
+
+Find events to study:
+
+> List recent cEDH tournaments with at least 50 players.
+
+Look at the winning list:
+
+> Show me the winning decklist from that tournament.
+
+**What you get:** For each commander: entries, share of the decks that are known, top-cut entries, conversion rate into the top cut, and match win rate. A 4-player pod has a 25% baseline, and draws are common, so compare each win rate with the field average, not with 50%. The tournament tools give the standings and each player's full decklist.
+
+**Tips:** The `topdeck_` tools need a free API key: see [TopDeck.gg (optional)](../README.md#topdeckgg-optional). TopDeck's `EDH` format is cEDH; `Casual EDH` is a separate format. The tools also cover formats such as Modern, but TopDeck has few events outside EDH.
+
+---
+
 Full catalogue of tools, prompts, and resources: [TOOL_DESIGN.md](TOOL_DESIGN.md).
