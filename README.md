@@ -40,6 +40,14 @@ Settings are `MTG_MCP_` environment variables, all with working defaults (see `.
 claude mcp add mtg -e MTG_MCP_ENABLE_EDHREC=false -- uvx --from git+https://github.com/joaocarmo/mtg-mcp-server mtg-mcp-server
 ```
 
+### TopDeck.gg (optional)
+
+The `topdeck_` tools give tournament results, decklists and the cEDH metagame from [TopDeck.gg](https://topdeck.gg). They need a free API key from the [developer portal](https://topdeck.gg/developers), and appear only when it is set:
+
+```bash
+claude mcp add mtg -e MTG_MCP_TOPDECK_API_KEY=<your key> -- uvx --from git+https://github.com/joaocarmo/mtg-mcp-server mtg-mcp-server
+```
+
 ## Docs
 
 - [Cookbook](docs/COOKBOOK.md): example prompts with real output
@@ -48,7 +56,7 @@ claude mcp add mtg -e MTG_MCP_ENABLE_EDHREC=false -- uvx --from git+https://gith
 
 ## Data sources
 
-[Scryfall](https://scryfall.com), [Commander Spellbook](https://commanderspellbook.com), [17Lands](https://www.17lands.com), [EDHREC](https://edhrec.com), [Moxfield](https://www.moxfield.com) and [MTGGoldfish](https://www.mtggoldfish.com). Licences and usage terms: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[Scryfall](https://scryfall.com), [Commander Spellbook](https://commanderspellbook.com), [17Lands](https://www.17lands.com), [EDHREC](https://edhrec.com), [Moxfield](https://www.moxfield.com), [MTGGoldfish](https://www.mtggoldfish.com) and [TopDeck.gg](https://topdeck.gg). Licences and usage terms: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Disclaimer
 

@@ -13,6 +13,7 @@ Every data source evaluated, what it provides, and its status. Endpoints, auth, 
 | Moxfield | Public decklists, deck/user search. Collection data needs auth (unused) | Reverse-engineered REST | Fragile | Implemented, flagged |
 | Spicerack | Paper tournament results: standings, Swiss/bracket records, Moxfield decklist URLs (Modern, Legacy, Pauper, Pioneer, Standard, Premodern, Commander, …) | Documented REST | Defunct | Shut down 2026-05-27; removed |
 | MTGGoldfish | Constructed metagame shares, sample decklists, format staples, deck prices | HTML scraping (no API) | Fragile | Implemented, flagged |
+| TopDeck.gg | Paper tournament results: standings, W-D-L records, commanders (cEDH) or archetypes, decklists. Mostly EDH; few events in other formats | Documented REST, free per-user API key | Official | Implemented, mounted only with a key |
 | Archidekt | Public decks with categories and stats | Undocumented REST. Archidekt tolerates reverse-engineering but may lock it down if abused | Fragile | Deferred: EDHREC already aggregates Archidekt (and Moxfield) data |
 
 Existing MCP servers at evaluation time were basic Scryfall wrappers (pato/mtg-mcp, artillect/mtg-mcp-servers, ericraio/mtg-mcp); none covered Spellbook. Every client here is built in-house on httpx.

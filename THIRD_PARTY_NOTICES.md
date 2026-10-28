@@ -85,6 +85,17 @@ endpoints.
 
 ---
 
+## TopDeck.gg
+
+Tournament results, standings and decklists provided by
+[TopDeck.gg](https://topdeck.gg).
+
+Use of the API is subject to the
+[TopDeck.gg Developer Terms](https://topdeck.gg/developer-terms). Each user
+supplies their own API key, and every tool output links back to TopDeck.gg.
+
+---
+
 ## MTGJSON (historical)
 
 Bulk card data was originally provided by [MTGJSON](https://mtgjson.com). As of v2.0.0, MTGJSON has been replaced by Scryfall Oracle Cards bulk data. Attribution is retained here for historical versions.

@@ -11,7 +11,7 @@ A unified MCP server that exposes Magic: The Gathering data to AI assistants. Ea
 ```
 MCP client (Claude Code / Desktop / any) ── stdio
                      │
-        MTG Orchestrator — FastMCP("MTG"): 61 tools, 18 prompts, 5 resources
+        MTG Orchestrator — FastMCP("MTG"): 61 tools (65 with a TopDeck key), 18 prompts, 5 resources
                      │
    ├── Workflows (no namespace) — commander, draft/limited, deck building,
    │     constructed/metagame, sideboard, rules engine (see TOOL_DESIGN.md)
@@ -21,7 +21,8 @@ MCP client (Claude Code / Desktop / any) ── stdio
    ├── draft_      → 17lands.com                  card win rates, archetype stats
    ├── edhrec_     → json.edhrec.com (scraped)    commander staples, synergy
    ├── moxfield_   → api2.moxfield.com (rev-eng)  decklists, deck/user search
-   └── goldfish_   → mtggoldfish.com (HTML)       metagame, archetypes, staples, prices
+   ├── goldfish_   → mtggoldfish.com (HTML)       metagame, archetypes, staples, prices
+   └── topdeck_    → topdeck.gg/api (API key)     tournament results, decklists, metagame
 ```
 
 Per-backend endpoints, rate limits and feature flags: [SERVICE_CONTRACTS.md](SERVICE_CONTRACTS.md).
@@ -62,7 +63,7 @@ tests/               # Mirrors src/: services/, providers/, workflows/, utils/,
 
 ## 4. FastMCP patterns
 
-**Mounting** (`server.py`): `mcp.mount(scryfall_mcp, namespace="scryfall")` prefixes tools (`search_cards` → `scryfall_search_cards`). Feature-flagged backends mount conditionally. `mcp.mount(workflow_mcp)` mounts without a namespace. Each mounted server's lifespan runs when the parent starts.
+**Mounting** (`server.py`): `mcp.mount(scryfall_mcp, namespace="scryfall")` prefixes tools (`search_cards` → `scryfall_search_cards`). Feature-flagged backends mount conditionally. TopDeck.gg mounts only when `MTG_MCP_TOPDECK_API_KEY` is set. `mcp.mount(workflow_mcp)` mounts without a namespace. Each mounted server's lifespan runs when the parent starts.
 
 **Client lifecycle:** each provider creates its client in a `@lifespan`, constructed from `Settings()` so `MTG_MCP_*_BASE_URL` overrides apply. The client is stored in a module-level `_client` and read through `_get_client()`, which raises `RuntimeError` if the lifespan isn't running. See `providers/scryfall.py` for the template.
 
@@ -87,7 +88,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 
 **Logging:** `structlog.get_logger(service=...)`, debug events like `search` / `search.complete`, always to stderr (stdout is the MCP transport in stdio mode).
 
-**Configuration:** `config.py` / `.env.example`. Every setting uses the `MTG_MCP_` prefix and has a sensible default; no credentials are needed.
+**Configuration:** `config.py` / `.env.example`. Every setting uses the `MTG_MCP_` prefix and has a sensible default. The only credential is the optional TopDeck.gg API key (`MTG_MCP_TOPDECK_API_KEY`, a `SecretStr`).
 
 ## 6. Testing
 
@@ -108,7 +109,7 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 | Transport | stdio only, run locally | Claude Code/Desktop launch it as a subprocess; no hosted deployment to maintain |
 | Type checker | ty (beta) | Astral stack, speed |
 | HTTP mocking | respx | Clean async httpx mocking |
-| Namespaces | `scryfall_`, `bulk_`, `spellbook_`, `draft_`, `edhrec_`, `moxfield_`, `goldfish_`; workflows unprefixed | Avoid collisions; clean workflow names |
+| Namespaces | `scryfall_`, `bulk_`, `spellbook_`, `draft_`, `edhrec_`, `moxfield_`, `goldfish_`, `topdeck_`; workflows unprefixed | Avoid collisions; clean workflow names |
 | Settings wiring | `Settings()` in each lifespan | Base URLs overridable via env |
 | Errors | `ToolError` from `fastmcp.exceptions` | FastMCP handles `is_error` conversion |
 | Tool metadata | Shared `TOOL_ANNOTATIONS` + tag constants | All tools read-only/idempotent; tags group by domain (commander, draft, pricing, beta, …) |
@@ -123,5 +124,6 @@ All HTTP clients extend `BaseClient`: an `httpx.AsyncClient` with configurable t
 | Response limiting | Per-tool 30k middleware + global 100k | Safety net behind slim fields and limits |
 | Attribution | `ATTRIBUTION_*` constants appended to output | Data-source compliance |
 | Fragile sources | EDHREC, Moxfield, MTGGoldfish behind flags, tagged beta, cached aggressively | Undocumented/scraped; can break without notice |
+| TopDeck.gg | Mounted only with an API key; no workflow uses it | Keys are free but per user, and the terms forbid shipping one. Without a key the tools could only fail |
 | HTML parsing | selectolax | Fast, tiny; used only by `services/mtggoldfish.py` |
 | Parallel development | Worktree agents on exclusive files; shared files scaffolded first | Agents rewrite whole files; see CLAUDE.md Git Workflow |

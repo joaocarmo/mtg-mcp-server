@@ -109,6 +109,15 @@ MTGGoldfish scrapes HTML — SKIP on error, don't fail the overall test.
 
 Moxfield uses undocumented endpoints; SKIP on error, don't fail the overall test.
 
+### 11b. TopDeck.gg (only when `MTG_MCP_TOPDECK_API_KEY` is set; sequential)
+
+1. `topdeck_metagame(format="EDH", limit=5)`: expect a table of commanders with entries, share, top cuts, conversion and win rate
+2. `topdeck_search_tournaments(format="EDH", limit=3)`: expect 3 tournaments with IDs and winners
+3. `topdeck_tournament(tid=<first ID from step 2>, top=4)`: expect 4 ranked rows with player IDs
+4. `topdeck_player_deck(tid=<same ID>, player_id=<first player ID from step 3>)`: expect a record, and a decklist or "No decklist is public"
+
+SKIP the section if the `topdeck_` tools are not listed (no key).
+
 ### 12. Metagame Workflows (sequential — need format data)
 
 1. `metagame_snapshot(format="modern")` — expect tiered archetype list with meta shares, T1/T2/T3 labels
@@ -159,11 +168,12 @@ Compare results from step 1 (`scryfall_card_details("Sol Ring")`) and step 2 (`b
 | Deck Building | 4 | | | |
 | MTGGoldfish | 3 | | | |
 | Moxfield | 3 | | | |
+| TopDeck.gg | 4 | | | |
 | Metagame | 3 | | | |
 | Sideboard | 3 | | | |
 | Commander Depth | 2 | | | |
 | Consistency | 1 | | | |
-| **Total** | **43** | | | |
+| **Total** | **47** | | | |
 
 ### Failures
 [Details for each FAIL — what was expected vs actual]

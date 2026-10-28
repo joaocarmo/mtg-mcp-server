@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- TopDeck.gg backend with 4 tools: `topdeck_search_tournaments`, `topdeck_tournament`, `topdeck_player_deck` and `topdeck_metagame`. They give completed tournament results, standings, decklists and the commander or archetype metagame with top-cut conversion. The tools appear only when `MTG_MCP_TOPDECK_API_KEY` is set; keys are free from the [TopDeck.gg developer portal](https://topdeck.gg/developers).
+
 ## [5.1.3] - 2026-10-27
 
 v5.1.3 recognises more colour hoser wordings in the sideboard guide and matrix.

@@ -7,7 +7,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 - Every tool returns markdown (`content`) plus a structured `data` dict (`structured_content`).
 - `fmt` below means `response_format: "detailed" | "concise" = "detailed"`. All workflow tools accept it.
 - `limit: 0` means "all" where noted.
-- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 61 tools.
+- The orchestrator also exposes `ping` (health check; returns plain text "pong", no structured data), which brings the total to 61 tools. The 4 `topdeck_` tools add to that when a TopDeck.gg key is set (65).
 
 ---
 
@@ -58,6 +58,17 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | `goldfish_metagame` | `format`, `fmt` | Archetypes: rank, name, meta %, decks, paper price | `get_metagame()` |
 | `goldfish_archetype_list` | `format`, `archetype` ("Boros Energy"), `fmt` | Deck metadata (author, event, result, date) + main and sideboard | `get_archetype()` |
 | `goldfish_format_staples` | `format`, `limit=20`, `fmt` | Rank, name, % of decks, avg copies | `get_format_staples()` |
+
+## TopDeck.gg (`topdeck_`, needs `MTG_MCP_TOPDECK_API_KEY`)
+
+Completed tournaments only. `format` uses TopDeck's names, case-insensitive (`EDH` is cEDH; `Casual EDH` is separate). Commander formats report each player's commander; other formats report the archetype once decklists are public.
+
+| Tool | Inputs | Output | Backend |
+|------|--------|--------|---------|
+| `topdeck_search_tournaments` | `format`, `days=30` (max 90), `min_players=16`, `limit=20` | Newest first: name, ID, date, players, top cut, place, winner and their deck | `search_tournaments()` |
+| `topdeck_tournament` | `tid`, `top=16` | Date, players, Swiss rounds, top cut, location, then rank, player name and ID, W-D-L, deck | `get_tournament()` |
+| `topdeck_player_deck` | `tid`, `player_id` | Swiss and top-cut records, win rate, deck name, decklist by section | `get_player()` |
+| `topdeck_metagame` | `format`, `days=30` (max 90), `min_players=16`, `limit=25` | Per commander or archetype: entries, share of known decks, top cuts, conversion, match win rate; coverage of known decks | `search_tournaments()` |
 
 ## Scryfall bulk data (`bulk_`)
 
