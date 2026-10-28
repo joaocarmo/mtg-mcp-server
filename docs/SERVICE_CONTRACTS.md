@@ -1,4 +1,4 @@
-# MTG MCP Server — Service Contracts
+# MTG MCP Server: Service Contracts
 
 Endpoints, auth, rate limits and response quirks for each backend. Full response shapes are in the captured fixtures under `tests/fixtures/<service>/`. Cache TTLs: [CACHING_DESIGN.md](CACHING_DESIGN.md).
 
@@ -11,7 +11,7 @@ Endpoints, auth, rate limits and response quirks for each backend. Full response
 | Spellbook | `backend.commanderspellbook.com` | none | undocumented; ~3 req/s, back off on 429 | always on | Official, open source (MIT) |
 | 17Lands | `www.17lands.com` | none | 1 req/s max, aggressive limiting | `ENABLE_17LANDS` | Unofficial, stable for years |
 | EDHREC | `json.edhrec.com` | none | self-imposed 0.5 req/s | `ENABLE_EDHREC` | Reverse-engineered, fragile |
-| Moxfield | `api2.moxfield.com` | Moxfield/browser-style UA (bot UAs blocked) | self-imposed 1 req/s | `ENABLE_MOXFIELD` | Reverse-engineered, fragile |
+| Moxfield | `api2.moxfield.com` | `User-Agent: mtg-mcp-server/<version>` | self-imposed 1 req/s | `ENABLE_MOXFIELD` | Reverse-engineered, fragile |
 | MTGGoldfish | `www.mtggoldfish.com` | browser-like UA (403 otherwise) | self-imposed 0.5 req/s | `ENABLE_MTGGOLDFISH` | HTML scraping, fragile |
 | TopDeck.gg | `topdeck.gg/api` | `Authorization: <key>` (free key, per user) | 100 req/min (bulk search lower, unpublished); client 1.5 req/s | key set (`TOPDECK_API_KEY`) | Official, documented |
 | Comp. Rules | `media.wizards.com/…/MagicCompRules%20<date>.txt`, discovered from `magic.wizards.com/en/rules` (fallback `RULES_URL`) | none | n/a (file) | `ENABLE_RULES` | Official |
@@ -135,7 +135,7 @@ Errors: `TopDeckError(ServiceError)` → `TournamentNotFoundError` (empty TID re
 
 ## Comprehensive Rules
 
-Plain-text file, updated ~4×/year. `RulesService` (file-based) downloads it lazily and parses it into:
+Plain-text file, updated about 4 times a year. `RulesService` (file-based) downloads it lazily and parses it into:
 - a rules index (`"704.5k"` → `Rule{number, text, parent_number, subrules}`)
 - a glossary (lowercase term → definition)
 - a sections index (`"7"` → "Additional Rules")

@@ -16,9 +16,9 @@ If you discover a security vulnerability in this project, please report it throu
 
 ### Response Timeline
 
-- **Acknowledgment**: Within 48 hours of report submission
+- **Acknowledgement**: Within 48 hours of report submission
 - **Assessment**: Within 1 week
-- **Fix**: Depends on severity; critical issues prioritized
+- **Fix**: Depends on severity; critical issues prioritised
 
 ## Scope
 
@@ -28,23 +28,20 @@ If you discover a security vulnerability in this project, please report it throu
 - Environment variable exposure (e.g., `.env` files committed to version control)
 - Input validation issues in tool parameters
 - Logging of sensitive data to stderr
+- Leaks of the TopDeck.gg API key into logs or tool output
 
 ### Out of Scope
 
-All upstream APIs used by this server are public and require no authentication tokens:
+Vulnerabilities in the upstream services: Scryfall, Commander Spellbook, 17Lands, EDHREC, Moxfield, MTGGoldfish, TopDeck.gg and the Comprehensive Rules download from Wizards of the Coast. Report those to the service.
 
-- Scryfall (public API and bulk data downloads, requires only User-Agent header)
-- Commander Spellbook (public API)
-- 17Lands (public data endpoints)
-- EDHREC (public JSON endpoints)
-- Comprehensive Rules (public file download from Wizards of the Coast)
+## Credentials
 
-There are no API keys, OAuth tokens, or credentials stored or transmitted by this server.
+Every backend except TopDeck.gg is public and needs no credentials. The `topdeck_` tools need a TopDeck.gg API key, which each user supplies in `MTG_MCP_TOPDECK_API_KEY`. The server holds it as a pydantic `SecretStr` and sends it only in the `Authorization` header of requests to the TopDeck.gg API. It never logs the key.
 
 ## Dependency Auditing
 
 This project uses `pip-audit` to check for known vulnerabilities in dependencies.
-Run it locally (requires dev dependencies, installed by default with `uv sync`):
+Run it locally (it is a dev dependency, installed by `mise run setup`):
 
 ```bash
 uv run pip-audit

@@ -84,7 +84,7 @@ The server identifies the weakest cards by synergy score and pairs each cut with
 >
 > (paste updated decklist)
 
-**What you get:** Ranked swap pairs (cut this, add that) with reasoning. The server scores each card by EDHREC synergy and inclusion rate, protects combo pieces, and suggests replacements ranked by synergy improvement. This is followed by a legality check covering deck size, color identity, copy limits, and banned cards.
+**What you get:** Ranked swap pairs (cut this, add that) with reasoning. The server scores each card by EDHREC synergy and inclusion rate, protects combo pieces, and suggests replacements ranked by synergy improvement. This is followed by a legality check covering deck size, colour identity, copy limits, and banned cards.
 
 **Tips:** Adjust the budget parameter by being specific: "under $50 total" or "no card over $5". Use the `upgrade_precon` prompt for a guided multi-step session.
 
@@ -110,7 +110,7 @@ Start with the big picture:
 
 Identify your theme:
 
-> Search for cards with a "proliferate" theme in WUBG colors, legal in Commander, under $5 each.
+> Search for cards with a "proliferate" theme in WUBG colours, legal in Commander, under $5 each.
 
 **Example output** (from `theme_search`)**:**
 
@@ -128,7 +128,7 @@ Theme: counters (mapped from "proliferate")
 
 Build around your key pieces:
 
-> Find cards that synergize with Atraxa, Deepglow Skate, and Doubling Season for Commander.
+> Find cards that synergise with Atraxa, Deepglow Skate, and Doubling Season for Commander.
 
 Fill gaps in your partial list:
 
@@ -144,7 +144,7 @@ Validate everything:
 
 > Validate this decklist for Commander with Atraxa, Praetors' Voice.
 
-**What you get:** A complete 100-card deck built step by step -- theme cards, synergy pieces, gap analysis with category suggestions (removal, card draw, ramp), land base with dual land recommendations, and a final legality check.
+**What you get:** A complete 100-card deck built step by step: theme cards, synergy pieces, gap analysis with category suggestions (removal, card draw, ramp), land base with dual land recommendations, and a final legality check.
 
 **Tips:** The `build_deck` prompt walks you through this entire flow interactively. You can also use `tribal_staples` instead of `theme_search` if building a tribal deck.
 
@@ -274,7 +274,7 @@ Rank  Card                 Color  GIH WR   ALSA   IWD      Games
   ...and 25 more rares/mythics below 54.7%
 ```
 
-> What are the best color pair archetypes in Foundations? Use dates from February 1 to March 15, 2025.
+> What are the best colour pair archetypes in Foundations? Use dates from 1 February to 15 March 2025.
 
 **Tips:** The `draft_strategy` prompt gives you a structured study session including heuristic thresholds for what counts as a good ALSA or IWD. Use `keyword_explain` if you encounter unfamiliar set mechanics.
 
@@ -304,7 +304,7 @@ Rank  Card             Color  Rarity    GIH WR   ALSA   IWD      Games
 No 17Lands data: Pacifism, Air Elemental, Mind Rot, Cancel, Elite Vanguard
 ```
 
-**Tips:** Include your current picks for on/off-color tagging. Cards with fewer than 500 games in the 17Lands dataset will show "no data." Use the full card name as printed -- 17Lands uses Arena card names which may differ from some reprints.
+**Tips:** Include your current picks for on/off-colour tagging. Cards with fewer than 500 games in the 17Lands dataset will show "no data." Use the full card name as printed. 17Lands uses Arena card names, which may differ from some reprints.
 
 ---
 
@@ -321,11 +321,11 @@ You opened your sealed pool and need help building the best 40-card deck.
 >
 > Serra Angel, Pacifism, Air Elemental, Llanowar Elves, Giant Growth, ... (list all 84-90 cards)
 
-**What you get:** Up to 3 two-color build suggestions ranked by total card quality score, with each build showing the full card list grouped by type, mana curve, and counts of bombs and removal. Scoring uses 17Lands GIH Win Rate data when available, with a heuristic fallback.
+**What you get:** Up to 3 two-colour build suggestions ranked by total card quality score, with each build showing the full card list grouped by type, mana curve, and counts of bombs and removal. Scoring uses 17Lands GIH Win Rate data when available, with a heuristic fallback.
 
 ---
 
-### Review Your Draft Afterward
+### Review Your Draft Afterwards
 
 You want to learn from a completed draft.
 
@@ -339,11 +339,11 @@ You want to learn from a completed draft.
 >
 > Serra Angel, Pacifism, Air Elemental, ... (list all 42 picks in draft order)
 
-Then analyze what signals you may have missed:
+Then analyse what signals you may have missed:
 
 > Read the draft signals from those same picks for Foundations.
 
-**What you get:** A pick-by-pick table with each card's GIH Win Rate and a verdict (great pick, fine, questionable), an average quality score, and a letter grade (A through F). The signal read shows which colors were open based on ALSA data and whether you stayed in the right lane.
+**What you get:** A pick-by-pick table with each card's GIH Win Rate and a verdict (great pick, fine, questionable), an average quality score, and a letter grade (A through F). The signal read shows which colours were open based on ALSA data and whether you stayed in the right lane.
 
 **Tips:** The `draft_review` prompt chains both tools together automatically.
 
@@ -382,11 +382,11 @@ Legality issues: None
 Copy limit violations: None
 ```
 
-If it passes, optimize the lands:
+If it passes, optimise the lands:
 
 > Suggest a mana base for this Modern decklist.
 
-**What you get:** A VALID/INVALID verdict with specific issues (banned cards, too many copies, wrong deck size), followed by a land base recommendation showing color pip analysis, basic land counts, and format-legal dual land suggestions.
+**What you get:** A VALID/INVALID verdict with specific issues (banned cards, too many copies, wrong deck size), followed by a land base recommendation showing colour pip analysis, basic land counts, and format-legal dual land suggestions.
 
 **Tips:** For Commander, include the commander name: "Validate this for Commander with Muldrotha as commander." For Pauper, the validator also checks rarity restrictions. Use `rotation_check` to see which cards are about to rotate out of Standard.
 
@@ -402,7 +402,7 @@ Your deck feels off and you want a comprehensive health check.
 
 **Prompts:**
 
-> Analyze this Commander deck with Muldrotha as commander:
+> Analyse this Commander deck with Muldrotha as commander:
 >
 > 1 Muldrotha, the Gravetide
 > 1 Sol Ring
@@ -429,9 +429,9 @@ Rank  Card                 Score   Synergy  Inclusion  Combo?
 Higher score = more cuttable. Combo pieces are protected (score -2.0).
 ```
 
-**What you get:** A full health report with mana curve distribution, color pip requirements, combo and bracket analysis, total deck budget, the 5 lowest-synergy cards, and a data sources summary. The cut suggestions rank cards by synergy and inclusion rate while protecting combo pieces.
+**What you get:** A full health report with mana curve distribution, colour pip requirements, combo and bracket analysis, total deck budget, the 5 lowest-synergy cards, and a data sources summary. The cut suggestions rank cards by synergy and inclusion rate while protecting combo pieces.
 
-**Tips:** The `deck_health_check` prompt runs both analyses together and provides prioritized recommendations. Follow up with `budget_upgrade` to find replacements for the cards you cut.
+**Tips:** The `deck_health_check` prompt runs both analyses together and provides prioritised recommendations. Follow up with `budget_upgrade` to find replacements for the cards you cut.
 
 ---
 
@@ -495,7 +495,7 @@ Ward (Rule 702.21)
 opponent controls, counter that spell or ability unless that player
 pays [cost]." (702.21a)
 
-Ward is a triggered ability, not a static one — it goes on the stack
+Ward is a triggered ability, not a static one, so it goes on the stack
 and can be responded to. The cost varies by card (mana, life, discard, etc.).
 
 Note: Ward only triggers from opponents' spells/abilities. Your own spells
@@ -573,9 +573,9 @@ For the full matrix:
 
 > Generate a sideboard matrix for my deck across the top Modern matchups.
 
-**What you get:** `suggest_sideboard` provides up to 15 categorized cards (graveyard hate, removal, counterspells, etc.) that the deck can cast, with format staple markers. `sideboard_guide` gives an in/out plan with reasoning per card. `sideboard_matrix` shows a grid with each sideboard card vs. each matchup as IN/OUT/FLEX.
+**What you get:** `suggest_sideboard` provides up to 15 categorised cards (graveyard hate, removal, counterspells, etc.) that the deck can cast, with format staple markers. `sideboard_guide` gives an in/out plan with reasoning per card. `sideboard_matrix` shows a grid with each sideboard card vs. each matchup as IN/OUT/FLEX.
 
-**Tips:** The `build_constructed_deck` prompt walks through the full flow from metagame analysis to sideboard construction. Archetype names use fuzzy matching -- "boros energy" and "Boros Energy" both work.
+**Tips:** The `build_constructed_deck` prompt walks through the full flow from metagame analysis to sideboard construction. Archetype names use fuzzy matching: "boros energy" and "Boros Energy" both work.
 
 ---
 
@@ -596,8 +596,8 @@ You want to find decklists for inspiration.
 
 > Fetch the decklist from this Moxfield URL: https://www.moxfield.com/decks/abc123
 
-**What you get:** Paginated deck search results with format, author, colors, and dates. User deck listings. Full decklists organized by board (mainboard, sideboard, commanders).
+**What you get:** Paginated deck search results with format, author, colours and dates. User deck listings. Full decklists organised by board (mainboard, sideboard, commanders).
 
 ---
 
-Full catalog of tools, prompts, and resources: [TOOL_DESIGN.md](TOOL_DESIGN.md).
+Full catalogue of tools, prompts, and resources: [TOOL_DESIGN.md](TOOL_DESIGN.md).

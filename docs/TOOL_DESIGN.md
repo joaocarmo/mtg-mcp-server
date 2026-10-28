@@ -1,4 +1,4 @@
-# MTG MCP Server — Tool Catalog
+# MTG MCP Server: Tool Catalogue
 
 Every tool, prompt and resource the server exposes. Namespaced tools come from mounted backends; unprefixed tools are workflow tools on the orchestrator.
 
@@ -16,7 +16,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
 | `scryfall_search_cards` | `query` (Scryfall syntax, e.g. `f:commander id:sultai t:creature cmc<=3`), `page=1`, `limit=30` (0=all), `fmt` | Matching cards (name, type, mana, price) + pagination; slim card fields | `search_cards()` |
-| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colors, identity, legalities (legal, banned, restricted), prices (USD, USD foil, EUR), set, rarity, EDHREC rank | `get_card_by_name()` |
+| `scryfall_card_details` | `name`, `fuzzy=false` | Full card: mana, type, oracle text, colours, identity, legalities (legal, banned, restricted), prices (USD, USD foil, EUR), set, rarity, EDHREC rank | `get_card_by_name()` |
 | `scryfall_card_rulings` | `name` | Rulings with dates and sources | `get_card_by_name()` → `get_rulings()` |
 | `scryfall_set_info` | `set_code` (e.g. "dom") | Name, code, release date, type, card count, icon URI | `get_set()` |
 
@@ -33,14 +33,14 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
-| `draft_card_ratings` | `set_code` ("LCI"), `event_type="PremierDraft"`, `limit=50` (0=all), `sort_by="gih_wr"` (also `alsa`, `iwd`, `name`), `fmt` | Per card: color, rarity, GIH WR, ALSA, IWD, games; slim rating fields | `card_ratings()` |
-| `draft_archetype_stats` | `set_code`, `start_date`, `end_date` (YYYY-MM-DD, **required**), `event_type="PremierDraft"` | Win rate and games per color combination, incl. mono-colour and summary rows | `color_ratings()` |
+| `draft_card_ratings` | `set_code` ("LCI"), `event_type="PremierDraft"`, `limit=50` (0=all), `sort_by="gih_wr"` (also `alsa`, `iwd`, `name`), `fmt` | Per card: colour, rarity, GIH WR, ALSA, IWD, games; slim rating fields | `card_ratings()` |
+| `draft_archetype_stats` | `set_code`, `start_date`, `end_date` (YYYY-MM-DD, **required**), `event_type="PremierDraft"` | Win rate and games per colour combination, incl. mono-colour and summary rows | `color_ratings()` |
 
 ## EDHREC (`edhrec_`)
 
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
-| `edhrec_commander_staples` | `commander_name`, `category=None` ("creatures", "lands", …), `limit=10` per category (0=all), `fmt` | Top cards with synergy, inclusion %, decks analyzed; slim EDHREC fields | `commander_top_cards()` |
+| `edhrec_commander_staples` | `commander_name`, `category=None` ("creatures", "lands", …), `limit=10` per category (0=all), `fmt` | Top cards with synergy, inclusion %, decks analysed; slim EDHREC fields | `commander_top_cards()` |
 | `edhrec_card_synergy` | `card_name`, `commander_name` | Synergy, inclusion %, deck count, signature-card flag | `card_synergy()` |
 
 ## Moxfield (`moxfield_`, tag: beta)
@@ -48,7 +48,7 @@ Every tool, prompt and resource the server exposes. Namespaced tools come from m
 | Tool | Inputs | Output | Backend |
 |------|--------|--------|---------|
 | `moxfield_decklist` | `deck_id` (ID or full URL) | Author, description, dates, URL, then decklist by board (commanders, main, side, companions); structured metadata + per-board lists | `get_deck()` |
-| `moxfield_search_decks` | `query=None`, `format=None`, `sort="Updated"` (also "Created", "Views"), `page=1`, `page_size=20` | Paginated summaries: name, format, author, colors, counts, URL | `search_decks()` |
+| `moxfield_search_decks` | `query=None`, `format=None`, `sort="Updated"` (also "Created", "Views"), `page=1`, `page_size=20` | Paginated summaries: name, format, author, colours, counts, URL | `search_decks()` |
 | `moxfield_user_decks` | `username`, `format=None` | User's public decks; verifies the user exists first | `search_users()` + `search_decks()` |
 
 ## MTGGoldfish (`goldfish_`, tag: beta)
@@ -110,7 +110,7 @@ Implemented as pure async functions in `workflows/` and wrapped in `workflows/se
 
 | Tool | Inputs | Output | Backends |
 |------|--------|--------|----------|
-| `draft_pack_pick` | `pack`, `set_code`, `current_picks=None` | Table ranked by GIH WR with color, rarity, ALSA, IWD, games; `[on-color]`/`[off-color]` when picks are given; "No data" section | 17Lands (req; it already has name, colour and rarity, so no Scryfall) |
+| `draft_pack_pick` | `pack`, `set_code`, `current_picks=None` | Table ranked by GIH WR with colour, rarity, ALSA, IWD, games; `[on-color]`/`[off-color]` when picks are given; "No data" section | 17Lands (req; it already has name, colour and rarity, so no Scryfall) |
 | `set_overview` | `set_code`, `event_type="PremierDraft"` | Median GIH WR, top 10 commons and uncommons, trap rares/mythics (below median). Progress ×2 | 17Lands (req) |
 | `sealed_pool_build` | `pool` (84-90 names), `set_code` | Top 1-3 two-colour 40-card builds: list by type, curve, removal/bomb counts. Scored by GIH WR, with a heuristic fallback (rarity, bomb/removal detection). Progress ×3 | Bulk (req), 17Lands |
 | `draft_signal_read` | `picks` (in order), `set_code`, `current_pack=None` | Colour commitment, ALSA openness per colour, recommended direction, optional pack ranking | Bulk + 17Lands (req) |
@@ -177,7 +177,7 @@ Each prompt returns step-by-step instructions that chain the tools listed.
 | `upgrade_precon` | `commander`, `budget` | `commander_overview` → `deck_analysis` → `suggest_cuts` → `precon_upgrade` → `deck_validate` |
 | `draft_review` | `set_code` | `draft_log_review` → `draft_signal_read` |
 | `compare_commanders` | `commanders` | `commander_comparison` → combos → staples |
-| `rotation_plan` | — | `rotation_check` → `bulk_similar_cards` → `price_comparison` |
+| `rotation_plan` | none | `rotation_check` → `bulk_similar_cards` → `price_comparison` |
 | `explore_format` | `format` | `metagame_snapshot` → `archetype_decklist` → `format_entry_guide` |
 | `build_constructed_deck` | `concept`, `format`, `budget=None` | `metagame_snapshot` → `archetype_decklist` (if matching) → `suggest_sideboard` → `deck_validate` |
 

@@ -14,7 +14,7 @@ mise run check     # verify: lint + typecheck + tests
 
 ## Workflow
 
-Test-driven: write a failing test against a fixture or mock, implement, iterate with `mise run test:quick` (pytest-testmon re-runs only affected tests), then `mise run check` before opening a PR.
+Work test-first. Write a failing test against a fixture or mock, then implement. Iterate with `mise run test:quick`, which re-runs only the affected tests (pytest-testmon). Run `mise run check` before you open a PR.
 
 | Command | Purpose |
 |---------|---------|
@@ -36,7 +36,7 @@ Test-driven: write a failing test against a fixture or mock, implement, iterate 
 
 ## Testing
 
-- **Services:** mock httpx with [respx](https://github.com/lundberg/respx) against fixtures in `tests/fixtures/` (captured real responses). Never hit live APIs.
+- **Services:** mock httpx with [respx](https://github.com/lundberg/respx) against fixtures in `tests/fixtures/` (captured real responses). Only `tests/live/` calls real APIs.
 - **Providers:** `fastmcp.Client(transport=server)` in memory.
 - **Workflows:** `unittest.mock.AsyncMock` clients (workflows are pure functions).
 - Copy the pattern from an existing test in the matching `tests/` subdirectory.
