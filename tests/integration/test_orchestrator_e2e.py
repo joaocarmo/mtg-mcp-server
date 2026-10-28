@@ -29,7 +29,7 @@ class TestToolRegistration:
         # 1 ping + 4 scryfall + 4 spellbook + 2 draft + 2 edhrec + 3 moxfield + 3 goldfish + 8 bulk + 29 workflows + 5 rules = 61
         # (+ 4 topdeck when MTG_MCP_TOPDECK_API_KEY is set)
         key = Settings().topdeck_api_key
-        expected = 61 + (4 if key and key.get_secret_value() else 0)
+        expected = 61 + (4 if key else 0)
         assert len(tools) == expected, (
             f"Expected {expected} tools, got {len(tools)}.\nTools: {tool_names}"
         )

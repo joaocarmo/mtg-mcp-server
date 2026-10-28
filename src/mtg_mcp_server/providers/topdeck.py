@@ -358,6 +358,11 @@ async def metagame(
         raise _tool_error(exc) from exc
 
     entries, known, decks = _aggregate_metagame(tournaments)
+    # Draws count as games, so the field average sits below 25% (pods) or 50% (1v1).
+    field = [s for t in tournaments for s in t.standings]
+    field_win_rate = _pct(
+        sum(s.wins for s in field), sum(s.wins + s.draws + s.losses for s in field)
+    )
 
     fmt = tournaments[0].format if tournaments else format
     lines = [f"**{fmt} metagame** (last {days} days, tournaments with {min_players}+ players)"]
@@ -370,7 +375,7 @@ async def metagame(
         )
         lines.append(
             "Win rate = wins / (wins + draws + losses). "
-            "The baseline is 25% in 4-player pods (EDH) and 50% in 1v1 formats."
+            f"Field average: {_show_pct(field_win_rate)}."
         )
         lines.append("")
         lines.append("| Deck | Entries | Share | Top cuts | Conversion | Win rate |")
@@ -390,6 +395,7 @@ async def metagame(
             "tournaments": len(tournaments),
             "entries": entries,
             "known_entries": known,
+            "field_win_rate": field_win_rate,
             "decks": decks[:limit],
         },
     )

@@ -101,7 +101,6 @@ class TopDeckClient(BaseClient):
         self._client.headers["Authorization"] = self._api_key
         return self
 
-    @async_cached(_search_cache)
     async def search_tournaments(
         self, fmt: str, days: int = 30, min_players: int | None = None
     ) -> list[TopDeckTournament]:
@@ -118,15 +117,17 @@ class TopDeckClient(BaseClient):
         Raises:
             TopDeckError: On an unknown format or API errors.
         """
-        body: dict[str, object] = {
-            "game": GAME,
-            "format": resolve_format(fmt),
-            "last": days,
-            "columns": _COLUMNS,
-        }
+        # Resolve before the cached call so "edh" and "EDH" share one cache entry.
+        return await self._search(resolve_format(fmt), days, min_players)
+
+    @async_cached(_search_cache)
+    async def _search(
+        self, fmt: str, days: int, min_players: int | None
+    ) -> list[TopDeckTournament]:
+        body: dict[str, object] = {"game": GAME, "format": fmt, "last": days, "columns": _COLUMNS}
         if min_players is not None:
             body["participantMin"] = min_players
-        log.debug("search_tournaments", format=body["format"], days=days, min_players=min_players)
+        log.debug("search_tournaments", format=fmt, days=days, min_players=min_players)
         tournaments = await self._post_tournaments(body)
         # The API also returns organizers' test events dated years ahead.
         now = time.time()

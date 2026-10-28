@@ -121,7 +121,7 @@ if _settings.enable_bulk_data:
 if _settings.enable_mtggoldfish:
     mcp.mount(mtggoldfish_mcp, namespace="goldfish")
 # TopDeck.gg needs a per-user API key; without one its tools could only fail.
-if _settings.topdeck_api_key and _settings.topdeck_api_key.get_secret_value():
+if _settings.topdeck_api_key:  # SecretStr("") is falsy
     mcp.mount(topdeck_mcp, namespace="topdeck")
 
 # Workflow tools mounted without namespace for clean names.

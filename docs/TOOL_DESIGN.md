@@ -68,7 +68,7 @@ Completed tournaments only. `format` uses TopDeck's names, case-insensitive (`ED
 | `topdeck_search_tournaments` | `format`, `days=30` (max 90), `min_players=16`, `limit=20` | Newest first: name, ID, date, players, top cut, place, winner and their deck | `search_tournaments()` |
 | `topdeck_tournament` | `tid`, `top=16` | Date, players, Swiss rounds, top cut, location, then rank, player name and ID, W-D-L, deck | `get_tournament()` |
 | `topdeck_player_deck` | `tid`, `player_id` | Swiss and top-cut records, win rate, deck name, decklist by section | `get_player()` |
-| `topdeck_metagame` | `format`, `days=30` (max 90), `min_players=16`, `limit=25` | Per commander or archetype: entries, share of known decks, top cuts, conversion, match win rate; coverage of known decks | `search_tournaments()` |
+| `topdeck_metagame` | `format`, `days=30` (max 90), `min_players=16`, `limit=25` | Per commander or archetype: entries, share of known decks, top cuts, conversion, match win rate; coverage of known decks and the field-average win rate | `search_tournaments()` |
 
 ## Scryfall bulk data (`bulk_`)
 

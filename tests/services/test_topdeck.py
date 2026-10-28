@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import httpx
@@ -79,13 +80,14 @@ class TestSearchTournaments:
 
     @respx.mock
     async def test_parses_and_drops_future_events(self, client: TopDeckClient):
-        respx.post(f"{BASE_URL}/v2/tournaments").mock(
-            return_value=httpx.Response(200, json=_load_fixture("bulk_edh.json"))
-        )
+        events = _load_fixture("bulk_edh.json")
+        assert isinstance(events, list)
+        # The fixture's third event is a test event dated ahead; keep it in the future.
+        events[2]["startDate"] = int(time.time()) + 10**7
+        respx.post(f"{BASE_URL}/v2/tournaments").mock(return_value=httpx.Response(200, json=events))
 
         result = await client.search_tournaments("EDH")
 
-        # The fixture's third event is a test event dated 2030.
         assert [t.tid for t in result] == [
             "animal-house-cards-cedh-piloting-practice-372",
             TID,
@@ -142,7 +144,7 @@ class TestSearchTournaments:
             return_value=httpx.Response(200, json=[])
         )
 
-        await client.search_tournaments("EDH", days=30, min_players=16)
+        await client.search_tournaments("edh", days=30, min_players=16)
         await client.search_tournaments("EDH", days=30, min_players=16)
 
         assert route.call_count == 1

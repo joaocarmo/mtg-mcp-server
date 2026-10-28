@@ -382,7 +382,7 @@ class TestToolSchemaCompleteness:
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
         key = Settings().topdeck_api_key
-        expected = 61 + (4 if key and key.get_secret_value() else 0)
+        expected = 61 + (4 if key else 0)
         assert len(tools) == expected, (
             f"Expected {expected} tools, got {len(tools)}.\nTools: {tool_names}"
         )

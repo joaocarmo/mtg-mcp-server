@@ -191,6 +191,7 @@ class TestMetagame:
         assert sc["tournaments"] == 2
         assert sc["entries"] == 40
         assert sc["known_entries"] == 22
+        assert sc["field_win_rate"] == 33.0
         # Kraum/Tymna: 6 rows in the 16-cut event, at ranks 1, 10, 12, 13, 15 and 18.
         # Records 5-1-2, 2-4-1, 2-3-2, 2-3-2, 2-3-2, 1-2-2.
         top = sc["decks"][0]
@@ -205,7 +206,7 @@ class TestMetagame:
         assert "**EDH metagame** (last 30 days, tournaments with 16+ players)" in text
         assert "40 entries. Deck known for 22 (55.0%)." in text
         assert f"| {KRAUM_TYMNA} | 6 | 27.3% | 5 | 83.3% | 34.1% |" in text
-        assert "The baseline is 25% in 4-player pods" in text
+        assert "Field average: 33.0%." in text  # 66 / (66 + 54 + 80) over all 40 rows
 
     @respx.mock
     async def test_archetype_formats(self, client: Client):
