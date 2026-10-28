@@ -11,6 +11,8 @@ import httpx
 import pytest
 import respx
 
+from mtg_mcp_server.config import Settings
+
 if TYPE_CHECKING:
     from fastmcp import Client
 
@@ -379,7 +381,11 @@ class TestToolSchemaCompleteness:
         """Server exposes the expected number of tools."""
         tools = await mcp_client.list_tools()
         tool_names = sorted(t.name for t in tools)
-        assert len(tools) == 61, f"Expected 61 tools, got {len(tools)}.\nTools: {tool_names}"
+        key = Settings().topdeck_api_key
+        expected = 61 + (4 if key and key.get_secret_value() else 0)
+        assert len(tools) == expected, (
+            f"Expected {expected} tools, got {len(tools)}.\nTools: {tool_names}"
+        )
 
     async def test_no_context_parameter_exposed(self, mcp_client: Client):
         """No tool should expose 'ctx' (Context) as a user-visible parameter."""

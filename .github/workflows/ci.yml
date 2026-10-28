@@ -68,6 +68,8 @@ jobs:
 
       - name: Live smoke tests (real server + real APIs)
         run: mise run test:live
+        env:
+          MTG_MCP_TOPDECK_API_KEY: ${{ secrets.TOPDECK_API_KEY }}
 
   build:
     runs-on: ubuntu-latest

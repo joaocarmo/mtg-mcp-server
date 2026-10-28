@@ -51,6 +51,7 @@ ATTRIBUTION_17LANDS = "\n\n*Data provided by [17Lands](https://www.17lands.com)*
 ATTRIBUTION_EDHREC = "\n\n*Data provided by [EDHREC](https://edhrec.com)*"
 ATTRIBUTION_MTGGOLDFISH = "\n\n*Data provided by [MTGGoldfish](https://www.mtggoldfish.com)*"
 ATTRIBUTION_MOXFIELD = "\n\n*Data provided by [Moxfield](https://www.moxfield.com)*"
+ATTRIBUTION_TOPDECK = "\n\n*Data provided by [TopDeck.gg](https://topdeck.gg)*"
 
 
 def format_legalities(legalities: dict[str, str]) -> str:
