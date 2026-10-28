@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2026-10-28
+
+v5.2.0 adds a TopDeck.gg backend for paper tournament results and the cEDH metagame.
+
 ### Added
 - TopDeck.gg backend with 4 tools: `topdeck_search_tournaments`, `topdeck_tournament`, `topdeck_player_deck` and `topdeck_metagame`. They give completed tournament results, standings, decklists and the commander or archetype metagame with top-cut conversion. The tools appear only when `MTG_MCP_TOPDECK_API_KEY` is set; keys are free from the [TopDeck.gg developer portal](https://topdeck.gg/developers).
+
+[5.2.0]: https://github.com/joaocarmo/mtg-mcp-server/compare/v5.1.3...v5.2.0
 
 ## [5.1.3] - 2026-10-27
 
