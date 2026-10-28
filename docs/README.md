@@ -5,7 +5,7 @@ Technical reference for the MTG MCP server. For installation and usage, see the 
 | Document | What it covers |
 |----------|----------------|
 | [COOKBOOK.md](COOKBOOK.md) | Usage recipes with real example output |
-| [TOOL_DESIGN.md](TOOL_DESIGN.md) | Every tool, prompt, and resource template with inputs/outputs |
+| [TOOL_DESIGN.md](TOOL_DESIGN.md) | Every tool, prompt and resource template with inputs and outputs |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture, FastMCP patterns, project structure, decisions log |
 | [SERVICE_CONTRACTS.md](SERVICE_CONTRACTS.md) | Per-backend endpoints, auth, rate limits, response quirks, feature flags |
 | [DATA_SOURCES.md](DATA_SOURCES.md) | Data sources evaluated, stability, status |

@@ -1,6 +1,6 @@
-# MTG MCP Server — Caching Design
+# MTG MCP Server: Caching Design
 
-Two layers: per-method **TTL caches** on every service method (deduplicate repeated calls within a session) and **Scryfall bulk data** (cold-start and rate-limit-free card data).
+2 layers: per-method **TTL caches** on every service method (deduplicate repeated calls within a session) and **Scryfall bulk data** (cold-start and rate-limit-free card data).
 
 ## TTL caches
 
@@ -18,7 +18,7 @@ Each service method gets a class-level `cachetools.TTLCache` through `@async_cac
 - `_decklist_key` converts positional and keyword `list` args to tuples (lists are unhashable). Spellbook's POST methods use it: they are read-only queries, so caching them is correct.
 
 **Lifecycle:**
-- Caches are class-level. Each client is a lifespan singleton, so this is effectively per-instance.
+- Caches are class-level, so every instance of a client shares them. The `scryfall_` provider and the workflow lifespan each create a `ScryfallClient`, and both use the same caches.
 - Caches live for the server's lifetime; nothing is persisted, and a cold start costs one call per unique query.
 - Disabled backends never populate their caches.
 - `MTG_MCP_DISABLE_CACHE=true` calls `disable_all_caches()`, a module-level kill switch that turns `@async_cached` into a no-op.
@@ -61,9 +61,9 @@ TTLs are hardcoded class constants because they reflect upstream data staleness,
 
 Service details (lazy download, layout filtering, 12h background refresh, stale-on-failure): [SERVICE_CONTRACTS.md](SERVICE_CONTRACTS.md#scryfall-bulk-data). Behind `MTG_MCP_ENABLE_BULK_DATA`.
 
-It's used in three ways:
+It's used in 3 ways:
 1. The `bulk_` provider: rate-limit-free lookup, search, legality, staples, ban lists, similar and random cards.
-2. A separate `ScryfallBulkClient` instance in the workflow lifespan.
+2. The workflow lifespan, which shares the `bulk_` provider's client. Run alone, the workflow server creates its own.
 3. `workflows/analysis.py` (`deck_analysis`): checks bulk data first and falls back to the Scryfall API, which then populates the TTL cache.
 
 Provider-level `scryfall_` tools always hit the API (TTL-cached). When the flag is off, the provider isn't mounted and workflows go straight to the API.

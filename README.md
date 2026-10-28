@@ -1,6 +1,6 @@
 # mtg-mcp-server
 
-An MCP server that gives AI assistants Magic: The Gathering data: cards, prices, rules, combos, draft stats, Commander and constructed metagame, and deck-building tools. It runs locally over stdio. No API keys needed.
+An MCP server that gives AI assistants Magic: The Gathering data: cards, prices, rules, combos, draft stats, Commander and constructed metagame, and deck-building tools. It runs locally over stdio. It works without an API key; only the optional TopDeck.gg tools need one.
 
 ## Install
 
@@ -31,6 +31,16 @@ claude mcp add mtg -- uvx --from git+https://github.com/joaocarmo/mtg-mcp-server
 git clone https://github.com/joaocarmo/mtg-mcp-server.git
 claude mcp add mtg -- uv run --directory /path/to/mtg-mcp-server mtg-mcp-server
 ```
+
+## Update
+
+uvx caches the build, so it keeps running the version it first installed. To get the latest `main`, run:
+
+```bash
+uvx --refresh --from git+https://github.com/joaocarmo/mtg-mcp-server mtg-mcp-server
+```
+
+This starts the server, which then waits for input. Stop it with Ctrl-C and restart your MCP client. From a clone, run `git pull` instead.
 
 ## Configuration
 

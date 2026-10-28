@@ -1,4 +1,4 @@
-# MTG MCP Server — Architecture
+# MTG MCP Server: Architecture
 
 A unified MCP server that exposes Magic: The Gathering data to AI assistants. Each data source is its own FastMCP sub-server, mounted on one orchestrator under a namespace. Workflow tools combine several sources and are mounted without a namespace.
 
@@ -11,9 +11,9 @@ A unified MCP server that exposes Magic: The Gathering data to AI assistants. Ea
 ```
 MCP client (Claude Code / Desktop / any) ── stdio
                      │
-        MTG Orchestrator — FastMCP("MTG"): 61 tools (65 with a TopDeck key), 18 prompts, 5 resources
+        MTG Orchestrator: FastMCP("MTG"): 61 tools (65 with a TopDeck key), 18 prompts, 5 resources
                      │
-   ├── Workflows (no namespace) — commander, draft/limited, deck building,
+   ├── Workflows (no namespace): commander, draft/limited, deck building,
    │     constructed/metagame, sideboard, rules engine (see TOOL_DESIGN.md)
    ├── scryfall_   → api.scryfall.com            card data, prices, rulings, sets
    ├── bulk_       → Scryfall Oracle bulk file    rate-limit-free lookup/search
@@ -48,7 +48,7 @@ src/mtg_mcp_server/
 ├── config.py        # Settings (pydantic-settings, MTG_MCP_ prefix)
 ├── types.py         # Shared Pydantic models (services return, tools consume)
 ├── logging.py
-├── services/        # Async API clients — NO MCP awareness. base.py, cache.py, one file per backend
+├── services/        # Async API clients with NO MCP awareness. base.py, cache.py, one file per backend
 ├── providers/       # One FastMCP sub-server per backend, independently runnable.
 │                    #   __init__.py: TOOL_ANNOTATIONS, tag constants, ATTRIBUTION_* strings
 ├── utils/           # Pure helpers: color identity, decklist parsing, format rules, formatters,
