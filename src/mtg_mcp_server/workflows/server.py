@@ -378,7 +378,7 @@ async def budget_upgrade(
     """Suggest budget-friendly upgrades for a commander deck.
 
     Ranks EDHREC staples by synergy-per-dollar within the given budget ceiling.
-    Requires EDHREC (for staples) and Scryfall (for prices).
+    Requires EDHREC (for staples). Prices come from bulk data when enabled, else Scryfall.
     """
     if not commander_name.strip():
         raise ToolError("Commander name cannot be empty.")
@@ -393,6 +393,7 @@ async def budget_upgrade(
             num_suggestions=num_suggestions,
             scryfall=_require(_scryfall, "ScryfallClient"),
             edhrec=_require(_edhrec, "EDHREC", "MTG_MCP_ENABLE_EDHREC"),
+            bulk=_bulk,
             on_progress=partial(_progress, ctx),
             response_format=response_format,
         ),

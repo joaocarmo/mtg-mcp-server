@@ -15,12 +15,14 @@ import structlog
 
 from mtg_mcp_server.utils.slim import slim_card, slim_combo, slim_edhrec_card
 from mtg_mcp_server.workflows import WorkflowResult
+from mtg_mcp_server.workflows.analysis import _resolve_cards
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from mtg_mcp_server.services.edhrec import EDHRECClient
     from mtg_mcp_server.services.scryfall import ScryfallClient
+    from mtg_mcp_server.services.scryfall_bulk import ScryfallBulkClient
     from mtg_mcp_server.services.spellbook import SpellbookClient
     from mtg_mcp_server.types import Card, Combo, EDHRECCard, EDHRECCommanderData
 
@@ -680,13 +682,14 @@ async def budget_upgrade(
     num_suggestions: int = 10,
     scryfall: ScryfallClient,
     edhrec: EDHRECClient | None,
+    bulk: ScryfallBulkClient | None = None,
     on_progress: Callable[[int, int], Awaitable[None]] | None = None,
     response_format: Literal["detailed", "concise"] = "detailed",
 ) -> WorkflowResult:
     """Suggest budget-friendly upgrades ranked by synergy-per-dollar.
 
-    Fetches EDHREC staples for the commander, looks up Scryfall prices,
-    then ranks affordable cards by synergy/$.
+    Fetches EDHREC staples for the commander, looks up prices in bulk data
+    (falling back to Scryfall per card), then ranks affordable cards by synergy/$.
 
     Args:
         commander_name: The commander to find upgrades for.
@@ -694,6 +697,7 @@ async def budget_upgrade(
         num_suggestions: Number of top suggestions to return.
         scryfall: Initialized ScryfallClient.
         edhrec: Initialized EDHRECClient, or None if disabled.
+        bulk: Initialized ScryfallBulkClient, or None if disabled.
         on_progress: Optional callback for progress reporting.
 
     Returns:
@@ -731,30 +735,18 @@ async def budget_upgrade(
             data={"commander_name": commander_name, "budget": budget, "suggestions": []},
         )
 
-    # Step 2/2: Fetch Scryfall prices in parallel
+    # Step 2/2: Fetch prices, bulk data first (one live call per staple trips Scryfall's 429s)
     if on_progress is not None:
         await on_progress(2, 2)
 
-    # Limit concurrent Scryfall requests to avoid overwhelming the connection pool.
-    sem = asyncio.Semaphore(10)
+    priced, failed = await _resolve_cards(
+        [(1, ecard.name) for ecard in all_edhrec_cards], bulk=bulk, scryfall=scryfall
+    )
+    price_failures = len(failed)
 
-    async def _fetch_price(name: str) -> Card:
-        """Fetch a single card's price with concurrency limiting."""
-        async with sem:
-            return await scryfall.get_card_by_name(name)
-
-    price_tasks = [_fetch_price(ecard.name) for ecard in all_edhrec_cards]
-    price_results = await asyncio.gather(*price_tasks, return_exceptions=True)
-
-    # Build candidates: pair EDHREC data with Scryfall prices
+    # Build candidates: pair EDHREC data with prices. Unresolved cards have no price.
     candidates: list[tuple[EDHRECCard, float, float]] = []  # (edhrec, price, synergy_per_dollar)
-    price_failures = 0
-    for ecard, price_result in zip(all_edhrec_cards, price_results, strict=True):
-        if isinstance(price_result, BaseException):
-            log.debug("budget_upgrade.price_failed", card=ecard.name, error=str(price_result))
-            price_failures += 1
-            continue
-        scryfall_card: Card = price_result
+    for ecard, scryfall_card in zip(all_edhrec_cards, priced, strict=True):
         if scryfall_card.prices.usd is None:
             continue
         price = float(scryfall_card.prices.usd)
