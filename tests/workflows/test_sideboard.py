@@ -342,6 +342,18 @@ class TestClassifyArchetypeStrategy:
     def test_more_archetype_keywords(self, name: str, strategy: str) -> None:
         assert _classify_archetype_strategy(name) == strategy
 
+    @pytest.mark.parametrize(
+        ("name", "strategy"),
+        [
+            ("Esper Midrange", "midrange"),
+            ("UW Tempo", "tempo"),
+            ("Esper Combo", "combo"),
+            ("Esper", "control"),
+        ],
+    )
+    def test_strategy_word_beats_color_keywords(self, name: str, strategy: str) -> None:
+        assert _classify_archetype_strategy(name) == strategy
+
 
 # ===========================================================================
 # suggest_sideboard tests
