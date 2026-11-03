@@ -766,6 +766,32 @@ class TestBudgetUpgrade:
         progress.assert_any_await(1, 2)
         progress.assert_any_await(2, 2)
 
+    async def test_prices_from_bulk_skip_scryfall(
+        self,
+        scryfall: AsyncMock,
+        edhrec: AsyncMock,
+        mock_edhrec_data: EDHRECCommanderData,
+        spore_frog: Card,
+    ) -> None:
+        """Bulk data prices every staple, so no live Scryfall call is made."""
+        edhrec.commander_top_cards = AsyncMock(return_value=mock_edhrec_data)
+        names = [c.name for cl in mock_edhrec_data.cardlists for c in cl.cardviews]
+        bulk = AsyncMock()
+        bulk.get_cards = AsyncMock(
+            return_value={n: spore_frog.model_copy(update={"name": n}) for n in names}
+        )
+
+        result = await budget_upgrade(
+            COMMANDER_NAME,
+            budget=5.00,
+            scryfall=scryfall,
+            edhrec=edhrec,
+            bulk=bulk,
+        )
+
+        scryfall.get_card_by_name.assert_not_awaited()
+        assert len(result.data["suggestions"]) == len(names)
+
     async def test_num_suggestions_limit(
         self,
         scryfall: AsyncMock,
