@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - A bulk data download with a damaged gzip body now fails with a bulk data error. Before, the raw `zlib.error` escaped, so a failed refresh did not fall back to the cached cards.
+- Board wipes include "each creature gets -X/-X" (The Meathook Massacre). `sideboard_guide` and `sideboard_matrix` mark such cards IN against aggro, and `suggest_sideboard` searches find them.
 
 ## [5.2.0] - 2026-10-28
 

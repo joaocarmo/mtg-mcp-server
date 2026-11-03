@@ -82,6 +82,7 @@ SIDEBOARD_CATEGORIES: dict[str, dict[str, list[str]]] = {
         "text_any": [
             "destroy all creatures",
             "all creatures get -",
+            "each creature gets -",
             "exile all creatures",
             "damage to each creature",
         ],

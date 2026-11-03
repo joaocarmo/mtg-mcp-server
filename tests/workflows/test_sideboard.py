@@ -424,6 +424,15 @@ class TestCardAddressesMatchupColors:
         verdict = _card_addresses_matchup(PYROCLASM, "aggro", matchup_colors=frozenset())
         assert verdict == "IN"
 
+    def test_each_creature_gets_minus_wipe_in_vs_aggro(self) -> None:
+        card = _mock_card(
+            "The Meathook Massacre",
+            oracle_text="When The Meathook Massacre enters, each creature gets -X/-X until end of turn.",
+            type_line="Legendary Enchantment",
+        )
+        verdict = _card_addresses_matchup(card, "aggro", matchup_colors=frozenset({"R"}))
+        assert verdict == "IN"
+
 
 class TestSuggestSideboardSuccess:
     """suggest_sideboard with bulk data only (no MTGGoldfish)."""
