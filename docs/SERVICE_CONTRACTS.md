@@ -42,6 +42,7 @@ Docs: https://scryfall.com/docs/api/bulk-data. `/bulk-data` lists the files; the
 
 `ScryfallBulkClient` (file-based):
 - Downloads lazily on first access, not at startup.
+- Reads `jsonl_download_uri` (gzipped JSONL, one card per line) and falls back to the legacy `download_uri` (plain JSON array). The format comes from the gzip magic bytes, not the URL. Scryfall serves the file as `application/gzip` without `Content-Encoding`, so httpx does not decompress it.
 - Parses into a `dict[str, Card]` keyed by lowercase name.
 - Filters out non-playable layouts (art_series, token, double_faced_token, emblem, vanguard, planar, scheme, augment, host) so they can't overwrite real cards.
 - Refreshes in the background every `BULK_DATA_REFRESH_HOURS` (12h); if a refresh fails, it keeps serving the stale data.
