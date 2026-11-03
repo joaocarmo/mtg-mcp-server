@@ -82,6 +82,7 @@ SIDEBOARD_CATEGORIES: dict[str, dict[str, list[str]]] = {
         "text_any": [
             "destroy all creatures",
             "all creatures get -",
+            "each creature gets -",
             "exile all creatures",
             "damage to each creature",
         ],
@@ -225,6 +226,11 @@ def _classify_archetype_strategy(matchup: str) -> str:
         ],
         "tempo": ["tempo", "delver", "murktide", "faeries"],
     }
+
+    # An explicit strategy word beats color and guild keywords ("Esper Midrange").
+    for strategy in ("aggro", "control", "midrange", "combo", "tempo"):
+        if strategy in matchup_lower:
+            return strategy
 
     for strategy, keywords in strategy_keywords.items():
         for kw in keywords:

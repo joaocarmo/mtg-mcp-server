@@ -342,6 +342,18 @@ class TestClassifyArchetypeStrategy:
     def test_more_archetype_keywords(self, name: str, strategy: str) -> None:
         assert _classify_archetype_strategy(name) == strategy
 
+    @pytest.mark.parametrize(
+        ("name", "strategy"),
+        [
+            ("Esper Midrange", "midrange"),
+            ("UW Tempo", "tempo"),
+            ("Esper Combo", "combo"),
+            ("Esper", "control"),
+        ],
+    )
+    def test_strategy_word_beats_color_keywords(self, name: str, strategy: str) -> None:
+        assert _classify_archetype_strategy(name) == strategy
+
 
 # ===========================================================================
 # suggest_sideboard tests
@@ -422,6 +434,15 @@ class TestCardAddressesMatchupColors:
 
     def test_pyroclasm_in_vs_aggro(self) -> None:
         verdict = _card_addresses_matchup(PYROCLASM, "aggro", matchup_colors=frozenset())
+        assert verdict == "IN"
+
+    def test_each_creature_gets_minus_wipe_in_vs_aggro(self) -> None:
+        card = _mock_card(
+            "The Meathook Massacre",
+            oracle_text="When The Meathook Massacre enters, each creature gets -X/-X until end of turn.",
+            type_line="Legendary Enchantment",
+        )
+        verdict = _card_addresses_matchup(card, "aggro", matchup_colors=frozenset({"R"}))
         assert verdict == "IN"
 
 

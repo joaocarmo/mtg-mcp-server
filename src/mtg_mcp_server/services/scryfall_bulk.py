@@ -26,6 +26,7 @@ import json
 import random
 import sys
 import time
+import zlib
 from typing import TYPE_CHECKING, Self
 
 import httpx
@@ -454,7 +455,7 @@ class ScryfallBulkClient:
         if raw_bytes[:2] == b"\x1f\x8b":
             try:
                 raw_bytes = gzip.decompress(raw_bytes)
-            except (OSError, EOFError) as exc:
+            except (OSError, EOFError, zlib.error) as exc:
                 raise ScryfallBulkError(f"Failed to decompress bulk data: {exc}") from exc
 
         try:

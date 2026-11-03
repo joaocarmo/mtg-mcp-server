@@ -1153,3 +1153,17 @@ class TestJsonlBulkData:
             async with client:
                 with pytest.raises(ScryfallBulkError, match="decompress"):
                     await client.ensure_loaded()
+
+    async def test_damaged_gzip_body_raises(self):
+        """A valid gzip header with a damaged deflate stream raises ScryfallBulkError."""
+        damaged = bytearray(_oracle_cards_jsonl_gz_bytes())
+        damaged[20] ^= 0xFF
+
+        with respx.mock:
+            _mock_metadata_route(respx, metadata=_load_jsonl_metadata())
+            _mock_download_route(respx, url=_JSONL_DOWNLOAD_URL, content=bytes(damaged))
+
+            client = ScryfallBulkClient(base_url=_BASE_URL)
+            async with client:
+                with pytest.raises(ScryfallBulkError, match="decompress"):
+                    await client.ensure_loaded()
