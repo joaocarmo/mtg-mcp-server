@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A bulk data download with a damaged gzip body now fails with a bulk data error. Before, the raw `zlib.error` escaped, so a failed refresh did not fall back to the cached cards.
+
 ## [5.2.0] - 2026-10-28
 
 v5.2.0 adds a TopDeck.gg backend for paper tournament results and the cEDH metagame.
